@@ -987,7 +987,7 @@
   </div>
   <div id="player-del-msg" class="mb16"></div>
 
-  <div style="display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start;">
+  <div id="players-grid" style="display:grid;grid-template-columns:320px 1fr;gap:20px;align-items:start;">
     <div class="edit-only">
       <div class="card">
         <div class="card-title"><span class="icon">&#43;</span> Add Player</div>
@@ -1040,7 +1040,11 @@
     </div>
 
     <div class="card">
-      <div class="card-title"><span class="icon">&#128101;</span> Squad</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:0;"><span class="icon">&#128101;</span> Squad</div>
+        <input type="text" id="player-search" placeholder="Search players..." oninput="renderPlayers()"
+               style="width:200px;padding:4px 10px;font-size:12px;border:1px solid #ccc;border-radius:4px;">
+      </div>
       <div class="table-wrap">
         <table class="data-table">
           <thead><tr><th style="width:32px;"><input type="checkbox" id="chk-all-players" onclick="toggleAllPlayers(this)" title="Select all"></th><th>Name</th><th>Matches</th><th>Runs</th><th>Wickets</th></tr></thead>
@@ -3113,7 +3117,8 @@ function renderPlayers() {
   selectedPlayerIdx = null;
   document.getElementById('player-del-msg').innerHTML = '';
   populatePlayerManageSelects();
-  const rows = db.players.map((p, idx) => {
+  const search = (document.getElementById('player-search')?.value||'').toLowerCase().trim();
+  const rows = db.players.filter(p => !search || p.name.toLowerCase().includes(search)).map((p, idx) => {
     const runs  = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM).reduce((s,r)=>s+r.runs,0);
     const wkts  = db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM).reduce((s,r)=>s+r.wickets,0);
     const m     = new Set([
@@ -3271,6 +3276,8 @@ function setReadOnlyMode(on) {
   _isReadOnly = on;
   document.querySelectorAll('.nav-edit-only, .edit-only').forEach(el => el.style.display = on ? 'none' : '');
   document.body.classList.toggle('read-only-mode', on);
+  const grid = document.getElementById('players-grid');
+  if (grid) grid.style.gridTemplateColumns = on ? '1fr' : '320px 1fr';
 }
 
 

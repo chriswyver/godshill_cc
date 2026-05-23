@@ -4948,7 +4948,7 @@ function drawBowlYearChart(bowlSpells, svgId) {
     avg:   { col:'#e74c3c', label:'Avg',   fmt:v=>v.toFixed(1),
              pts: years.flatMap(y=>{ const {wkts,runs}=ym[y]; return wkts>0?[{y,v:runs/wkts}]:[]; }) },
     sr:    { col:'#9b59b6', label:'SR',    fmt:v=>v.toFixed(1),
-             pts: years.flatMap(y=>{ const {wkts,balls}=ym[y]; return balls>0?[{y,v:balls/Math.max(wkts,1)}]:[]; }) },
+             pts: years.flatMap(y=>{ const {wkts,balls}=ym[y]; return (balls>0&&wkts>0)?[{y,v:balls/wkts}]:[]; }) },
     econ:  { col:'#c8922a', label:'Econ',  fmt:v=>v.toFixed(2),
              pts: years.flatMap(y=>{ const {balls,runs}=ym[y]; return balls>0?[{y,v:runs/(balls/6)}]:[]; }) },
     overs: { col:'#27ae60', label:'Overs', fmt:v=>ballsToOvers(Math.round(v)),

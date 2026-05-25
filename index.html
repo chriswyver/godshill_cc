@@ -1827,10 +1827,11 @@ function ovsStep(el, pfx, direction) {
     : Math.max(totalBalls - 1, 0);
   const ovs   = Math.floor(totalBalls / 6);
   const balls = totalBalls % 6;
-  el.value = balls > 0 ? ovs + '.' + balls : (totalBalls > 0 ? ovs + '.0' : ovs > 0 ? ovs + '' : '');
+  el.value = ovs + '.' + balls;
   clampOvers(el);
   bwUpdate(pfx);
 }
+
 function ovsKeydown(e, el, pfx) {
   if (e.key === 'ArrowUp')   { e.preventDefault(); ovsStep(el, pfx, +1); }
   if (e.key === 'ArrowDown') { e.preventDefault(); ovsStep(el, pfx, -1); }
@@ -1929,6 +1930,13 @@ function runValidation() {
       warn(`${lbl}: No fielder recorded for ${r.player} (${r.how_out}).`));
     bdf.filter(r=>r.runs<0).forEach(r=>
       err(`${lbl}: Negative runs for ${r.player}.`));
+
+    // Check for invalid overs (balls digit 6-9)
+    wdf.forEach(r => {
+      const parts = String(r.overs||'').split('.');
+      const balls = parts.length > 1 ? parseInt(parts[1]) : 0;
+      if (balls >= 6) warn(`${lbl}: ${r.player} has invalid overs (${r.overs}) — balls digit must be 0–5.`);
+    });
   });
 
   const icons = {ok:'&#10003;', warn:'&#9888;', err:'&#10007;'};
@@ -2288,7 +2296,7 @@ function renderHomeTopBat(filter) {
   });
   const topBat = Object.entries(batMap).map(([p,s])=>({
     p, inns:s.inns, runs:s.runs,
-    avg: s.inns-s.no>0 ? (s.runs/(s.inns-s.no)).toFixed(1) : s.runs.toFixed(1)
+    avg: s.inns-s.no>0 ? (s.runs/(s.inns-s.no)).toFixed(1) : '-'
   })).sort((a,b)=>b.runs-a.runs).slice(0,5);
   document.getElementById('tbody-top-bat').innerHTML = topBat.length
     ? topBat.map(r=>`<tr><td>${playerLink(r.p)}</td><td class="num">${r.inns}</td><td class="num">${r.runs}</td><td class="num">${r.avg}</td></tr>`).join('')
@@ -3014,7 +3022,7 @@ function renderStats() {
   const batRows = Object.entries(bMap).map(([p,b])=>({
     p, inns:b.inns, no:b.no, runs:b.runs,
     hs: b.hs + (b.hsNotOut ? '*' : ''),
-    avg: b.inns-b.no>0 ? (b.runs/(b.inns-b.no)).toFixed(2) : b.runs.toFixed(2),
+    avg: b.inns-b.no>0 ? (b.runs/(b.inns-b.no)).toFixed(2) : '-',
     f50:b.f50, f100:b.f100, ducks:b.ducks
   })).sort((a,b)=>b.runs-a.runs);
   const minBatType   = document.getElementById('stats-min-bat')?.value   || '';
@@ -3533,7 +3541,7 @@ function renderProfile() {
     .sort((a,b)=>parseInt(a[0])-parseInt(b[0]))
     .map(([pos,pm])=>({
       pos, inns:pm.inns, runs:pm.runs, hs:pm.hs, hsNo:pm.hsNo,
-      avg: pm.inns-pm.no>0 ? (pm.runs/(pm.inns-pm.no)).toFixed(2) : pm.runs.toFixed(2)
+      avg: pm.inns-pm.no>0 ? (pm.runs/(pm.inns-pm.no)).toFixed(2) : '-'
     }));
   const posTableEl = document.getElementById('tbody-profile-pos');
   if (posTableEl) {
@@ -4852,15 +4860,18 @@ function _dot(x, y, col, tip) {
 function _bar(cx, bw, by, bh, col, tip) {
   return `<rect x="${(cx-bw/2).toFixed(1)}" y="${by.toFixed(1)}" width="${bw.toFixed(1)}" height="${bh.toFixed(1)}" fill="${col}" rx="2" opacity="0.85"><title>${tip}</title></rect>`;
 }
-function _grid(W, H, PAD, maxL, ticksL, maxR, colR, years) {
+function _grid(W, H, PAD, maxL, ticksL, maxR, colR, years, axisRFmt) {
   const cw=W-PAD.l-PAD.r, ch=H-PAD.t-PAD.b, gap=cw/years.length;
   let out = '';
   for (let i=0; i<=ticksL; i++) {
     const yy = PAD.t + ch*(1-i/ticksL);
     out += `<line x1="${PAD.l}" y1="${yy.toFixed(1)}" x2="${W-PAD.r}" y2="${yy.toFixed(1)}" stroke="#eee" stroke-width="1"/>`;
     out += `<text x="${PAD.l-6}" y="${(yy+4).toFixed(1)}" text-anchor="end" font-size="10" fill="#888">${Math.round((i/ticksL)*maxL)}</text>`;
-    if (maxR !== null && colR)
-      out += `<text x="${W-PAD.r+6}" y="${(yy+4).toFixed(1)}" text-anchor="start" font-size="10" fill="${colR}">${((i/ticksL)*maxR).toFixed(maxR<20?1:0)}</text>`;
+    if (maxR !== null && colR) {
+      const rv = (i/ticksL)*maxR;
+      const label = axisRFmt ? axisRFmt(rv) : rv.toFixed(maxR<20?1:0);
+      out += `<text x="${W-PAD.r+6}" y="${(yy+4).toFixed(1)}" text-anchor="start" font-size="10" fill="${colR}">${label}</text>`;
+    }
   }
   years.forEach((y,i) => {
     const cx = PAD.l + gap*i + gap/2;
@@ -4892,8 +4903,8 @@ function drawRunsYearChart(batInnings, svgId) {
   const W=900,H=220,PAD={t:30,b:40,l:55,r:55};
   const cw=W-PAD.l-PAD.r,ch=H-PAD.t-PAD.b,gap=cw/years.length;
   const maxR=Math.max(1,...years.map(y=>ym[y].runs));
-  const avgs=years.map(y=>{const {runs,inns,no}=ym[y];return(inns-no)>0?runs/(inns-no):runs;});
-  const maxA=Math.max(1,...avgs);
+  const avgs=years.map(y=>{const {runs,inns,no}=ym[y];return(inns-no)>0?runs/(inns-no):null;});
+  const maxA=Math.max(1,...avgs.filter(v=>v!==null));
 
   let out=_grid(W,H,PAD,maxR,5,maxA,'#c8922a',years);
   const aPts=[];
@@ -4901,9 +4912,11 @@ function drawRunsYearChart(batInnings, svgId) {
     const cx=PAD.l+gap*i+gap/2;
     const bh=(ym[y].runs/maxR)*ch;
     out+=_bar(cx,Math.min(40,gap*0.55),PAD.t+ch-bh,bh,'#2e5c38',`${y}: ${ym[y].runs} runs`);
-    const ay=PAD.t+ch-(avgs[i]/maxA)*ch;
-    aPts.push([cx,ay]);
-    out+=_dot(cx,ay,'#c8922a',`${y}: avg ${avgs[i].toFixed(2)}`);
+    if(avgs[i]!==null){
+      const ay=PAD.t+ch-(avgs[i]/maxA)*ch;
+      aPts.push([cx,ay]);
+      out+=_dot(cx,ay,'#c8922a',`${y}: avg ${avgs[i].toFixed(2)}`);
+    }
   });
   out+=_linePath(aPts,'#c8922a');
   out+=`<text x="${PAD.l-40}" y="${PAD.t+ch/2}" text-anchor="middle" font-size="11" fill="#555" transform="rotate(-90,${PAD.l-40},${PAD.t+ch/2})">Runs</text>`;
@@ -4957,7 +4970,8 @@ function drawBowlYearChart(bowlSpells, svgId) {
   const active = LINES[_bowlLineMode] || LINES.avg;
   const maxLine = active.pts.length ? Math.max(1,...active.pts.map(d=>d.v)) : 1;
 
-  let out = _grid(W,H,PAD,maxW,5,maxLine,active.col,years);
+  const axFmt = _bowlLineMode==='overs' ? v=>ballsToOvers(Math.round(v)) : null;
+  let out = _grid(W,H,PAD,maxW,5,maxLine,active.col,years,axFmt);
 
   const yearX = y => { const i=years.indexOf(y); return PAD.l+gap*i+gap/2; };
   const lineY  = v => PAD.t+ch-(v/maxLine)*ch;

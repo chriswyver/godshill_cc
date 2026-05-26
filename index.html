@@ -2329,7 +2329,7 @@ function renderHomeFiltered() {
     [wins,               'Wins'],
     [losses,             'Losses'],
     [runs,               'Total Runs'],
-    [db.players.length,  'Players'],
+    [new Set(db.batting.filter(r=>r.team===OUR_TEAM && filtMids.has(r.match_id)).map(r=>r.player)).size, 'Players Used'],
   ].map(([v,l]) => `<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
 
   renderHomeTopBat(_homeFilter);

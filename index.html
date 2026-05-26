@@ -2262,28 +2262,6 @@ function setHomeSeason(which, mode, year) { setHomeGlobalSeason(mode, year); }
 function setHomeTypeFilter(which, filter) { setHomeGlobalType(filter); }
 
 function renderHome() {
-  const wins   = db.matches.filter(m=>m.result==='Won').length;
-  const losses = db.matches.filter(m=>m.result==='Lost').length;
-  const batRuns = db.batting.filter(r=>r.team===OUR_TEAM).reduce((s,r)=>s+r.runs,0);
-  const extRuns = db.matches.reduce((s,m)=>{
-    const e1 = m.extras_i1||{}; const e2 = m.extras_i2||{};
-    // add extras only from Godshill innings
-    const addIfOurs = (e, batFirst, inn) => {
-      const isOurs = (inn===1 && batFirst===OUR_TEAM) || (inn===2 && batFirst!==OUR_TEAM);
-      return isOurs ? (e.b||0)+(e.lb||0)+(e.w||0)+(e.nb||0)+(e.p||0) : 0;
-    };
-    return s + addIfOurs(e1, m.bat_first, 1) + addIfOurs(e2, m.bat_first, 2);
-  }, 0);
-  const runs = batRuns + extRuns;
-
-  document.getElementById('home-stats').innerHTML = [
-    [db.matches.length, 'Matches Played'],
-    [wins,              'Wins'],
-    [losses,            'Losses'],
-    [runs,              'Total Runs'],
-    [db.players.length, 'Players'],
-  ].map(([v,l]) => `<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
-
   renderHomeRecent();
   populateSeasonDropdowns();
   renderHomeFiltered();
@@ -2323,6 +2301,37 @@ function _updateHomeTypeBtns(which, filter) {} // legacy no-op
 function setHomeFilter(which, filter) { setHomeGlobalType(filter); }
 
 function renderHomeFiltered() {
+  // Build filtered match set
+  const year   = _homeYear;
+  const filter = _homeFilter;
+  let filtMatches = db.matches;
+  if (year)            filtMatches = filtMatches.filter(m=>(m.date||'').startsWith(year));
+  if (filter !== 'all') filtMatches = filtMatches.filter(m=>matchesTypeFilter(m.format, filter));
+  const filtMids = new Set(filtMatches.map(m=>m.id));
+
+  // Stat boxes
+  const wins   = filtMatches.filter(m=>m.result==='Won').length;
+  const losses = filtMatches.filter(m=>m.result==='Lost').length;
+  const batRuns = db.batting.filter(r=>r.team===OUR_TEAM && filtMids.has(r.match_id))
+                            .reduce((s,r)=>s+r.runs,0);
+  const extRuns = filtMatches.reduce((s,m)=>{
+    const e1 = m.extras_i1||{}; const e2 = m.extras_i2||{};
+    const addIfOurs = (e, batFirst, inn) => {
+      const isOurs = (inn===1 && batFirst===OUR_TEAM) || (inn===2 && batFirst!==OUR_TEAM);
+      return isOurs ? (e.b||0)+(e.lb||0)+(e.w||0)+(e.nb||0)+(e.p||0) : 0;
+    };
+    return s + addIfOurs(e1, m.bat_first, 1) + addIfOurs(e2, m.bat_first, 2);
+  }, 0);
+  const runs = batRuns + extRuns;
+
+  document.getElementById('home-stats').innerHTML = [
+    [filtMatches.length, 'Matches Played'],
+    [wins,               'Wins'],
+    [losses,             'Losses'],
+    [runs,               'Total Runs'],
+    [db.players.length,  'Players'],
+  ].map(([v,l]) => `<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
+
   renderHomeTopBat(_homeFilter);
   renderHomeTopBowl(_homeFilter);
   renderHomeRecent();

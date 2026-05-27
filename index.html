@@ -1104,9 +1104,19 @@
 
 <!-- ═══════════════════════════════════════ PLAYERS ═══════ -->
 <div id="page-players" class="page">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
     <div><h2>Player Register</h2><p class="muted">Godshill squad.</p></div>
     <button class="btn btn-danger btn-sm edit-only" onclick="deleteCheckedPlayers()">&#128465; Delete Selected</button>
+  </div>
+  <div class="card" style="padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+    <span style="font-size:12px;color:var(--ink-muted);margin-right:2px;">Season:</span>
+    <button id="preg-season-btn" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setPlayerRegSeason('current')">This Season</button>
+    <button id="preg-all-btn"    class="btn btn-primary  btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setPlayerRegSeason('all')">All Time</button>
+    <select id="preg-year-sel" class="season-sel" onchange="setPlayerRegSeason('year',this.value)" style="font-size:12px;padding:3px 6px;width:80px;"><option value="">Year…</option></select>
+    <span style="width:1px;height:20px;background:var(--green-pale);margin:0 4px;"></span>
+    <span style="font-size:12px;color:var(--ink-muted);margin-right:2px;">Type:</span>
+    <button id="preg-type-all-btn" class="btn btn-primary  btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setPlayerRegType('all')">All</button>
+    <button id="preg-type-hcl-btn" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setPlayerRegType('hcl')">HCL</button>
   </div>
   <div id="player-del-msg" class="mb16"></div>
 
@@ -1170,7 +1180,14 @@
       </div>
       <div class="table-wrap">
         <table class="data-table">
-          <thead><tr><th style="width:32px;"><input type="checkbox" id="chk-all-players" onclick="toggleAllPlayers(this)" title="Select all"></th><th>Name</th><th>Matches</th><th>Runs</th><th>Wickets</th></tr></thead>
+          <thead><tr>
+  <th style="width:32px;"><input type="checkbox" id="chk-all-players" onclick="toggleAllPlayers(this)" title="Select all"></th>
+  <th onclick="sortPlayers('name')"   style="cursor:pointer;">Name <span id="psort-name"></span></th>
+  <th onclick="sortPlayers('matches')" style="cursor:pointer;" class="num">Matches <span id="psort-matches"></span></th>
+  <th onclick="sortPlayers('runs')"   style="cursor:pointer;" class="num">Runs <span id="psort-runs"></span></th>
+  <th onclick="sortPlayers('wkts')"   style="cursor:pointer;" class="num">Wickets <span id="psort-wkts"></span></th>
+  <th onclick="sortPlayers('years')"  style="cursor:pointer;">Years Active <span id="psort-years"></span></th>
+</tr></thead>
           <tbody id="tbody-players"></tbody>
         </table>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-top:10px;flex-wrap:wrap;gap:8px;">
@@ -2189,10 +2206,12 @@ function populateSeasonDropdowns() {
     el.innerHTML = opts;
     if (cur) el.value = cur;
   });
-  // Home year dropdown
+  // Home + player register year dropdowns
   const yearOpts = '<option value="">Year…</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
   const homeYearSel = document.getElementById('home-year-sel');
   if (homeYearSel) { const cur = homeYearSel.value; homeYearSel.innerHTML = yearOpts; if (cur) homeYearSel.value = cur; }
+  const pregYearSel = document.getElementById('preg-year-sel');
+  if (pregYearSel) { const cur = pregYearSel.value; pregYearSel.innerHTML = yearOpts; if (cur) pregYearSel.value = cur; }
 }
 
 function applySeasonFilter(selId, fromId, toId, renderFn) {
@@ -3194,36 +3213,142 @@ function renderStats() {
 // ════════════════════════════════════════════════════════════
 let selectedPlayerIdx = null;
 
+// Player register sort state
+let _playerSortKey = 'name';
+let _playerSortDir = 1;
+let _playerRegYear = null; // null=all, 'YYYY'=specific year
+let _playerRegType = 'all'; // 'all' | 'hcl'
+
+function setPlayerRegType(type) {
+  _playerRegType = type;
+  const allBtn = document.getElementById('preg-type-all-btn');
+  const hclBtn = document.getElementById('preg-type-hcl-btn');
+  if (allBtn) allBtn.className = 'btn btn-sm ' + (type==='all' ? 'btn-primary' : 'btn-secondary');
+  if (hclBtn) hclBtn.className = 'btn btn-sm ' + (type==='hcl' ? 'btn-primary' : 'btn-secondary');
+  _matchPage.players = 1;
+  renderPlayers();
+}
+
+function setPlayerRegSeason(mode, year) {
+  const seasonBtn = document.getElementById('preg-season-btn');
+  const allBtn    = document.getElementById('preg-all-btn');
+  const yearSel   = document.getElementById('preg-year-sel');
+  if (mode === 'current') {
+    _playerRegYear = currentSeason();
+    if (yearSel) yearSel.value = '';
+    if (seasonBtn) seasonBtn.className = 'btn btn-primary btn-sm';
+    if (allBtn)    allBtn.className    = 'btn btn-secondary btn-sm';
+  } else if (mode === 'all') {
+    _playerRegYear = null;
+    if (yearSel) yearSel.value = '';
+    if (seasonBtn) seasonBtn.className = 'btn btn-secondary btn-sm';
+    if (allBtn)    allBtn.className    = 'btn btn-primary btn-sm';
+  } else if (mode === 'year' && year) {
+    _playerRegYear = year;
+    if (seasonBtn) seasonBtn.className = 'btn btn-secondary btn-sm';
+    if (allBtn)    allBtn.className    = 'btn btn-secondary btn-sm';
+  } else {
+    _playerRegYear = null;
+    if (seasonBtn) seasonBtn.className = 'btn btn-secondary btn-sm';
+    if (allBtn)    allBtn.className    = 'btn btn-primary btn-sm';
+  }
+  _matchPage.players = 1;
+  renderPlayers();
+}
+
+function sortPlayers(key) {
+  if (_playerSortKey === key) _playerSortDir *= -1;
+  else { _playerSortKey = key; _playerSortDir = key==='name'?1:-1; }
+  _matchPage.players = 1;
+  renderPlayers();
+}
+
+function _yearsActive(name) {
+  const mids = new Set([
+    ...db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+    ...db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+  ]);
+  const years = [...new Set([...mids].map(mid=>{
+    const m = db.matches.find(m=>m.id===mid);
+    return m ? (m.date||'').slice(0,4) : null;
+  }).filter(Boolean))].sort();
+  if (!years.length) return '';
+  // Compress into ranges e.g. 2019-2021, 2023
+  const ranges = [];
+  let start = years[0], prev = years[0];
+  for (let i=1; i<years.length; i++) {
+    if (parseInt(years[i]) === parseInt(prev)+1) { prev = years[i]; }
+    else { ranges.push(start===prev ? start : start+'–'+prev); start = prev = years[i]; }
+  }
+  ranges.push(start===prev ? start : start+'–'+prev);
+  return ranges.join(', ');
+}
+
 function renderPlayers() {
   selectedPlayerIdx = null;
   document.getElementById('player-del-msg').innerHTML = '';
   populatePlayerManageSelects();
   const search = (document.getElementById('player-search')?.value||'').toLowerCase().trim();
-  const rows = db.players.filter(p => !search || p.name.toLowerCase().includes(search)).map((p, idx) => {
-    const runs  = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM).reduce((s,r)=>s+r.runs,0);
-    const wkts  = db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM).reduce((s,r)=>s+r.wickets,0);
-    const m     = new Set([
-      ...db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM).map(r=>r.match_id),
-      ...db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM).map(r=>r.match_id),
-    ]).size;
-    return `<tr id="prow-${idx}" onclick="selectPlayer(${idx})" style="cursor:pointer;">
+
+  // Filter matches by selected year
+  const regYear = _playerRegYear;
+  const regType = _playerRegType;
+  const filtMids = (regYear || regType!=='all')
+    ? new Set(db.matches.filter(m =>
+        (!regYear || (m.date||'').startsWith(regYear)) &&
+        (regType==='all' || matchesTypeFilter(m.format, regType))
+      ).map(m=>m.id))
+    : null;
+
+  // Build data rows with stats — only count appearances in filtered matches
+  let data = db.players.filter(p => !search || p.name.toLowerCase().includes(search)).map((p, origIdx) => {
+    const bat = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
+    const bowl = db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
+    const runs  = bat.reduce((s,r)=>s+r.runs,0);
+    const wkts  = bowl.reduce((s,r)=>s+r.wickets,0);
+    const m     = new Set([...bat.map(r=>r.match_id),...bowl.map(r=>r.match_id)]).size;
+    const years = _yearsActive(p.name);
+    return { p, origIdx, runs, wkts, m, years };
+  }).filter(({m}) => !filtMids || m > 0); // hide players who didn't play in filtered period
+
+  // Sort
+  const k = _playerSortKey, d = _playerSortDir;
+  data.sort((a,b) => {
+    if (k==='name')    return d * a.p.name.localeCompare(b.p.name);
+    if (k==='matches') return d * (a.m - b.m);
+    if (k==='runs')    return d * (a.runs - b.runs);
+    if (k==='wkts')    return d * (a.wkts - b.wkts);
+    if (k==='years')   return d * a.years.localeCompare(b.years);
+    return 0;
+  });
+
+  // Update sort indicators
+  ['name','matches','runs','wkts','years'].forEach(key => {
+    const el = document.getElementById('psort-'+key);
+    if (el) el.textContent = _playerSortKey===key ? (_playerSortDir===1?' ▲':' ▼') : '';
+  });
+
+  const rows = data.map(({p, origIdx, runs, wkts, m, years}) =>
+    `<tr id="prow-${origIdx}" onclick="selectPlayer(${origIdx})" style="cursor:pointer;">
       <td style="text-align:center;" onclick="event.stopPropagation();">
-        <input type="checkbox" class="player-chk" value="${idx}">
+        <input type="checkbox" class="player-chk" value="${origIdx}">
       </td>
-      <td><a href="#" onclick="event.stopPropagation();openPlayerProfile(${idx});return false;"
+      <td><a href="#" onclick="event.stopPropagation();openPlayerProfile(${origIdx});return false;"
              style="color:var(--green-mid);font-weight:600;text-decoration:none;"
              onmouseover="this.style.textDecoration='underline'"
              onmouseout="this.style.textDecoration='none'">${esc(p.name)}</a></td>
       <td class="num">${m}</td><td class="num">${runs}</td><td class="num">${wkts}</td>
-    </tr>`;
-  });
+      <td style="font-size:12px;color:var(--ink-muted);">${years||'–'}</td>
+    </tr>`
+  );
+
   const ps = parseInt(document.getElementById('players-per-page')?.value||'50')||50;
   const psF = ps===0?rows.length||1:ps;
   const cur = _matchPage.players;
   const slice = psF>=rows.length?rows:rows.slice((cur-1)*psF, cur*psF);
   document.getElementById('tbody-players').innerHTML = slice.length
     ? slice.join('')
-    : '<tr><td colspan="5"><div class="empty-state">No players registered yet</div></td></tr>';
+    : '<tr><td colspan="6"><div class="empty-state">No players registered yet</div></td></tr>';
   _mkPager('players-pager', cur, rows.length, psF, p=>{_matchPage.players=p;renderPlayers();});
 }
 

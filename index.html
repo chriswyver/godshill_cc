@@ -810,6 +810,13 @@
     </div>
   </div>
   <div class="card">
+    <!-- Tab bar -->
+    <div class="tab-bar" style="margin-bottom:14px;border-bottom:1px solid var(--green-pale);">
+      <button class="tab-btn active" id="mtab-list-btn" onclick="showMatchesTab('list')">Match List</button>
+      <button class="tab-btn" id="mtab-h2h-btn" onclick="showMatchesTab('h2h')">Head to Head</button>
+    </div>
+    <!-- Match list tab -->
+    <div id="mtab-list">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
       <div id="matches-pager-top" style="display:flex;align-items:center;gap:8px;font-size:12px;"></div>
       <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);">Per page:
@@ -830,33 +837,123 @@
       </table>
       <div id="matches-pager" style="display:flex;align-items:center;gap:8px;font-size:12px;margin-top:8px;"></div>
     </div>
-    <div class="btn-row edit-only" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--green-pale);">
-      <button class="btn btn-danger btn-sm" onclick="deleteCheckedMatches(false)">&#128465; Delete Selected (Match + Scorecard)</button>
-      <button class="btn btn-secondary btn-sm" onclick="deleteCheckedMatches(true)">&#9999; Delete Scorecard Only</button>
-    </div>
-  </div>
 
   <!-- Export / Import -->
   <div class="card" style="margin-top:16px;">
     <div class="card-title"><span class="icon">&#128190;</span> Data Export &amp; Import</div>
-    <p class="muted" style="margin-bottom:14px;">Export a backup of all your data as a JSON file, or import a previously exported file to restore it.</p>
-    <div style="display:flex;gap:10px;align-items:flex-start;flex-wrap:wrap;">
-      <div>
-        <button class="btn btn-primary" onclick="exportData()">&#8595; Export all data</button>
-        <p class="muted" style="margin-top:4px;font-size:11px;">Downloads <code>godshill_cc_data.json</code></p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:4px;">
+      <div class="card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#8595; Export</div>
+        <p class="muted" style="font-size:11px;margin-bottom:8px;">Download all data as <code>godshill_cc_data.json</code></p>
+        <button class="btn btn-primary btn-sm" onclick="exportData()">Export all data</button>
       </div>
-      <div>
-        <span class="edit-only"><label class="btn btn-secondary" style="cursor:pointer;">
-          &#8593; Import data
+      <div class="edit-only card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#8593; Import</div>
+        <p class="muted" style="font-size:11px;margin-bottom:8px;">Restore from a previously exported file</p>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
+          Import Data
           <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importData(this)">
         </label>
-        <p class="muted" style="margin-top:4px;font-size:11px;">Replaces all current data</p></span>
+      </div>
+      <div class="card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#127760; Publish</div>
+        <p class="muted" style="font-size:11px;margin-bottom:8px;">Update the public GitHub Pages site</p>
+        <button class="btn btn-secondary btn-sm" onclick="showPublishGuide()" style="background:var(--green-deep);color:var(--gold);border-color:var(--green-deep);">Publish to GitHub</button>
       </div>
     </div>
-    <div id="import-msg" style="margin-top:10px;"></div>
+    <div id="import-msg" style="margin-top:6px;font-size:12px;"></div>
+    <!-- Publish guide -->
+    <div id="publish-guide" style="display:none;margin-top:16px;border-top:1px solid var(--green-pale);padding-top:14px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-top:14px;border-top:1px solid var(--green-pale);">
+        <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;"><span class="icon">&#127760;</span> How to Publish</div>
+        <button class="btn btn-secondary btn-sm" onclick="document.getElementById('publish-guide').style.display='none'">&times;</button>
+      </div>
+      <p class="muted" style="margin-bottom:14px;font-size:13px;">Follow these steps to update the public site after exporting:</p>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="background:var(--green-deep);color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">1</span>
+          <div>
+            <strong style="font-size:13px;">Export your data</strong>
+            <p class="muted" style="font-size:12px;margin-top:2px;">Click the button below to download <code>godshill_cc_data.json</code></p>
+            <button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="exportData()">&#8595; Export now</button>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="background:var(--green-deep);color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">2</span>
+          <div>
+            <strong style="font-size:13px;">Go to your GitHub repository</strong>
+            <a href="https://github.com/chriswyver/godshill_cc" target="_blank"
+               class="btn btn-secondary btn-sm" style="margin-top:6px;display:inline-block;text-decoration:none;">
+              &#128279; Open github.com/chriswyver/godshill_cc
+            </a>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="background:var(--green-deep);color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">3</span>
+          <div>
+            <strong style="font-size:13px;">Upload the file</strong>
+            <p class="muted" style="font-size:12px;margin-top:2px;">Click <strong>Add file → Upload files</strong>, drag in <code>godshill_cc_data.json</code>, then click <strong>Commit changes</strong></p>
+          </div>
+        </div>
+        <div style="display:flex;gap:12px;align-items:flex-start;">
+          <span style="background:var(--green-deep);color:white;border-radius:50%;width:22px;height:22px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;">4</span>
+          <div>
+            <strong style="font-size:13px;">Wait ~1 minute then check</strong>
+            <p class="muted" style="font-size:12px;margin-top:2px;">Hard refresh with <kbd style="background:#eee;border:1px solid #ccc;border-radius:3px;padding:1px 5px;font-size:11px;">Ctrl+Shift+R</kbd> if it looks unchanged</p>
+            <a href="https://chriswyver.github.io/godshill_cc/" target="_blank"
+               class="btn btn-secondary btn-sm" style="margin-top:6px;display:inline-block;text-decoration:none;">
+              &#127760; Open public site
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
 
+
 </div>
+    <div class="btn-row edit-only" style="margin-top:12px;padding-top:12px;border-top:1px solid var(--green-pale);">
+      <button class="btn btn-danger btn-sm" onclick="deleteCheckedMatches(false)">&#128465; Delete Selected (Match + Scorecard)</button>
+      <button class="btn btn-secondary btn-sm" onclick="deleteCheckedMatches(true)">&#9999; Delete Scorecard Only</button>
+    </div>
+    </div><!-- /mtab-list -->
+    <!-- Head to head tab -->
+    <div id="mtab-h2h" style="display:none;">
+      <p class="muted" style="margin-bottom:14px;font-size:13px;">Record against each opponent. Click a row to see all matches against them.</p>
+      <div class="table-wrap">
+        <table class="data-table sortable" id="h2h-table">
+          <thead><tr>
+            <th onclick="sortH2H('opponent')">Opponent <span id="h2h-sort-opponent"></span></th>
+            <th class="num" onclick="sortH2H('played')">P <span id="h2h-sort-played"></span></th>
+            <th class="num" onclick="sortH2H('won')">W <span id="h2h-sort-won"></span></th>
+            <th class="num" onclick="sortH2H('lost')">L <span id="h2h-sort-lost"></span></th>
+            <th class="num" onclick="sortH2H('draw')">D <span id="h2h-sort-draw"></span></th>
+            <th class="num" onclick="sortH2H('abandoned')">Abd <span id="h2h-sort-abandoned"></span></th>
+            <th class="num" onclick="sortH2H('winpct')">Win% <span id="h2h-sort-winpct"></span></th>
+            <th class="num" onclick="sortH2H('runs_for')">Runs For <span id="h2h-sort-runs_for"></span></th>
+            <th class="num" onclick="sortH2H('runs_against')">Runs Agnst <span id="h2h-sort-runs_against"></span></th>
+            <th>Last Played <span id="h2h-sort-last"></span></th>
+          </tr></thead>
+          <tbody id="tbody-h2h"></tbody>
+        </table>
+      </div>
+      <!-- Expanded matches for selected opponent -->
+      <div id="h2h-detail" style="display:none;margin-top:16px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+          <h3 id="h2h-detail-title" style="font-size:14px;color:var(--green-deep);"></h3>
+          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('h2h-detail').style.display='none'">&#10005; Close</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Venue</th><th>Format</th><th>Result</th><th>Scores</th></tr></thead>
+            <tbody id="tbody-h2h-detail"></tbody>
+          </table>
+        </div>
+      </div>
+    </div><!-- /mtab-h2h -->
+    </div><!-- /card inner -->
+  </div>
+
 
 <!-- ═══════════════════════════════════════ STATS ═══════ -->
 <div id="page-stats" class="page">
@@ -1173,11 +1270,15 @@
     </div>
 
     <div class="card">
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px;">
-        <div class="card-title" style="margin-bottom:0;"><span class="icon">&#128101;</span> Squad</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div class="tab-bar" style="border-bottom:none;margin:0;">
+          <button class="tab-btn active" id="ptab-squad" onclick="showPlayersTab('squad')"><span class="icon">&#128101;</span> Squad</button>
+          <button class="tab-btn"        id="ptab-dupes" onclick="showPlayersTab('dupes')">&#9888; Name Issues <span id="dupes-badge" class="badge" style="margin-left:4px;display:none;"></span></button>
+        </div>
         <input type="text" id="player-search" placeholder="Search players..." oninput="renderPlayers()"
                style="width:200px;padding:4px 10px;font-size:12px;border:1px solid #ccc;border-radius:4px;">
       </div>
+      <div id="players-tab-squad">
       <div class="table-wrap">
         <table class="data-table">
           <thead><tr>
@@ -1195,6 +1296,12 @@
           <span style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--ink-muted);">Per page: <select id="players-per-page" onchange="_matchPage.players=1;renderPlayers()" style="font-size:12px;padding:2px 4px;border:1px solid #ccc;border-radius:3px;"><option value="25">25</option><option value="50" selected>50</option><option value="100">100</option><option value="0">All</option></select></span>
         </div>
       </div>
+      </div><!-- /players-tab-squad -->
+      <!-- Name issues tab -->
+      <div id="players-tab-dupes" style="display:none;">
+        <p class="muted" style="margin-bottom:12px;font-size:12px;">Players with incomplete names or names similar to another player. Use Edit or Merge Players above to fix.</p>
+        <div id="duplicates-list"></div>
+      </div>
       <div class="mt8">
         <button class="btn btn-secondary btn-sm" onclick="exportPlayersCSV()">&#8659; Export CSV</button>
       </div>
@@ -1207,6 +1314,7 @@
 <div id="page-profile" class="page">
   <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px;flex-wrap:wrap;">
     <button class="btn btn-secondary btn-sm" id="profile-back-btn" onclick="goBack();document.getElementById('nav-profile').style.display='none';">&larr; Back</button>
+
     <h2 id="profile-name" style="margin:0;">Player Profile</h2>
     <div style="display:flex;align-items:center;gap:6px;margin-left:12px;">
       <label style="font-size:12px;color:var(--ink-muted);white-space:nowrap;margin:0;">Switch player</label>
@@ -3350,6 +3458,7 @@ function renderPlayers() {
     ? slice.join('')
     : '<tr><td colspan="6"><div class="empty-state">No players registered yet</div></td></tr>';
   _mkPager('players-pager', cur, rows.length, psF, p=>{_matchPage.players=p;renderPlayers();});
+  renderDuplicates();
 }
 
 function selectPlayer(idx) {
@@ -5506,8 +5615,322 @@ function updateFilterBadge(id, filterIds) {
   badge.textContent = active > 0 ? active + ' active' : 'Filters';
   badge.classList.toggle('active', active > 0);
 }
+
+// ════════════════════════════════════════════════════════════
+// DUPLICATE PLAYER DETECTION
+// ════════════════════════════════════════════════════════════
+
+function _stringSimilarity(a, b) {
+  // Normalise: lowercase, remove punctuation
+  a = a.toLowerCase().replace(/[^a-z ]/g, '').trim();
+  b = b.toLowerCase().replace(/[^a-z ]/g, '').trim();
+  if (a === b) return 1;
+
+  // Check if one is an initial abbreviation of the other
+  // e.g. "J Smith" vs "John Smith"
+  const partsA = a.split(' '), partsB = b.split(' ');
+  if (partsA.length >= 2 && partsB.length >= 2) {
+    // Last names must match
+    const lastA = partsA[partsA.length-1], lastB = partsB[partsB.length-1];
+    if (lastA === lastB) {
+      const firstA = partsA[0], firstB = partsB[0];
+      // One is initial of the other
+      if (firstA.length === 1 && firstB.startsWith(firstA)) return 0.9;
+      if (firstB.length === 1 && firstA.startsWith(firstB)) return 0.9;
+      // First names start the same (e.g. "Jon" vs "Jonathan")
+      const minLen = Math.min(firstA.length, firstB.length);
+      if (minLen >= 3 && firstA.slice(0,minLen) === firstB.slice(0,minLen)) return 0.85;
+    }
+  }
+
+  // Levenshtein distance for short names
+  if (a.length <= 3 || b.length <= 3) return 0;
+  const maxLen = Math.max(a.length, b.length);
+  const dist = _levenshtein(a, b);
+  const sim  = 1 - dist / maxLen;
+  return sim;
+}
+
+function _levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  const dp = Array.from({length:m+1}, (_,i) => Array.from({length:n+1}, (_,j) => i===0?j:j===0?i:0));
+  for (let i=1; i<=m; i++)
+    for (let j=1; j<=n; j++)
+      dp[i][j] = a[i-1]===b[j-1] ? dp[i-1][j-1] : 1+Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+  return dp[m][n];
+}
+
+function _isIncomplete(name) {
+  if (!name) return false;
+  const parts = name.trim().split(/\s+/);
+  // Single word only (e.g. "Smith")
+  if (parts.length === 1) return 'surname only';
+  // First part is a single letter or single letter + dot (e.g. "A" or "A.")
+  if (/^[A-Za-z]\.?$/.test(parts[0])) return 'initial only';
+  return false;
+}
+
+function renderDuplicates() {
+  const el = document.getElementById('duplicates-list');
+  if (!el) return;
+  const names = db.players.map(p=>p.name);
+
+  // ── Incomplete names ──────────────────────────────────────────────────────
+  const incomplete = names.map(n=>({name:n, reason:_isIncomplete(n)})).filter(x=>x.reason);
+
+  // ── Similar name pairs ───────────────────────────────────────────────────
+  const pairs = [];
+  for (let i=0; i<names.length; i++) {
+    for (let j=i+1; j<names.length; j++) {
+      const sim = _stringSimilarity(names[i], names[j]);
+      if (sim >= 0.8) pairs.push({a:names[i], b:names[j], sim});
+    }
+  }
+  pairs.sort((a,b)=>b.sim-a.sim);
+
+  const hasAny = incomplete.length || pairs.length;
+  // Update badge on tab button
+  const badge = document.getElementById('dupes-badge');
+  if (badge) {
+    const total = incomplete.length + pairs.length;
+    badge.textContent = total || '';
+    badge.style.display = total ? '' : 'none';
+  }
+  if (!hasAny) { el.innerHTML = ''; return; }
+
+  let html = '';
+
+  if (incomplete.length) {
+    html += `<p style="font-size:12px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Incomplete Names</p>`;
+    html += incomplete.map(({name, reason}) =>
+      `<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--green-pale);">
+        <span style="color:var(--red);font-size:11px;font-weight:700;min-width:36px;">&#9888;</span>
+        <span style="font-weight:600;">${esc(name)}</span>
+        <span style="font-size:11px;color:var(--ink-muted);">(${reason})</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--ink-muted);">Edit player name to fix ↑</span>
+      </div>`
+    ).join('');
+  }
+
+  if (pairs.length) {
+    html += `<p style="font-size:12px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin:${incomplete.length?'14px':'0'}px 0 6px;">Possible Duplicates</p>`;
+    html += pairs.map(({a,b,sim}) => {
+      const pct = Math.round(sim*100);
+      const col = sim>=0.9 ? 'var(--red)' : '#c8922a';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--green-pale);">
+        <span style="color:${col};font-size:11px;font-weight:700;min-width:36px;">${pct}%</span>
+        <span style="font-weight:600;">${esc(a)}</span>
+        <span style="color:var(--ink-muted);">&#8644;</span>
+        <span style="font-weight:600;">${esc(b)}</span>
+        <span style="margin-left:auto;font-size:11px;color:var(--ink-muted);">Use Merge Players to combine ↑</span>
+      </div>`;
+    }).join('');
+  }
+
+  el.innerHTML = html;
+}
+
+function showPlayersTab(which) {
+  ['squad','dupes'].forEach(t => {
+    const tab = document.getElementById('players-tab-'+t);
+    const btn = document.getElementById('ptab-'+t);
+    if (tab) tab.style.display = t===which ? '' : 'none';
+    if (btn) btn.classList.toggle('active', t===which);
+  });
+}
+
+// ════════════════════════════════════════════════════════════
+// HEAD TO HEAD
+// ════════════════════════════════════════════════════════════
+let _h2hSortKey = 'opponent';
+let _h2hSortDir = 1;
+
+function showMatchesTab(which) {
+  ['list','h2h'].forEach(t => {
+    const tab = document.getElementById('mtab-'+t);
+    const btn = document.getElementById('mtab-'+t+'-btn');
+    if (tab) tab.style.display = t===which ? '' : 'none';
+    if (btn) btn.classList.toggle('active', t===which);
+  });
+  if (which === 'h2h') renderH2H();
+}
+
+function sortH2H(key) {
+  if (_h2hSortKey === key) _h2hSortDir *= -1;
+  else { _h2hSortKey = key; _h2hSortDir = key==='opponent'?1:-1; }
+  renderH2H();
+}
+
+function renderH2H() {
+  // Respect current match filters
+  const from   = document.getElementById('match-filter-from')?.value || '';
+  const to     = document.getElementById('match-filter-to')?.value   || '';
+  const type   = document.getElementById('match-filter-type')?.value || '';
+  const oppF   = document.getElementById('match-filter-opp')?.value?.toLowerCase().trim() || '';
+  const venueF = document.getElementById('match-filter-venue')?.value || '';
+
+  let matches = db.matches.filter(m => {
+    if (m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return false;
+    if (from && m.date < from) return false;
+    if (to   && m.date > to)   return false;
+    if (type && !matchesTypeFilter(m.format, type)) return false;
+    if (oppF && !(m.opponent||'').toLowerCase().includes(oppF)) return false;
+    if (venueF && m.venue !== venueF) return false;
+    return true;
+  });
+
+  // Group by opponent
+  const oppMap = {};
+  matches.forEach(m => {
+    const opp = m.opponent || 'Unknown';
+    if (!oppMap[opp]) oppMap[opp] = { opponent:opp, played:0, won:0, lost:0, draw:0, tie:0, abandoned:0, no_result:0, runs_for:0, runs_against:0, last:'', matches:[] };
+    const r = oppMap[opp];
+    r.played++;
+    r.matches.push(m);
+    if (m.date > r.last) r.last = m.date;
+    if (m.result==='Won')          r.won++;
+    else if (m.result==='Lost')    r.lost++;
+    else if (m.result==='Draw')    r.draw++;
+    else if (m.result==='Tie')     r.tie++;
+    else if (m.result==='Abandoned' || m.result==='No Result') r.abandoned++;
+
+    // Runs for/against
+    const godshillBat1 = m.bat_first === OUR_TEAM;
+    const bat1 = db.batting.filter(r=>r.match_id===m.id&&r.innings===1&&r.team===OUR_TEAM);
+    const bat2 = db.batting.filter(r=>r.match_id===m.id&&r.innings===2&&r.team===OUR_TEAM);
+    const opp1 = db.batting.filter(r=>r.match_id===m.id&&r.innings===1&&r.team!==OUR_TEAM);
+    const opp2 = db.batting.filter(r=>r.match_id===m.id&&r.innings===2&&r.team!==OUR_TEAM);
+    const sumR = arr => arr.reduce((s,x)=>s+x.runs,0);
+    r.runs_for     += godshillBat1 ? sumR(bat1)+sumR(bat2) : sumR(bat2)+sumR(bat1);
+    r.runs_against += godshillBat1 ? sumR(opp1)+sumR(opp2) : sumR(opp1)+sumR(opp2);
+  });
+
+  let rows = Object.values(oppMap);
+  // Sort
+  const k = _h2hSortKey, d = _h2hSortDir;
+  rows.sort((a,b) => {
+    if (k==='opponent')     return d * a.opponent.localeCompare(b.opponent);
+    if (k==='winpct') {
+      const pa = a.won+a.lost+a.draw+a.tie, pb = b.won+b.lost+b.draw+b.tie;
+      return d * ((pa?a.won/pa:0) - (pb?b.won/pb:0));
+    }
+    if (k==='last') return d * a.last.localeCompare(b.last);
+    return d * ((a[k]||0) - (b[k]||0));
+  });
+
+  // Sort indicators
+  ['opponent','played','won','lost','draw','abandoned','winpct','runs_for','runs_against','last'].forEach(key => {
+    const el = document.getElementById('h2h-sort-'+key);
+    if (el) el.textContent = _h2hSortKey===key ? (_h2hSortDir===1?' ▲':' ▼') : '';
+  });
+
+  document.getElementById('tbody-h2h').innerHTML = rows.length
+    ? rows.map((r,i) => {
+        const decisive = r.won + r.lost + r.draw + r.tie;
+        const winpct   = decisive > 0 ? Math.round(r.won/decisive*100) : '–';
+        const pctCol   = typeof winpct==='number' ? (winpct>=60?'var(--green-mid)':winpct<=40?'var(--red)':'') : '';
+        const stripe   = i%2===0?'row-odd':'row-even';
+        return `<tr class="${stripe}" style="cursor:pointer;" onclick="showH2HDetail('${esc(r.opponent).replace(/'/g,"\'")}')">
+          <td style="font-weight:600;">${esc(r.opponent)}</td>
+          <td class="num">${r.played}</td>
+          <td class="num" style="color:var(--green-mid);font-weight:600;">${r.won}</td>
+          <td class="num" style="color:var(--red);">${r.lost}</td>
+          <td class="num">${r.draw}</td>
+          <td class="num" style="color:var(--ink-muted);">${r.abandoned}</td>
+          <td class="num" style="font-weight:600;color:${pctCol};">${typeof winpct==='number'?winpct+'%':winpct}</td>
+          <td class="num">${r.runs_for||'–'}</td>
+          <td class="num">${r.runs_against||'–'}</td>
+          <td style="font-size:12px;color:var(--ink-muted);">${r.last||'–'}</td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="10" class="empty-state">No matches found</td></tr>';
+
+  // Hide detail if open
+  document.getElementById('h2h-detail').style.display = 'none';
+}
+
+function showH2HDetail(opponent) {
+  const detail = document.getElementById('h2h-detail');
+  const title  = document.getElementById('h2h-detail-title');
+  const tbody  = document.getElementById('tbody-h2h-detail');
+  if (!detail || !title || !tbody) return;
+
+  const matches = db.matches
+    .filter(m => m.opponent === opponent && !['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  title.textContent = 'All matches vs ' + opponent;
+
+  tbody.innerHTML = matches.map((m,idx) => {
+    // Get scores
+    const getScore = (inn, team) => {
+      const bat  = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===team);
+      const bowl = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
+      if (!bat.length) return '–';
+      const runs = bat.reduce((s,r)=>s+r.runs,0);
+      const extras = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
+      const extTotal = (extras.b||0)+(extras.lb||0)+(extras.w||0)+(extras.nb||0)+(extras.p||0);
+      const wkts = bowl.reduce((s,r)=>s+r.wickets,0);
+      return `${runs+extTotal}/${wkts}`;
+    };
+    const godshillBat = m.bat_first===OUR_TEAM ? 1 : 2;
+    const oppBat      = godshillBat===1 ? 2 : 1;
+    const ourScore  = getScore(godshillBat, OUR_TEAM);
+    const oppScore  = getScore(oppBat, m.opponent);
+    const scoreStr  = ourScore !== '–' || oppScore !== '–'
+      ? `${OUR_TEAM} ${ourScore} vs ${esc(opponent)} ${oppScore}` : '–';
+    const stripe = idx%2===0?'row-odd':'row-even';
+    return `<tr class="${stripe}">
+      <td>${m.date}</td>
+      <td>${m.venue||'–'}</td>
+      <td style="font-size:12px;">${esc(m.format||'')}</td>
+      <td><span class="badge badge-result-${m.result}">${m.result}</span></td>
+      <td style="font-size:12px;">${scoreStr}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" class="empty-state">No matches</td></tr>';
+
+  detail.style.display = '';
+  detail.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function showPublishGuide() {
+  const el = document.getElementById('publish-guide');
+  if (!el) return;
+  el.style.display = el.style.display === 'none' ? '' : 'none';
+}
+
 </script>
 </body>
 </html>
     </div><!-- /stats-filter-collapsible -->
   
+
+<!-- ═══════════════════════════════════════════════════════
+     COMPARE PAGE
+══════════════════════════════════════════════════════════ -->
+<div id="page-compare" class="page">
+  <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
+    <button class="btn btn-secondary btn-sm" onclick="showPage('profile',document.getElementById('nav-profile-btn'))">&#8592; Back to Profile</button>
+    <h2 style="margin:0;">Player Comparison</h2>
+  </div>
+
+  <!-- Player selectors -->
+  <div class="card" style="padding:14px 16px;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+      <div>
+        <label>Player A</label>
+        <select id="cmp-player-a" onchange="renderCompare()" style="width:100%;margin-top:4px;">
+          <option value="">Select player…</option>
+        </select>
+      </div>
+      <div>
+        <label>Player B</label>
+        <select id="cmp-player-b" onchange="renderCompare()" style="width:100%;margin-top:4px;">
+          <option value="">Select player…</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="cmp-content"></div>
+</div>

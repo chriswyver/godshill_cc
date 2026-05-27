@@ -281,12 +281,14 @@
   /* striping handled via row-even/row-odd classes to skip inline-sc rows */
   .data-table tbody tr:hover td { background: var(--green-pale); cursor: pointer; }
   .data-table tbody tr.selected td { background: #c7ecda; }
-  .data-table td.r { text-align: right; }
-  .data-table td.num {
+  .data-table td.r, .data-table th.r { text-align: center; }
+  .data-table td.num, .data-table th.num {
     font-family: 'Playfair Display', serif;
-    font-weight: 600; text-align: right;
+    font-weight: 600; text-align: center;
     color: var(--green-deep);
   }
+  .data-table th.num { color: var(--cream); }
+  .data-table th.r   { color: var(--cream); }
   .table-wrap { overflow-x: auto; }
 
   /* ── Tabs (innings) ── */
@@ -839,7 +841,7 @@
     </div>
 
   <!-- Export / Import -->
-  <div class="card" style="margin-top:16px;">
+  <div class="card edit-only" style="margin-top:16px;">
     <div class="card-title"><span class="icon">&#128190;</span> Data Export &amp; Import</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:4px;">
       <div class="card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">

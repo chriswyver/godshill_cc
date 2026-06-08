@@ -3729,11 +3729,12 @@ document.getElementById('m-date').value = new Date().toISOString().split('T')[0]
         const data = await res.json();
         if (data.matches && data.players) {
           db = {
-            players:  data.players  || [],
-            matches:  data.matches  || [],
-            batting:  data.batting  || [],
-            bowling:  data.bowling  || [],
-            fielding: data.fielding || [],
+            players:       data.players       || [],
+            matches:       data.matches       || [],
+            batting:       data.batting       || [],
+            bowling:       data.bowling       || [],
+            fielding:      data.fielding      || [],
+            leagueTables:  data.leagueTables  || [],
           };
           setReadOnlyMode(true);
         }

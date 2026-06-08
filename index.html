@@ -487,6 +487,7 @@
       <button onclick="showPage('matches',this)">Matches</button>
       <button onclick="showPage('stats',this)">Stats</button>
       <button onclick="showPage('players',this)">Players</button>
+      <button onclick="showPage('league',this)">League Tables</button>
       <button id="nav-profile" style="display:none;" onclick="showPage('profile',this)">&#9654; Profile</button>
     </nav>
   </div>
@@ -816,6 +817,7 @@
     <div class="tab-bar" style="margin-bottom:14px;border-bottom:1px solid var(--green-pale);">
       <button class="tab-btn active" id="mtab-list-btn" onclick="showMatchesTab('list')">Match List</button>
       <button class="tab-btn" id="mtab-h2h-btn" onclick="showMatchesTab('h2h')">Head to Head</button>
+
     </div>
     <!-- Match list tab -->
     <div id="mtab-list">
@@ -921,7 +923,22 @@
     </div><!-- /mtab-list -->
     <!-- Head to head tab -->
     <div id="mtab-h2h" style="display:none;">
-      <p class="muted" style="margin-bottom:14px;font-size:13px;">Record against each opponent. Click a row to see all matches against them.</p>
+      <!-- Search bar -->
+      <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
+        <div style="flex:1;min-width:200px;">
+          <label style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted);">Search Opponent</label>
+          <input type="text" id="h2h-search" placeholder="Type to filter..." oninput="renderH2H()"
+                 style="width:100%;margin-top:4px;">
+        </div>
+        <div style="width:160px;">
+          <label style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted);">Type</label>
+          <select id="h2h-type-filter" onchange="renderH2H()" style="width:100%;margin-top:4px;">
+            <option value="">All Matches</option>
+            <option value="hcl">Hampshire Cricket League</option>
+            <option value="friendly">Friendlies Only</option>
+          </select>
+        </div>
+      </div>
       <div class="table-wrap">
         <table class="data-table sortable" id="h2h-table">
           <thead><tr>
@@ -934,28 +951,114 @@
             <th class="num" onclick="sortH2H('winpct')">Win% <span id="h2h-sort-winpct"></span></th>
             <th class="num" onclick="sortH2H('runs_for')">Runs For <span id="h2h-sort-runs_for"></span></th>
             <th class="num" onclick="sortH2H('runs_against')">Runs Agnst <span id="h2h-sort-runs_against"></span></th>
-            <th>Last Played <span id="h2h-sort-last"></span></th>
+            <th onclick="sortH2H('last')">Last Played <span id="h2h-sort-last"></span></th>
           </tr></thead>
           <tbody id="tbody-h2h"></tbody>
         </table>
-      </div>
-      <!-- Expanded matches for selected opponent -->
-      <div id="h2h-detail" style="display:none;margin-top:16px;">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-          <h3 id="h2h-detail-title" style="font-size:14px;color:var(--green-deep);"></h3>
-          <button class="btn btn-secondary btn-sm" onclick="document.getElementById('h2h-detail').style.display='none'">&#10005; Close</button>
-        </div>
-        <div class="table-wrap">
-          <table class="data-table">
-            <thead><tr><th>Date</th><th>Venue</th><th>Format</th><th>Result</th><th>Scores</th></tr></thead>
-            <tbody id="tbody-h2h-detail"></tbody>
-          </table>
-        </div>
       </div>
     </div><!-- /mtab-h2h -->
     </div><!-- /card inner -->
   </div>
 
+
+<!-- ═══════════════════════════════════════════════════════
+     LEAGUE TABLES PAGE
+══════════════════════════════════════════════════════════ -->
+<div id="page-league" class="page">
+  <h2>League Tables</h2>
+  <p class="muted" style="margin-bottom:20px;">Hampshire Cricket League standings.</p>
+
+  <!-- VIEW mode -->
+  <div id="league-view">
+    <!-- Year selector -->
+    <div class="card" style="padding:12px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+      <label style="margin:0;">Season:</label>
+      <select id="league-season-sel" onchange="renderLeagueTables()" style="width:120px;">
+        <option value="">All Seasons</option>
+      </select>
+      <button class="btn btn-primary btn-sm edit-only" onclick="leagueWizardStart()" style="margin-left:auto;">
+        &#43; New Table
+      </button>
+    </div>
+    <div id="league-tables-list"></div>
+    <p id="league-empty" class="muted" style="display:none;padding:40px 0;text-align:center;font-size:14px;">
+      No league tables yet.<br><br>
+      <button class="btn btn-primary edit-only" onclick="leagueWizardStart()">&#43; Add your first table</button>
+    </p>
+  </div>
+
+  <!-- WIZARD mode -->
+  <div id="league-wizard" style="display:none;">
+    <!-- Step indicators -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:24px;">
+      <div id="lwiz-step1-ind" class="wstep active" style="text-align:center;padding:14px;">
+        <div class="step-num">STEP 1</div>
+        <strong>Table Details</strong>
+      </div>
+      <div id="lwiz-step2-ind" class="wstep" style="text-align:center;padding:14px;opacity:0.5;">
+        <div class="step-num">STEP 2</div>
+        <strong>Enter Rows</strong>
+      </div>
+    </div>
+
+    <!-- Step 1: Details -->
+    <div id="lwiz-step1">
+      <div class="card" style="max-width:500px;">
+        <div class="card-title"><span class="icon">&#128197;</span> Table Details</div>
+        <div class="form-grid cols-2" style="margin-bottom:16px;">
+          <div>
+            <label>Season <span style="color:var(--red);">*</span></label>
+            <input type="text" id="lwiz-season" placeholder="e.g. 2026" style="width:100%;">
+          </div>
+          <div>
+            <label>Division <span style="color:var(--red);">*</span></label>
+            <input type="text" id="lwiz-division" placeholder="e.g. Division 6C" style="width:100%;">
+          </div>
+        </div>
+        <div id="lwiz-step1-err" style="color:var(--red);font-size:13px;margin-bottom:10px;display:none;"></div>
+        <button class="btn btn-primary btn-lg" onclick="leagueWizardStep2()">Next: Enter Rows &rarr;</button>
+        <button class="btn btn-secondary" onclick="leagueWizardCancel()" style="margin-left:8px;">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Step 2: Rows -->
+    <div id="lwiz-step2" style="display:none;">
+      <div class="card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+          <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">
+            <span class="icon">&#127942;</span>
+            <span id="lwiz-title-display"></span>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="leagueAddRow()">&#43; Add Row</button>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" style="font-size:12px;" id="lwiz-table">
+            <thead>
+              <tr>
+                <th style="width:36px;">Pos</th>
+                <th style="min-width:140px;">Team</th>
+                <th class="num">P</th><th class="num">W</th><th class="num">L</th>
+                <th class="num">T</th><th class="num">C</th><th class="num">A</th>
+                <th class="num">LCn</th><th class="num">WCn</th>
+                <th class="num">BatP</th><th class="num">BowlP</th>
+                <th class="num">Pen</th><th class="num">Pts</th>
+                <th class="num">AveC</th>
+                <th style="width:30px;"></th>
+              </tr>
+            </thead>
+            <tbody id="lwiz-rows"></tbody>
+          </table>
+        </div>
+        <div style="margin-top:8px;padding:8px 4px;font-size:11px;color:var(--ink-muted);line-height:1.8;border-top:1px solid var(--green-pale);" id="lwiz-footer"></div>
+        <div class="btn-row mt16">
+          <button class="btn btn-secondary" onclick="leagueWizardBack()">&larr; Back</button>
+          <button class="btn btn-primary btn-lg" onclick="leagueWizardSave()">&#10003; Save Table</button>
+          <button class="btn btn-secondary" onclick="leagueWizardCancel()">Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <!-- ═══════════════════════════════════════ STATS ═══════ -->
 <div id="page-stats" class="page">
@@ -1442,7 +1545,7 @@
           <button class="btn btn-secondary btn-sm" id="dism-reset-btn" style="font-size:11px;padding:2px 8px;display:none;"
                   onclick="document.getElementById('profile-filter-dism').value='';document.getElementById('profile-dism-wrap').style.display='none';renderProfile();">&#10005; Reset filter</button>
         </div>
-        <svg id="chart-dism" width="100%" viewBox="0 0 560 240" style="display:block;"></svg>
+        <svg id="chart-dism" width="100%" viewBox="0 0 560 260" style="display:block;"></svg>
       </div>
       <div class="card">
         <div class="card-title"><span class="icon">&#9654;</span> By Position</div>
@@ -1617,7 +1720,7 @@ function loadDB() {
     const raw = localStorage.getItem('cricketDB');
     if (raw) return JSON.parse(raw);
   } catch(e) {}
-  return { matches:[], batting:[], bowling:[], fielding:[], players:[] };
+  return { matches:[], batting:[], bowling:[], fielding:[], players:[], leagueTables:[] };
 }
 function saveDB(data) {
   if (typeof _isReadOnly !== 'undefined' && _isReadOnly) return;
@@ -1646,6 +1749,7 @@ function showPage(name, btn) {
   if (name === 'matches') renderMatches();
   if (name === 'stats')   { populateStatFilters(); renderStats(); }
   if (name === 'players') renderPlayers();
+  if (name === 'league')  renderLeagueTables();
   // Update back button
   const bb = document.getElementById('profile-back-btn');
   if (bb) {
@@ -1925,7 +2029,7 @@ function populateScorecardFromEdit() {
 
 function dismOpts(pfx, idx) {
   return DISMISSALS.map(d =>
-    `<option value="${d}"${d==='not out'?' selected':''}>${d}</option>`
+    `<option value="${d}"${d==='did not bat'?' selected':''}>${d}</option>`
   ).join('');
 }
 
@@ -2127,6 +2231,11 @@ function runValidation() {
       warn(`${lbl}: No fielder recorded for ${r.player} (${r.how_out}).`));
     bdf.filter(r=>r.runs<0).forEach(r=>
       err(`${lbl}: Negative runs for ${r.player}.`));
+
+    // More than 1 not-out batter (max 1 allowed at end of innings)
+    const notOutCount = bdf.filter(r => r.how_out === 'not out').length;
+    if (notOutCount > 2)
+      warn(`${lbl}: ${notOutCount} batters listed as "not out" — maximum 2 is possible.`);
 
     // Check for invalid overs (balls digit 6-9)
     wdf.forEach(r => {
@@ -2926,6 +3035,7 @@ function showDelMsg(type, msg) {
 
 
 // ── CSV format helpers ────────────────────────────────────────────────────────
+function csvEsc(v) { return '"' + String(v??'').replace(/"/g,'""') + '"'; }
 function rowToCSV(arr) { return arr.map(csvEsc).join(','); }
 // downloadCSV defined below
 
@@ -3576,11 +3686,16 @@ function esc(s) {
 }
 
 function downloadCSV(rows, filename) {
-  const csv = rows.map(r => r.map(c => '"'+(String(c||'').replace(/"/g,'""'))+'"').join(',')).join('\n');
+  const csv = rows.map(r => r.map(c => csvEsc(c)).join(',')).join('\r\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+  a.href = url;
   a.download = filename;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 
@@ -4006,7 +4121,7 @@ function drawDismChart(data, svgId) {
 
   const svg = document.getElementById(svgId);
   if (!svg) return;
-  const W=560, H=240;
+  const W=560, H=260;
 
   if (!data.length) {
     svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle"
@@ -4031,7 +4146,7 @@ function drawDismChart(data, svgId) {
   const colMap = {};
   entries.forEach(([k])=>{ colMap[k]=colours[k]||fallback[ci++%fallback.length]; });
 
-  const cx=125, cy=118, r=105;
+  const cx=125, cy=128, r=105;
   let angle=-Math.PI/2;
   let parts='';
 
@@ -4065,7 +4180,7 @@ function drawDismChart(data, svgId) {
   const legendX=cx+r+22, itemH=24;
   const legendH = entries.length*itemH;
   // Total sits above legend, centred on same x as legend block
-  const totalY = cy - legendH/2 - 22;
+  const totalY = Math.max(26, cy - legendH/2 - 22);
   parts += '<text x="'+(legendX+60)+'" y="'+(totalY)+'" text-anchor="middle"'
     +' font-family="Playfair Display,Georgia" font-size="26" font-weight="900"'
     +' fill="#1c3a22" style="pointer-events:none;">'+total+' innings</text>';
@@ -4443,6 +4558,11 @@ function checkMatchErrors(mid) {
        .forEach(r=>issues.push(`${lbl}: No fielder for ${r.player} (${r.how_out})`));
     bat.filter(r=>r.runs<0)
        .forEach(r=>issues.push(`${lbl}: Negative runs for ${r.player}`));
+
+    // More than 1 not-out batter
+    const notOutCount = bat.filter(r=>r.how_out==='not out').length;
+    if (notOutCount > 2)
+      issues.push(`${lbl}: ${notOutCount} batters listed as "not out" — maximum 2 is possible`);
 
     // ── Unsure Godshill players (to be identified later) ─────────────────────────
     const isUnsure = n => (n||'').trim().toLowerCase() === 'unsure';
@@ -5481,12 +5601,16 @@ function statsDownloadCSV() {
   if (filters.length) lines.push(csvEsc('Filters: ' + filters.join(' | ')));
   lines.push('');
   lines.push(headers.map(csvEsc).join(','));
-  rows.forEach(r => lines.push(r.map(csvEsc).join(',')));
-  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  rows.forEach(r => lines.push(r.map(v => csvEsc(v)).join(',')));
+  const blob = new Blob([lines.join('\r\n')], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
+  a.href = url;
   a.download = 'Godshill_CC_Stats_' + label.replace(/\s+/g,'_') + '.csv';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function statsDownloadPDF() {
@@ -5547,11 +5671,12 @@ function exportData() {
   const payload = {
     exported: new Date().toISOString(),
     version: 1,
-    players:  db.players,
-    matches:  db.matches,
-    batting:  db.batting,
-    bowling:  db.bowling,
-    fielding: db.fielding,
+    players:       db.players,
+    matches:       db.matches,
+    batting:       db.batting,
+    bowling:       db.bowling,
+    fielding:      db.fielding,
+    leagueTables:  db.leagueTables || [],
   };
   const json = JSON.stringify(payload, null, 2);
   const blob = new Blob([json], {type: 'application/json'});
@@ -5578,11 +5703,12 @@ function importData(input) {
         input.value = '';
         return;
       }
-      db.players  = data.players  || [];
-      db.matches  = data.matches  || [];
-      db.batting  = data.batting  || [];
-      db.bowling  = data.bowling  || [];
-      db.fielding = data.fielding || [];
+      db.players       = data.players       || [];
+      db.matches       = data.matches       || [];
+      db.batting       = data.batting       || [];
+      db.bowling       = data.bowling       || [];
+      db.fielding      = data.fielding      || [];
+      db.leagueTables  = data.leagueTables  || [];
       saveDB();
       msg.innerHTML = '<span style="color:#27ae60;">&#10003; Imported successfully — ' + data.matches.length + ' matches, ' + data.players.length + ' players.</span>';
       renderMatches();
@@ -5764,11 +5890,11 @@ function sortH2H(key) {
 }
 
 function renderH2H() {
-  // Respect current match filters
+  // Respect current match filters + H2H specific filters
   const from   = document.getElementById('match-filter-from')?.value || '';
   const to     = document.getElementById('match-filter-to')?.value   || '';
-  const type   = document.getElementById('match-filter-type')?.value || '';
-  const oppF   = document.getElementById('match-filter-opp')?.value?.toLowerCase().trim() || '';
+  const type   = document.getElementById('h2h-type-filter')?.value || document.getElementById('match-filter-type')?.value || '';
+  const oppF   = (document.getElementById('h2h-search')?.value || document.getElementById('match-filter-opp')?.value || '').toLowerCase().trim();
   const venueF = document.getElementById('match-filter-venue')?.value || '';
 
   let matches = db.matches.filter(m => {
@@ -5826,14 +5952,21 @@ function renderH2H() {
     if (el) el.textContent = _h2hSortKey===key ? (_h2hSortDir===1?' ▲':' ▼') : '';
   });
 
+  _h2hOpenSc = {};
+  _h2hCurOpp = null; _h2hCurOppIdx = null;
+
   document.getElementById('tbody-h2h').innerHTML = rows.length
     ? rows.map((r,i) => {
         const decisive = r.won + r.lost + r.draw + r.tie;
         const winpct   = decisive > 0 ? Math.round(r.won/decisive*100) : '–';
         const pctCol   = typeof winpct==='number' ? (winpct>=60?'var(--green-mid)':winpct<=40?'var(--red)':'') : '';
         const stripe   = i%2===0?'row-odd':'row-even';
-        return `<tr class="${stripe}" style="cursor:pointer;" onclick="showH2HDetail('${esc(r.opponent).replace(/'/g,"\'")}')">
-          <td style="font-weight:600;">${esc(r.opponent)}</td>
+        return `<tr class="${stripe}" id="h2h-row-${i}">
+          <td style="font-weight:600;">
+            <a class="sc-toggle-link" id="h2h-opp-link-${i}"
+               onclick="showH2HDetail(this.dataset.opp, ${i})" data-opp="${esc(r.opponent)}"
+               style="cursor:pointer;">${esc(r.opponent)}</a>
+          </td>
           <td class="num">${r.played}</td>
           <td class="num" style="color:var(--green-mid);font-weight:600;">${r.won}</td>
           <td class="num" style="color:var(--red);">${r.lost}</td>
@@ -5843,56 +5976,146 @@ function renderH2H() {
           <td class="num">${r.runs_for||'–'}</td>
           <td class="num">${r.runs_against||'–'}</td>
           <td style="font-size:12px;color:var(--ink-muted);">${r.last||'–'}</td>
+        </tr>
+        <tr id="h2h-detail-row-${i}" style="display:none;">
+          <td colspan="10" style="padding:0;">
+            <div id="h2h-detail-content-${i}" style="padding:12px 16px;background:var(--cream-dark);border-top:2px solid var(--green-pale);"></div>
+          </td>
         </tr>`;
       }).join('')
     : '<tr><td colspan="10" class="empty-state">No matches found</td></tr>';
-
-  // Hide detail if open
-  document.getElementById('h2h-detail').style.display = 'none';
 }
 
-function showH2HDetail(opponent) {
-  const detail = document.getElementById('h2h-detail');
-  const title  = document.getElementById('h2h-detail-title');
-  const tbody  = document.getElementById('tbody-h2h-detail');
-  if (!detail || !title || !tbody) return;
+let _h2hOpenSc    = {};
+let _h2hCurOpp    = null;
+let _h2hCurOppIdx = null;
+
+function showH2HDetail(opponent, oppIdx) {
+  if (!opponent) return;
+  const detailRow = document.getElementById('h2h-detail-row-'+oppIdx);
+  const content   = document.getElementById('h2h-detail-content-'+oppIdx);
+  const link      = document.getElementById('h2h-opp-link-'+oppIdx);
+  if (!detailRow) return;
+
+  // Toggle: clicking same opponent closes it
+  const isOpen = _h2hCurOpp === opponent;
+  // Close current
+  if (_h2hCurOppIdx !== null) {
+    const prev = document.getElementById('h2h-detail-row-'+_h2hCurOppIdx);
+    const prevLink = document.getElementById('h2h-opp-link-'+_h2hCurOppIdx);
+    if (prev) prev.style.display = 'none';
+    if (prevLink) prevLink.classList.remove('open');
+  }
+  _h2hOpenSc = {};
+  if (isOpen) { _h2hCurOpp = null; _h2hCurOppIdx = null; return; }
+
+  _h2hCurOpp = opponent; _h2hCurOppIdx = oppIdx;
+  if (link) link.classList.add('open');
 
   const matches = db.matches
-    .filter(m => m.opponent === opponent && !['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result))
+    .filter(m => m.opponent === opponent)
     .sort((a,b) => b.date.localeCompare(a.date));
 
-  title.textContent = 'All matches vs ' + opponent;
+  const getScore = (m, inn, team) => {
+    const bat  = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===team);
+    const bowl = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
+    if (!bat.length) return '–';
+    const runs = bat.reduce((s,r)=>s+r.runs,0);
+    const extras = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
+    const ext = (extras.b||0)+(extras.lb||0)+(extras.w||0)+(extras.nb||0)+(extras.p||0);
+    return `${runs+ext}/${bowl.reduce((s,r)=>s+r.wickets,0)}`;
+  };
 
-  tbody.innerHTML = matches.map((m,idx) => {
-    // Get scores
-    const getScore = (inn, team) => {
-      const bat  = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===team);
-      const bowl = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
-      if (!bat.length) return '–';
-      const runs = bat.reduce((s,r)=>s+r.runs,0);
-      const extras = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
-      const extTotal = (extras.b||0)+(extras.lb||0)+(extras.w||0)+(extras.nb||0)+(extras.p||0);
-      const wkts = bowl.reduce((s,r)=>s+r.wickets,0);
-      return `${runs+extTotal}/${wkts}`;
-    };
+  const rows = matches.map((m, idx) => {
+    const cancelled = ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
     const godshillBat = m.bat_first===OUR_TEAM ? 1 : 2;
-    const oppBat      = godshillBat===1 ? 2 : 1;
-    const ourScore  = getScore(godshillBat, OUR_TEAM);
-    const oppScore  = getScore(oppBat, m.opponent);
-    const scoreStr  = ourScore !== '–' || oppScore !== '–'
-      ? `${OUR_TEAM} ${ourScore} vs ${esc(opponent)} ${oppScore}` : '–';
+    const ourScore = cancelled ? '–' : getScore(m, godshillBat, OUR_TEAM);
+    const oppScore = cancelled ? '–' : getScore(m, godshillBat===1?2:1, m.opponent);
+    const scoreStr = ourScore!=='–'||oppScore!=='–'
+      ? `${OUR_TEAM} ${ourScore} / ${esc(opponent)} ${oppScore}` : '';
+    const hasSc = !cancelled && db.batting.some(r=>r.match_id===m.id);
     const stripe = idx%2===0?'row-odd':'row-even';
+    const dateCell = hasSc
+      ? `<a class="sc-toggle-link" id="h2h-sc-link-${oppIdx}-${idx}"
+             onclick="toggleH2HInlineSc('${oppIdx}-${idx}', this)"
+             data-mid="${m.id}" style="cursor:pointer;">${m.date}</a>`
+      : `<span style="color:var(--ink-muted);">${m.date}</span>`;
     return `<tr class="${stripe}">
-      <td>${m.date}</td>
-      <td>${m.venue||'–'}</td>
-      <td style="font-size:12px;">${esc(m.format||'')}</td>
-      <td><span class="badge badge-result-${m.result}">${m.result}</span></td>
-      <td style="font-size:12px;">${scoreStr}</td>
-    </tr>`;
+        <td>${dateCell}</td>
+        <td>${esc(m.venue||'–')}</td>
+        <td style="font-size:12px;">${esc(m.format||'')}</td>
+        <td><span class="badge badge-result-${m.result}">${m.result}</span></td>
+        <td style="font-size:12px;">${scoreStr}</td>
+      </tr>
+      <tr id="h2h-sc-row-${oppIdx}-${idx}" class="inline-sc-row" style="display:none;">
+        <td colspan="5"><div class="inline-sc-wrap" id="h2h-sc-content-${oppIdx}-${idx}"></div></td>
+      </tr>`;
   }).join('') || '<tr><td colspan="5" class="empty-state">No matches</td></tr>';
 
-  detail.style.display = '';
-  detail.scrollIntoView({behavior:'smooth', block:'nearest'});
+  content.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <strong style="color:var(--green-deep);font-size:13px;">All matches vs ${esc(opponent)} (${matches.length})</strong>
+    </div>
+    <div class="table-wrap">
+      <table class="data-table" style="font-size:12px;">
+        <thead><tr>
+          <th>Date</th><th>Venue</th><th>Format</th><th>Result</th><th>Scores</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+
+  detailRow.style.display = '';
+  detailRow.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+function toggleH2HInlineSc(idx, el) {
+  const mid       = el.getAttribute('data-mid');
+  const scRow     = document.getElementById('h2h-sc-row-'+idx);
+  const scContent = document.getElementById('h2h-sc-content-'+idx);
+  const link      = document.getElementById('h2h-sc-link-'+idx);
+  if (!scRow) return;
+  if (!scRow) return;
+  const isOpen = _h2hOpenSc[idx];
+  // Close all open scorecards
+  Object.keys(_h2hOpenSc).forEach(k => {
+    if (!_h2hOpenSc[k]) return;
+    const r = document.getElementById('h2h-sc-row-'+k);
+    const l = document.getElementById('h2h-sc-link-'+k);
+    if (r) r.style.display = 'none';
+    if (l) l.classList.remove('open');
+    delete _h2hOpenSc[k];
+  });
+  if (isOpen) return;
+  const m = db.matches.find(m=>m.id===mid);
+  if (!m) return;
+  const i1bat  = buildInningsBatHtml(mid, 1);
+  const i1bowl = buildInningsBowlHtml(mid, 1);
+  const i2bat  = buildInningsBatHtml(mid, 2);
+  const i2bowl = buildInningsBowlHtml(mid, 2);
+  const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
+  const rc = m.result==='Won'?'#155724':m.result==='Lost'?'#721c24':'#5d4037';
+  const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
+      margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--green-pale);">
+    <span style="font-family:'Playfair Display',serif;font-weight:900;font-size:15px;">
+      Godshill vs ${esc(m.opponent)}</span>
+    <span style="font-size:11px;color:var(--ink-muted);">
+      &bull; ${esc(m.date)}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
+    <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
+  </div>`;
+  const col2 = i2bat.html
+    ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl.html}</div>` : '';
+  scContent.innerHTML = header +
+    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl.html}</div>
+      ${col2}
+    </div>
+    <div style="text-align:right;margin-top:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
+    </div>`;
+  scRow.style.display = '';
+  if (link) link.classList.add('open');
+  _h2hOpenSc[idx] = true;
 }
 
 function showPublishGuide() {
@@ -5901,38 +6124,235 @@ function showPublishGuide() {
   el.style.display = el.style.display === 'none' ? '' : 'none';
 }
 
+
+// ════════════════════════════════════════════════════════════
+// LEAGUE TABLES
+// ════════════════════════════════════════════════════════════
+
+const LEAGUE_COLS = [
+  {k:'pos',   lbl:'Pos',   num:true,  w:'40px'},
+  {k:'team',  lbl:'Team',  num:false, w:'150px'},
+  {k:'p',     lbl:'P',     num:true},
+  {k:'w',     lbl:'W',     num:true},
+  {k:'l',     lbl:'L',     num:true},
+  {k:'t',     lbl:'T',     num:true},
+  {k:'c',     lbl:'C',     num:true},
+  {k:'a',     lbl:'A',     num:true},
+  {k:'lcn',   lbl:'LCn',   num:true},
+  {k:'wcn',   lbl:'WCn',   num:true},
+  {k:'batp',  lbl:'BatP',  num:true},
+  {k:'bowlp', lbl:'BowlP', num:true},
+  {k:'pen',   lbl:'Pen',   num:true},
+  {k:'pts',   lbl:'Pts',   num:true},
+  {k:'avec',  lbl:'AveC',  num:false},
+];
+
+const LEAGUE_FOOTER = 'P&nbsp;- Played &nbsp;|&nbsp; W&nbsp;- Won (12pts) &nbsp;|&nbsp; L&nbsp;- Lost (0) &nbsp;|&nbsp; T&nbsp;- Tied (6) &nbsp;|&nbsp; C&nbsp;- Cancelled (0) &nbsp;|&nbsp; A&nbsp;- Abandoned (0) &nbsp;|&nbsp; LCn&nbsp;- Team Conceded (-20) &nbsp;|&nbsp; WCn&nbsp;- Opposition Conceded (0) &nbsp;|&nbsp; BatP&nbsp;- Batting Bonus Points &nbsp;|&nbsp; BowlP&nbsp;- Bowling Bonus Points &nbsp;|&nbsp; Pen&nbsp;- Penalty Points &nbsp;|&nbsp; Pts&nbsp;- Points &nbsp;|&nbsp; AveC&nbsp;- Average points excluding won/conceded';
+
+function _leagueDB() {
+  if (!db.leagueTables) db.leagueTables = [];
+  return db.leagueTables;
+}
+
+function populateLeagueSeasonSel() {
+  const sel = document.getElementById('league-season-sel');
+  if (!sel) return;
+  const seasons = [...new Set(_leagueDB().map(t=>t.season))].sort().reverse();
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Seasons</option>' +
+    seasons.map(s=>`<option value="${esc(s)}">${esc(s)}</option>`).join('');
+  if (!cur && seasons.length) sel.value = seasons[0];
+  else if (cur) sel.value = cur;
+}
+
+// ── Wizard state ──────────────────────────────────────────────────────────────
+let _lwizEditId = null;
+let _lwizRows   = [];
+
+function leagueWizardStart(editId) {
+  _lwizEditId = editId || null;
+  _lwizRows   = [];
+  document.getElementById('league-view').style.display   = 'none';
+  document.getElementById('league-wizard').style.display = '';
+  document.getElementById('lwiz-step1-ind').classList.add('active');
+  document.getElementById('lwiz-step2-ind').style.opacity = '0.5';
+  document.getElementById('lwiz-step2-ind').classList.remove('active');
+  document.getElementById('lwiz-step1').style.display = '';
+  document.getElementById('lwiz-step2').style.display = 'none';
+  document.getElementById('lwiz-step1-err').style.display = 'none';
+  if (editId) {
+    const tbl = _leagueDB().find(t=>t.id===editId);
+    if (tbl) {
+      document.getElementById('lwiz-season').value   = tbl.season;
+      document.getElementById('lwiz-division').value = tbl.division;
+      _lwizRows = tbl.rows.map(r=>({...r}));
+    }
+  } else {
+    document.getElementById('lwiz-season').value   = '';
+    document.getElementById('lwiz-division').value = '';
+  }
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function leagueWizardCancel() {
+  document.getElementById('league-view').style.display   = '';
+  document.getElementById('league-wizard').style.display = 'none';
+  renderLeagueTables();
+}
+
+function leagueWizardStep2() {
+  const season   = document.getElementById('lwiz-season')?.value.trim();
+  const division = document.getElementById('lwiz-division')?.value.trim();
+  const errEl    = document.getElementById('lwiz-step1-err');
+  if (!season || !division) {
+    errEl.textContent = 'Please enter both a season and division name.';
+    errEl.style.display = '';
+    return;
+  }
+  errEl.style.display = 'none';
+  document.getElementById('lwiz-step1-ind').classList.remove('active');
+  document.getElementById('lwiz-step2-ind').style.opacity = '1';
+  document.getElementById('lwiz-step2-ind').classList.add('active');
+  document.getElementById('lwiz-step1').style.display = 'none';
+  document.getElementById('lwiz-step2').style.display = '';
+  document.getElementById('lwiz-title-display').textContent = division + ' — ' + season;
+  document.getElementById('lwiz-footer').innerHTML = LEAGUE_FOOTER;
+  if (!_lwizRows.length) leagueAddRow();
+  else renderLwizRows();
+}
+
+function leagueWizardBack() {
+  document.getElementById('lwiz-step1-ind').classList.add('active');
+  document.getElementById('lwiz-step2-ind').style.opacity = '0.5';
+  document.getElementById('lwiz-step2-ind').classList.remove('active');
+  document.getElementById('lwiz-step1').style.display = '';
+  document.getElementById('lwiz-step2').style.display = 'none';
+}
+
+function leagueAddRow() {
+  _lwizRows.push({ pos:_lwizRows.length+1, team:'', p:0,w:0,l:0,t:0,c:0,a:0,lcn:0,wcn:0,batp:0,bowlp:0,pen:0,pts:0,avec:'' });
+  renderLwizRows();
+  setTimeout(() => {
+    const inputs = document.querySelectorAll('#lwiz-rows input[data-field="team"]');
+    if (inputs.length) inputs[inputs.length-1].focus();
+  }, 50);
+}
+
+function leagueDeleteRow(idx) {
+  _lwizRows.splice(idx, 1);
+  renderLwizRows();
+}
+
+function leagueUpdateRow(idx, field, value) {
+  if (!_lwizRows[idx]) return;
+  const numFields = ['pos','p','w','l','t','c','a','lcn','wcn','batp','bowlp','pen','pts'];
+  _lwizRows[idx][field] = numFields.includes(field) ? (parseFloat(value)||0) : value;
+}
+
+function renderLwizRows() {
+  const tbody = document.getElementById('lwiz-rows');
+  if (!tbody) return;
+  tbody.innerHTML = _lwizRows.map((r, i) => {
+    const isGodshill = (r.team||'').toLowerCase().includes('godshill');
+    const rowStyle = isGodshill ? 'background:var(--green-pale);' : '';
+    const cells = LEAGUE_COLS.map(c => {
+      const style = `width:100%;border:1px solid #ddd;border-radius:3px;padding:3px 4px;font-size:12px;text-align:${c.num?'center':'left'};font-family:inherit;box-sizing:border-box;`;
+      return `<td style="padding:2px 3px;">
+        <input type="${c.num?'number':'text'}" value="${esc(String(r[c.k]??''))}"
+               data-field="${c.k}" style="${style}"
+               oninput="leagueUpdateRow(${i},'${c.k}',this.value)"
+               ${c.num?'step="any" min="0"':''}>
+      </td>`;
+    }).join('');
+    return `<tr style="${rowStyle}">${cells}
+      <td style="text-align:center;padding:2px 3px;">
+        <button class="btn btn-secondary btn-sm" style="padding:1px 6px;color:var(--red);font-size:11px;"
+                onclick="leagueDeleteRow(${i})">&#10005;</button>
+      </td></tr>`;
+  }).join('') || '<tr><td colspan="16" class="empty-state">No rows yet.</td></tr>';
+}
+
+function leagueWizardSave() {
+  // Flush any pending input values
+  document.querySelectorAll('#lwiz-rows tr').forEach((row, i) => {
+    row.querySelectorAll('input[data-field]').forEach(inp => {
+      leagueUpdateRow(i, inp.dataset.field, inp.value);
+    });
+  });
+  const season   = document.getElementById('lwiz-season')?.value.trim();
+  const division = document.getElementById('lwiz-division')?.value.trim();
+  if (_lwizEditId) {
+    const tbl = _leagueDB().find(t=>t.id===_lwizEditId);
+    if (tbl) { tbl.season = season; tbl.division = division; tbl.rows = _lwizRows; }
+  } else {
+    _leagueDB().push({ id: genId(), season, division, rows: _lwizRows });
+  }
+  saveDB();
+  document.getElementById('league-view').style.display   = '';
+  document.getElementById('league-wizard').style.display = 'none';
+  populateLeagueSeasonSel();
+  const sel = document.getElementById('league-season-sel');
+  if (sel) sel.value = season;
+  renderLeagueTables();
+  window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function deleteLeagueTable(id) {
+  if (!confirm('Delete this league table? This cannot be undone.')) return;
+  db.leagueTables = _leagueDB().filter(t=>t.id!==id);
+  saveDB();
+  populateLeagueSeasonSel();
+  renderLeagueTables();
+}
+
+function renderLeagueTables() {
+  populateLeagueSeasonSel();
+  const container = document.getElementById('league-tables-list');
+  const emptyMsg  = document.getElementById('league-empty');
+  if (!container) return;
+  const seasonFilter = document.getElementById('league-season-sel')?.value || '';
+  let tables = _leagueDB();
+  if (seasonFilter) tables = tables.filter(t=>t.season===seasonFilter);
+  tables = [...tables].sort((a,b)=>b.season.localeCompare(a.season)||a.division.localeCompare(b.division));
+  const isRO = typeof _isReadOnly !== 'undefined' && _isReadOnly;
+  if (!tables.length) {
+    container.innerHTML = '';
+    if (emptyMsg) emptyMsg.style.display = '';
+    return;
+  }
+  if (emptyMsg) emptyMsg.style.display = 'none';
+  container.innerHTML = tables.map(tbl => {
+    const colHeaders = LEAGUE_COLS.map(c=>
+      `<th style="padding:6px 4px;white-space:nowrap;${c.num?'text-align:center;':''}">${c.lbl}</th>`
+    ).join('');
+    const dataRows = tbl.rows.map(r => {
+      const isGodshill = (r.team||'').toLowerCase().includes('godshill');
+      const rs = isGodshill ? 'background:var(--green-pale);font-weight:600;' : '';
+      const cells = LEAGUE_COLS.map(c=>
+        `<td style="padding:5px 4px;${c.num?'text-align:center;':''}">${esc(String(r[c.k]??''))}</td>`
+      ).join('');
+      return `<tr style="${rs}">${cells}</tr>`;
+    }).join('') || `<tr><td colspan="${LEAGUE_COLS.length}" class="empty-state">No data.</td></tr>`;
+    const editBtns = isRO ? '' :
+      `<button class="btn btn-secondary btn-sm edit-only" onclick="leagueWizardStart('${tbl.id}')">&#9998; Edit</button>
+       <button class="btn btn-secondary btn-sm edit-only" style="color:var(--red);" onclick="deleteLeagueTable('${tbl.id}')">&#128465; Delete</button>`;
+    return `<div class="card" style="margin-bottom:20px;padding:14px 16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
+        <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">&#127942; ${esc(tbl.division)} &mdash; ${esc(tbl.season)}</div>
+        <div style="display:flex;gap:6px;">${editBtns}</div>
+      </div>
+      <div class="table-wrap">
+        <table class="data-table" style="font-size:12px;min-width:700px;">
+          <thead><tr>${colHeaders}</tr></thead>
+          <tbody>${dataRows}</tbody>
+        </table>
+      </div>
+      <div style="margin-top:8px;padding:8px 4px;font-size:11px;color:var(--ink-muted);line-height:1.8;border-top:1px solid var(--green-pale);">
+        ${LEAGUE_FOOTER}
+      </div>
+    </div>`;
+  }).join('');
+}
 </script>
 </body>
 </html>
-    </div><!-- /stats-filter-collapsible -->
-  
-
-<!-- ═══════════════════════════════════════════════════════
-     COMPARE PAGE
-══════════════════════════════════════════════════════════ -->
-<div id="page-compare" class="page">
-  <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap;">
-    <button class="btn btn-secondary btn-sm" onclick="showPage('profile',document.getElementById('nav-profile-btn'))">&#8592; Back to Profile</button>
-    <h2 style="margin:0;">Player Comparison</h2>
-  </div>
-
-  <!-- Player selectors -->
-  <div class="card" style="padding:14px 16px;margin-bottom:20px;">
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
-      <div>
-        <label>Player A</label>
-        <select id="cmp-player-a" onchange="renderCompare()" style="width:100%;margin-top:4px;">
-          <option value="">Select player…</option>
-        </select>
-      </div>
-      <div>
-        <label>Player B</label>
-        <select id="cmp-player-b" onchange="renderCompare()" style="width:100%;margin-top:4px;">
-          <option value="">Select player…</option>
-        </select>
-      </div>
-    </div>
-  </div>
-
-  <div id="cmp-content"></div>
-</div>

@@ -718,6 +718,7 @@
         <select id="match-filter-type" onchange="renderMatches()" style="width:100%;">
           <option value="">All Matches</option>
           <option value="hcl">Hampshire Cricket League</option>
+          <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
       </div>
@@ -1093,6 +1094,7 @@
         <select id="filter-type" onchange="renderStats()" style="width:100%;">
           <option value="">All Matches</option>
           <option value="hcl">Hampshire Cricket League</option>
+          <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
       </div>
@@ -1454,6 +1456,7 @@
         <select id="profile-filter-type" onchange="renderProfile()" style="width:100%;">
           <option value="">All Matches</option>
           <option value="hcl">Hampshire Cricket League</option>
+          <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
       </div>
@@ -3049,11 +3052,15 @@ function isHCL(format) {
   return (format||'').toLowerCase().includes('hampshire cricket league') ||
          (format||'').toLowerCase().includes('hampshire cricket leag');
 }
+function isNVK(format) {
+  return (format||'').toLowerCase().includes('national village knockout');
+}
 function matchesTypeFilter(format, ft) {
   if (!ft) return true;
   if (ft === 'league')   return isLeague(format);
   if (ft === 'hcl')      return isHCL(format);
-  if (ft === 'friendly') return !isLeague(format);
+  if (ft === 'friendly') return !isLeague(format) && !isNVK(format);
+  if (ft === 'nvk')      return isNVK(format);
   return true;
 }
 
@@ -6392,6 +6399,56 @@ function renderLeagueTables() {
     const editBtns = isRO ? '' :
       `<button class="btn btn-secondary btn-sm edit-only" onclick="leagueWizardStart('${tbl.id}')">&#9998; Edit</button>
        <button class="btn btn-secondary btn-sm edit-only" style="color:var(--red);" onclick="deleteLeagueTable('${tbl.id}')">&#128465; Delete</button>`;
+    // ── Match results for this season ──────────────────────────────────────
+    // Filter matches to this season, excluding friendlies
+    const seasonMatches = db.matches
+      .filter(m => (m.date||'').startsWith(tbl.season) && isHCL(m.format))
+      .sort((a,b) => a.date.localeCompare(b.date));
+
+    const getScore = (m, inn, team) => {
+      const bat  = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===team);
+      const bowl = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
+      if (!bat.length) return null;
+      const runs = bat.reduce((s,r)=>s+r.runs,0);
+      const ex = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
+      const ext = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
+      return `${runs+ext}/${bowl.reduce((s,r)=>s+r.wickets,0)}`;
+    };
+
+    const tblId = tbl.id.replace(/[^a-z0-9]/gi,'');
+    const matchRows = seasonMatches.map((m, mi) => {
+      const cancelled = ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+      const hasSc  = !cancelled && db.batting.some(r=>r.match_id===m.id);
+      const stripe = mi%2===0?'row-odd':'row-even';
+      const typeLabel = isNVK(m.format)
+        ? `<span class="badge" style="background:#7b5ea7;color:white;font-size:10px;">NVK</span> `
+        : '';
+      const oppCell = hasSc
+        ? `${typeLabel}<a class="sc-toggle-link" id="lt-sc-link-${tblId}-${mi}"
+               onclick="toggleLTInlineSc('${tblId}',${mi},this)"
+               data-mid="${m.id}" style="cursor:pointer;font-weight:600;">${esc(m.opponent)}</a>`
+        : `${typeLabel}<span style="font-weight:600;">${esc(m.opponent)}</span>`;
+      return `<tr class="${stripe}">
+        <td style="color:var(--ink-muted);font-size:12px;">${m.date}</td>
+        <td>${oppCell}</td>
+        <td><span class="badge badge-result-${m.result}">${m.result}</span></td>
+      </tr>
+      <tr id="lt-sc-row-${tblId}-${mi}" class="inline-sc-row" style="display:none;">
+        <td colspan="3"><div class="inline-sc-wrap" id="lt-sc-content-${tblId}-${mi}"></div></td>
+      </tr>`;
+    }).join('') || `<tr><td colspan="3" class="empty-state" style="font-size:12px;">No matches found for ${esc(tbl.season)}.</td></tr>`;
+
+    const matchSection = `
+      <div style="margin-top:16px;border-top:2px solid var(--green-pale);padding-top:14px;">
+        <div class="card-title" style="margin-bottom:10px;"><span class="icon">&#127959;</span> ${esc(tbl.season)} Results</div>
+        <div class="table-wrap">
+          <table class="data-table" style="font-size:12px;">
+            <thead><tr><th>Date</th><th>Opponent</th><th>Result</th></tr></thead>
+            <tbody>${matchRows}</tbody>
+          </table>
+        </div>
+      </div>`;
+
     return `<div class="card" style="margin-bottom:20px;padding:14px 16px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px;">
         <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">&#127942; ${esc(tbl.division)} &mdash; ${esc(tbl.season)}</div>
@@ -6403,10 +6460,74 @@ function renderLeagueTables() {
           <tbody>${dataRows}</tbody>
         </table>
       </div>
+      ${matchSection}
     </div>`;
   }).join('');
 }
 
+
+let _ltOpenSc = {};
+
+function toggleLTInlineSc(tblId, idx, el) {
+  const mid       = el.getAttribute('data-mid');
+  const scRow     = document.getElementById('lt-sc-row-'+tblId+'-'+idx);
+  const scContent = document.getElementById('lt-sc-content-'+tblId+'-'+idx);
+  const link      = document.getElementById('lt-sc-link-'+tblId+'-'+idx);
+  if (!scRow) return;
+  const key    = tblId+'-'+idx;
+  const isOpen = _ltOpenSc[key];
+  // Close all open scorecards
+  Object.keys(_ltOpenSc).forEach(k => {
+    if (!_ltOpenSc[k]) return;
+    const parts = k.split('-');
+    const ti = parts[0], mi = parts[1];
+    const r = document.getElementById('lt-sc-row-'+ti+'-'+mi);
+    const l = document.getElementById('lt-sc-link-'+ti+'-'+mi);
+    if (r) r.style.display = 'none';
+    if (l) l.classList.remove('open');
+    delete _ltOpenSc[k];
+  });
+  if (isOpen) return;
+  const m = db.matches.find(m=>m.id===mid);
+  if (!m) return;
+  const i1bat  = buildInningsBatHtml(mid, 1);
+  const i1bowl = buildInningsBowlHtml(mid, 1);
+  const i2bat  = buildInningsBatHtml(mid, 2);
+  const i2bowl = buildInningsBowlHtml(mid, 2);
+  const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
+  const rc = m.result==='Won' ? '#155724' : m.result==='Lost' ? '#721c24' : '#5d4037';
+  const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
+      margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--green-pale);">
+    <span style="font-family:'Playfair Display',serif;font-weight:900;font-size:15px;">
+      Godshill vs ${esc(m.opponent)}</span>
+    <span style="font-size:11px;color:var(--ink-muted);">
+      &bull; ${esc(m.date)}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
+  </div>`;
+  const col2 = i2bat.html
+    ? i2bat.html + i2bowl
+    : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No second innings recorded.</p>';
+  const notesHtml = m.notes
+    ? `<div style="margin-top:14px;padding:10px 16px;background:var(--cream);
+         border-radius:5px;border:1px solid var(--green-pale);
+         font-size:12px;color:var(--ink-muted);font-style:italic;">
+        <strong style="font-style:normal;color:var(--ink-soft);">Notes:</strong> ${esc(m.notes)}</div>`
+    : '';
+  const footer = notesHtml + `<div style="margin-top:12px;padding-top:12px;
+      border-top:2px solid var(--green-pale);text-align:center;
+      font-family:'Playfair Display',serif;font-weight:700;font-size:15px;color:${rc};">
+    ${esc(resultStr)}</div>`;
+  const pdfBtn = `<div style="text-align:right;margin-top:10px;">
+    <button class="btn btn-secondary btn-sm" style="font-size:11px;"
+      onclick="exportMatchPDF('${mid}')">&#128196; PDF</button></div>`;
+  scContent.innerHTML = header +
+    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">` +
+      `<div>${i1bat.html}${i1bowl}</div>` +
+      `<div>${col2}</div>` +
+    `</div>` + footer + pdfBtn;
+  scRow.style.display = '';
+  if (link) link.classList.add('open');
+  _ltOpenSc[key] = true;
+}
 </script>
 </body>
 </html>

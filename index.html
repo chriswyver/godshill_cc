@@ -1003,7 +1003,7 @@
 
     <!-- Step 1: Details -->
     <div id="lwiz-step1">
-      <div class="card" style="max-width:500px;">
+      <div class="card" style="max-width:600px;">
         <div class="card-title"><span class="icon">&#128197;</span> Table Details</div>
         <div class="form-grid cols-2" style="margin-bottom:16px;">
           <div>
@@ -1014,6 +1014,10 @@
             <label>Division <span style="color:var(--red);">*</span></label>
             <input type="text" id="lwiz-division" placeholder="e.g. Division 6C" style="width:100%;">
           </div>
+        </div>
+        <div style="margin-bottom:16px;">
+          <label style="margin-bottom:6px;display:block;">Columns <span style="font-size:11px;color:var(--ink-muted);">(edit, reorder or remove)</span></label>
+          <div id="lwiz-col-editor" style="max-height:260px;overflow-y:auto;padding:4px;border:1px solid var(--green-pale);border-radius:4px;background:var(--cream);"></div>
         </div>
         <div id="lwiz-step1-err" style="color:var(--red);font-size:13px;margin-bottom:10px;display:none;"></div>
         <button class="btn btn-primary btn-lg" onclick="leagueWizardStep2()">Next: Enter Rows &rarr;</button>
@@ -1032,24 +1036,11 @@
           <button class="btn btn-secondary btn-sm" onclick="leagueAddRow()">&#43; Add Row</button>
         </div>
         <div class="table-wrap">
-          <table class="data-table" style="font-size:12px;" id="lwiz-table">
-            <thead>
-              <tr>
-                <th style="width:36px;">Pos</th>
-                <th style="min-width:140px;">Team</th>
-                <th class="num">P</th><th class="num">W</th><th class="num">L</th>
-                <th class="num">T</th><th class="num">C</th><th class="num">A</th>
-                <th class="num">LCn</th><th class="num">WCn</th>
-                <th class="num">BatP</th><th class="num">BowlP</th>
-                <th class="num">Pen</th><th class="num">Pts</th>
-                <th class="num">AveC</th>
-                <th style="width:30px;"></th>
-              </tr>
-            </thead>
+          <table class="data-table" style="font-size:12px;">
+            <thead id="lwiz-thead"></thead>
             <tbody id="lwiz-rows"></tbody>
           </table>
         </div>
-        <div style="margin-top:8px;padding:8px 4px;font-size:11px;color:var(--ink-muted);line-height:1.8;border-top:1px solid var(--green-pale);" id="lwiz-footer"></div>
         <div class="btn-row mt16">
           <button class="btn btn-secondary" onclick="leagueWizardBack()">&larr; Back</button>
           <button class="btn btn-primary btn-lg" onclick="leagueWizardSave()">&#10003; Save Table</button>
@@ -6130,25 +6121,10 @@ function showPublishGuide() {
 // LEAGUE TABLES
 // ════════════════════════════════════════════════════════════
 
-const LEAGUE_COLS = [
-  {k:'pos',   lbl:'Pos',   num:true,  w:'40px'},
-  {k:'team',  lbl:'Team',  num:false, w:'150px'},
-  {k:'p',     lbl:'P',     num:true},
-  {k:'w',     lbl:'W',     num:true},
-  {k:'l',     lbl:'L',     num:true},
-  {k:'t',     lbl:'T',     num:true},
-  {k:'c',     lbl:'C',     num:true},
-  {k:'a',     lbl:'A',     num:true},
-  {k:'lcn',   lbl:'LCn',   num:true},
-  {k:'wcn',   lbl:'WCn',   num:true},
-  {k:'batp',  lbl:'BatP',  num:true},
-  {k:'bowlp', lbl:'BowlP', num:true},
-  {k:'pen',   lbl:'Pen',   num:true},
-  {k:'pts',   lbl:'Pts',   num:true},
-  {k:'avec',  lbl:'AveC',  num:false},
-];
+const LEAGUE_FOOTER_DEFAULT = 'P&nbsp;- Played &nbsp;|&nbsp; W&nbsp;- Won (12pts) &nbsp;|&nbsp; L&nbsp;- Lost (0) &nbsp;|&nbsp; T&nbsp;- Tied (6) &nbsp;|&nbsp; C&nbsp;- Cancelled (0) &nbsp;|&nbsp; A&nbsp;- Abandoned (0) &nbsp;|&nbsp; LCn&nbsp;- Team Conceded (-20) &nbsp;|&nbsp; WCn&nbsp;- Opposition Conceded (0) &nbsp;|&nbsp; BatP&nbsp;- Batting Bonus Points &nbsp;|&nbsp; BowlP&nbsp;- Bowling Bonus Points &nbsp;|&nbsp; Pen&nbsp;- Penalty Points &nbsp;|&nbsp; Pts&nbsp;- Points &nbsp;|&nbsp; AveC&nbsp;- Average points excluding won/conceded';
 
-const LEAGUE_FOOTER = 'P&nbsp;- Played &nbsp;|&nbsp; W&nbsp;- Won (12pts) &nbsp;|&nbsp; L&nbsp;- Lost (0) &nbsp;|&nbsp; T&nbsp;- Tied (6) &nbsp;|&nbsp; C&nbsp;- Cancelled (0) &nbsp;|&nbsp; A&nbsp;- Abandoned (0) &nbsp;|&nbsp; LCn&nbsp;- Team Conceded (-20) &nbsp;|&nbsp; WCn&nbsp;- Opposition Conceded (0) &nbsp;|&nbsp; BatP&nbsp;- Batting Bonus Points &nbsp;|&nbsp; BowlP&nbsp;- Bowling Bonus Points &nbsp;|&nbsp; Pen&nbsp;- Penalty Points &nbsp;|&nbsp; Pts&nbsp;- Points &nbsp;|&nbsp; AveC&nbsp;- Average points excluding won/conceded';
+// Default columns — can be overridden per table
+const LEAGUE_COLS_DEFAULT = ['Pos','Team','P','W','L','T','C','A','LCn','WCn','BatP','BowlP','Pen','Pts','AveC'];
 
 function _leagueDB() {
   if (!db.leagueTables) db.leagueTables = [];
@@ -6169,10 +6145,19 @@ function populateLeagueSeasonSel() {
 // ── Wizard state ──────────────────────────────────────────────────────────────
 let _lwizEditId = null;
 let _lwizRows   = [];
+let _lwizCols   = [];
 
 function leagueWizardStart(editId) {
   _lwizEditId = editId || null;
   _lwizRows   = [];
+  // Convert cols to {key, label} objects for stable key tracking
+  const rawCols = editId
+    ? (_leagueDB().find(t=>t.id===editId)?.cols || LEAGUE_COLS_DEFAULT.slice())
+    : LEAGUE_COLS_DEFAULT.slice();
+  _lwizCols = rawCols.map(c =>
+    typeof c === 'object' ? c : { key: c, label: c }
+  );
+
   document.getElementById('league-view').style.display   = 'none';
   document.getElementById('league-wizard').style.display = '';
   document.getElementById('lwiz-step1-ind').classList.add('active');
@@ -6181,6 +6166,7 @@ function leagueWizardStart(editId) {
   document.getElementById('lwiz-step1').style.display = '';
   document.getElementById('lwiz-step2').style.display = 'none';
   document.getElementById('lwiz-step1-err').style.display = 'none';
+
   if (editId) {
     const tbl = _leagueDB().find(t=>t.id===editId);
     if (tbl) {
@@ -6192,7 +6178,50 @@ function leagueWizardStart(editId) {
     document.getElementById('lwiz-season').value   = '';
     document.getElementById('lwiz-division').value = '';
   }
+
+  renderLwizColEditor();
   window.scrollTo({top:0, behavior:'smooth'});
+}
+
+// _lwizCols is [{key, label}] — key is stable, label is display name
+// rows store data under key
+
+function renderLwizColEditor() {
+  const el = document.getElementById('lwiz-col-editor');
+  if (!el) return;
+  el.innerHTML = _lwizCols.map((col, i) =>
+    `<div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+      <input type="text" value="${esc(col.label)}"
+             style="width:120px;padding:3px 6px;font-size:12px;border:1px solid #ccc;border-radius:3px;"
+             oninput="lwizUpdateCol(${i}, this.value)">
+      <button class="btn btn-secondary btn-sm" style="padding:1px 6px;color:var(--red);font-size:11px;"
+              onclick="lwizRemoveCol(${i})">✕</button>
+      ${i>0?`<button class="btn btn-secondary btn-sm" style="padding:1px 4px;font-size:11px;" onclick="lwizMoveCol(${i},-1)">↑</button>`:'<span style="width:24px;"></span>'}
+      ${i<_lwizCols.length-1?`<button class="btn btn-secondary btn-sm" style="padding:1px 4px;font-size:11px;" onclick="lwizMoveCol(${i},1)">↓</button>`:''}
+    </div>`
+  ).join('') +
+  `<button class="btn btn-secondary btn-sm" style="margin-top:4px;" onclick="lwizAddCol()">+ Add Column</button>`;
+}
+
+function lwizUpdateCol(i, val) {
+  // Only update the label — key stays the same so row data is preserved
+  _lwizCols[i] = { key: _lwizCols[i].key, label: val.trim() || _lwizCols[i].key };
+  // Update header in step 2 if visible
+  if (document.getElementById('lwiz-step2').style.display !== 'none') renderLwizRows();
+}
+function lwizRemoveCol(i) { _lwizCols.splice(i, 1); renderLwizColEditor(); if (document.getElementById('lwiz-step2').style.display !== 'none') renderLwizRows(); }
+function lwizAddCol() {
+  const key = 'col_' + Date.now();
+  _lwizCols.push({ key, label: 'New' });
+  renderLwizColEditor();
+  if (document.getElementById('lwiz-step2').style.display !== 'none') renderLwizRows();
+}
+function lwizMoveCol(i, dir) {
+  const j = i + dir;
+  if (j < 0 || j >= _lwizCols.length) return;
+  [_lwizCols[i], _lwizCols[j]] = [_lwizCols[j], _lwizCols[i]];
+  renderLwizColEditor();
+  if (document.getElementById('lwiz-step2').style.display !== 'none') renderLwizRows();
 }
 
 function leagueWizardCancel() {
@@ -6210,6 +6239,11 @@ function leagueWizardStep2() {
     errEl.style.display = '';
     return;
   }
+  if (_lwizCols.length < 1) {
+    errEl.textContent = 'Please add at least one column.';
+    errEl.style.display = '';
+    return;
+  }
   errEl.style.display = 'none';
   document.getElementById('lwiz-step1-ind').classList.remove('active');
   document.getElementById('lwiz-step2-ind').style.opacity = '1';
@@ -6217,7 +6251,6 @@ function leagueWizardStep2() {
   document.getElementById('lwiz-step1').style.display = 'none';
   document.getElementById('lwiz-step2').style.display = '';
   document.getElementById('lwiz-title-display').textContent = division + ' — ' + season;
-  document.getElementById('lwiz-footer').innerHTML = LEAGUE_FOOTER;
   if (!_lwizRows.length) leagueAddRow();
   else renderLwizRows();
 }
@@ -6231,62 +6264,71 @@ function leagueWizardBack() {
 }
 
 function leagueAddRow() {
-  _lwizRows.push({ pos:_lwizRows.length+1, team:'', p:0,w:0,l:0,t:0,c:0,a:0,lcn:0,wcn:0,batp:0,bowlp:0,pen:0,pts:0,avec:'' });
+  const row = {};
+  _lwizCols.forEach(c => { if (!row[c.key]) row[c.key] = ''; });
+  _lwizRows.push(row);
   renderLwizRows();
   setTimeout(() => {
-    const inputs = document.querySelectorAll('#lwiz-rows input[data-field="team"]');
-    if (inputs.length) inputs[inputs.length-1].focus();
+    const inputs = document.querySelectorAll('#lwiz-rows input');
+    if (inputs.length) inputs[inputs.length - _lwizCols.length].focus();
   }, 50);
 }
 
-function leagueDeleteRow(idx) {
-  _lwizRows.splice(idx, 1);
-  renderLwizRows();
-}
+function leagueDeleteRow(idx) { _lwizRows.splice(idx, 1); renderLwizRows(); }
 
-function leagueUpdateRow(idx, field, value) {
+function leagueUpdateRow(idx, key, value) {
   if (!_lwizRows[idx]) return;
-  const numFields = ['pos','p','w','l','t','c','a','lcn','wcn','batp','bowlp','pen','pts'];
-  _lwizRows[idx][field] = numFields.includes(field) ? (parseFloat(value)||0) : value;
+  _lwizRows[idx][key] = value;
 }
 
 function renderLwizRows() {
+  const thead = document.getElementById('lwiz-thead');
   const tbody = document.getElementById('lwiz-rows');
-  if (!tbody) return;
+  if (!thead || !tbody) return;
+
+  // Header
+  thead.innerHTML = '<tr>' +
+    _lwizCols.map(c=>`<th style="padding:6px 4px;white-space:nowrap;text-align:center;">${esc(c.label)}</th>`).join('') +
+    '<th></th></tr>';
+
+  // Rows
   tbody.innerHTML = _lwizRows.map((r, i) => {
-    const isGodshill = (r.team||'').toLowerCase().includes('godshill');
+    const firstVal  = r[_lwizCols[0]?.key] || '';
+    const secondVal = _lwizCols[1] ? r[_lwizCols[1].key] || '' : '';
+    const isGodshill = (String(firstVal)+String(secondVal)).toLowerCase().includes('godshill');
     const rowStyle = isGodshill ? 'background:var(--green-pale);' : '';
-    const cells = LEAGUE_COLS.map(c => {
-      const style = `width:100%;border:1px solid #ddd;border-radius:3px;padding:3px 4px;font-size:12px;text-align:${c.num?'center':'left'};font-family:inherit;box-sizing:border-box;`;
+    const cells = _lwizCols.map(c => {
+      const style = `width:100%;border:1px solid #ddd;border-radius:3px;padding:3px 4px;font-size:12px;text-align:center;font-family:inherit;box-sizing:border-box;`;
       return `<td style="padding:2px 3px;">
-        <input type="${c.num?'number':'text'}" value="${esc(String(r[c.k]??''))}"
-               data-field="${c.k}" style="${style}"
-               oninput="leagueUpdateRow(${i},'${c.k}',this.value)"
-               ${c.num?'step="any" min="0"':''}>
+        <input type="text" value="${esc(String(r[c.key]??''))}"
+               data-key="${esc(c.key)}" style="${style}"
+               oninput="leagueUpdateRow(${i},'${c.key.replace(/'/g,"\'")}',this.value)">
       </td>`;
-    }).join('');
+}).join('');
     return `<tr style="${rowStyle}">${cells}
       <td style="text-align:center;padding:2px 3px;">
         <button class="btn btn-secondary btn-sm" style="padding:1px 6px;color:var(--red);font-size:11px;"
-                onclick="leagueDeleteRow(${i})">&#10005;</button>
+                onclick="leagueDeleteRow(${i})">✕</button>
       </td></tr>`;
-  }).join('') || '<tr><td colspan="16" class="empty-state">No rows yet.</td></tr>';
+  }).join('') || `<tr><td colspan="${_lwizCols.length+1}" class="empty-state">No rows yet.</td></tr>`;
 }
 
 function leagueWizardSave() {
-  // Flush any pending input values
+  // Flush pending inputs
   document.querySelectorAll('#lwiz-rows tr').forEach((row, i) => {
-    row.querySelectorAll('input[data-field]').forEach(inp => {
-      leagueUpdateRow(i, inp.dataset.field, inp.value);
+    row.querySelectorAll('input[data-key]').forEach(inp => {
+      leagueUpdateRow(i, inp.dataset.key, inp.value);
     });
   });
   const season   = document.getElementById('lwiz-season')?.value.trim();
   const division = document.getElementById('lwiz-division')?.value.trim();
+  // Store cols as {key,label} pairs
+  const colsToSave = _lwizCols.map(c => typeof c==='object' ? c : {key:c, label:c});
   if (_lwizEditId) {
     const tbl = _leagueDB().find(t=>t.id===_lwizEditId);
-    if (tbl) { tbl.season = season; tbl.division = division; tbl.rows = _lwizRows; }
+    if (tbl) { tbl.season=season; tbl.division=division; tbl.cols=colsToSave; tbl.rows=_lwizRows; }
   } else {
-    _leagueDB().push({ id: genId(), season, division, rows: _lwizRows });
+    _leagueDB().push({ id:genId(), season, division, cols:colsToSave, rows:_lwizRows });
   }
   saveDB();
   document.getElementById('league-view').style.display   = '';
@@ -6322,18 +6364,31 @@ function renderLeagueTables() {
     return;
   }
   if (emptyMsg) emptyMsg.style.display = 'none';
+
+  // Migrate old tables that don't have cols defined
+  tables.forEach(tbl => {
+    if (!tbl.cols) {
+      // Derive cols from first row keys, or use default
+      const keys = tbl.rows && tbl.rows.length ? Object.keys(tbl.rows[0]) : LEAGUE_COLS_DEFAULT;
+      tbl.cols = keys.map(k => ({key:k, label:k}));
+    }
+  });
+
   container.innerHTML = tables.map(tbl => {
-    const colHeaders = LEAGUE_COLS.map(c=>
-      `<th style="padding:6px 4px;white-space:nowrap;${c.num?'text-align:center;':''}">${c.lbl}</th>`
+    // Normalise cols to {key,label}
+    const rawC = tbl.cols || LEAGUE_COLS_DEFAULT;
+    const cols = rawC.map(c => typeof c==='object' ? c : {key:c, label:c});
+    const colHeaders = cols.map(c=>
+      `<th style="padding:6px 4px;white-space:nowrap;text-align:center;">${esc(c.label)}</th>`
     ).join('');
     const dataRows = tbl.rows.map(r => {
-      const isGodshill = (r.team||'').toLowerCase().includes('godshill');
+      const isGodshill = cols.some(c=>String(r[c.key]||'').toLowerCase().includes('godshill'));
       const rs = isGodshill ? 'background:var(--green-pale);font-weight:600;' : '';
-      const cells = LEAGUE_COLS.map(c=>
-        `<td style="padding:5px 4px;${c.num?'text-align:center;':''}">${esc(String(r[c.k]??''))}</td>`
+      const cells = cols.map(c=>
+        `<td style="padding:5px 4px;text-align:center;">${esc(String(r[c.key]??''))}</td>`
       ).join('');
       return `<tr style="${rs}">${cells}</tr>`;
-    }).join('') || `<tr><td colspan="${LEAGUE_COLS.length}" class="empty-state">No data.</td></tr>`;
+    }).join('') || `<tr><td colspan="${cols.length}" class="empty-state">No data.</td></tr>`;
     const editBtns = isRO ? '' :
       `<button class="btn btn-secondary btn-sm edit-only" onclick="leagueWizardStart('${tbl.id}')">&#9998; Edit</button>
        <button class="btn btn-secondary btn-sm edit-only" style="color:var(--red);" onclick="deleteLeagueTable('${tbl.id}')">&#128465; Delete</button>`;
@@ -6343,17 +6398,15 @@ function renderLeagueTables() {
         <div style="display:flex;gap:6px;">${editBtns}</div>
       </div>
       <div class="table-wrap">
-        <table class="data-table" style="font-size:12px;min-width:700px;">
+        <table class="data-table" style="font-size:12px;">
           <thead><tr>${colHeaders}</tr></thead>
           <tbody>${dataRows}</tbody>
         </table>
       </div>
-      <div style="margin-top:8px;padding:8px 4px;font-size:11px;color:var(--ink-muted);line-height:1.8;border-top:1px solid var(--green-pale);">
-        ${LEAGUE_FOOTER}
-      </div>
     </div>`;
   }).join('');
 }
+
 </script>
 </body>
 </html>

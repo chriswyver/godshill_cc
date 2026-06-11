@@ -498,7 +498,7 @@
 <!-- ═══════════════════════════════════════ HOME ═══════ -->
 <div id="page-home" class="page active">
   <h2>Dashboard</h2>
-  <p class="muted" style="margin-bottom:16px;">Your club cricket record at a glance.</p>
+  <p class="muted" style="margin-bottom:16px;">Your club cricket record at a glance. <span id="home-year-range"></span></p>
 
   <!-- Shared home filter -->
   <div class="card" style="padding:12px 16px;margin-bottom:16px;" id="home-filter-card">
@@ -701,7 +701,7 @@
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:10px;align-items:end;">
       <div>
         <label>Season</label>
-        <select id="match-filter-season" onchange="applySeasonFilter('match-filter-season','match-filter-from','match-filter-to',renderMatches)" style="width:100%;">
+        <select id="match-filter-season" onchange="applySeasonFilter('match-filter-season','match-filter-from','match-filter-to',function(){renderMatches();_reRenderH2HIfActive();})" style="width:100%;">
           <option value="">All Time</option>
         </select>
       </div>
@@ -715,7 +715,7 @@
       </div>
       <div>
         <label>Type</label>
-        <select id="match-filter-type" onchange="renderMatches()" style="width:100%;">
+        <select id="match-filter-type" onchange="renderMatches();_reRenderH2HIfActive();" style="width:100%;">
           <option value="">All Matches</option>
           <option value="hcl">Hampshire Cricket League</option>
           <option value="nvk">National Village Knockout Cup</option>
@@ -724,11 +724,11 @@
       </div>
       <div>
         <label>Opposition</label>
-        <input type="text" id="match-filter-opp" oninput="renderMatches()" placeholder="Any opponent..." style="width:100%;">
+        <input type="text" id="match-filter-opp" oninput="renderMatches();_reRenderH2HIfActive();" placeholder="Any opponent..." style="width:100%;">
       </div>
       <div>
         <label>Venue</label>
-        <select id="match-filter-venue" onchange="renderMatches()" style="width:100%;">
+        <select id="match-filter-venue" onchange="renderMatches();_reRenderH2HIfActive();" style="width:100%;">
           <option value="">Any</option>
           <option value="Home">Home</option>
           <option value="Away">Away</option>
@@ -737,7 +737,7 @@
       </div>
       <div>
         <label>Result</label>
-        <select id="match-filter-result" onchange="renderMatches()" style="width:100%;">
+        <select id="match-filter-result" onchange="renderMatches();_reRenderH2HIfActive();" style="width:100%;">
           <option value="">Any Result</option>
           <option>Won</option><option>Lost</option><option>Draw</option>
           <option>Tie</option><option>No Result</option>
@@ -845,7 +845,10 @@
 
   <!-- Export / Import -->
   <div class="card edit-only" style="margin-top:16px;">
-    <div class="card-title"><span class="icon">&#128190;</span> Data Export &amp; Import</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
+      <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;"><span class="icon">&#128190;</span> Data Export &amp; Import</div>
+      <span style="font-size:11px;" id="storage-usage"></span>
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:4px;">
       <div class="card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
         <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#8595; Export</div>
@@ -947,11 +950,10 @@
             <th class="num" onclick="sortH2H('played')">P <span id="h2h-sort-played"></span></th>
             <th class="num" onclick="sortH2H('won')">W <span id="h2h-sort-won"></span></th>
             <th class="num" onclick="sortH2H('lost')">L <span id="h2h-sort-lost"></span></th>
+            <th class="num" onclick="sortH2H('tied')">T <span id="h2h-sort-tied"></span></th>
             <th class="num" onclick="sortH2H('draw')">D <span id="h2h-sort-draw"></span></th>
             <th class="num" onclick="sortH2H('abandoned')">Abd <span id="h2h-sort-abandoned"></span></th>
             <th class="num" onclick="sortH2H('winpct')">Win% <span id="h2h-sort-winpct"></span></th>
-            <th class="num" onclick="sortH2H('runs_for')">Runs For <span id="h2h-sort-runs_for"></span></th>
-            <th class="num" onclick="sortH2H('runs_against')">Runs Agnst <span id="h2h-sort-runs_against"></span></th>
             <th onclick="sortH2H('last')">Last Played <span id="h2h-sort-last"></span></th>
           </tr></thead>
           <tbody id="tbody-h2h"></tbody>
@@ -1718,7 +1720,32 @@ function loadDB() {
 }
 function saveDB(data) {
   if (typeof _isReadOnly !== 'undefined' && _isReadOnly) return;
-  localStorage.setItem('cricketDB', JSON.stringify(data !== undefined ? data : db));
+  try {
+    const payload = JSON.stringify(data !== undefined ? data : db);
+    localStorage.setItem('cricketDB', payload);
+    // Update storage indicator if present
+    const el = document.getElementById('storage-usage');
+    if (el) {
+      let total = 0;
+      for (let k in localStorage) { if (localStorage.hasOwnProperty(k)) total += (localStorage[k].length + k.length) * 2; }
+      const kb = (total/1024).toFixed(0);
+      const pct = (total/(5*1024*1024)*100).toFixed(0);
+      el.textContent = kb + ' KB used (' + pct + '%)';
+      el.style.color = pct > 80 ? 'var(--red)' : pct > 60 ? '#c8922a' : 'var(--ink-muted)';
+    }
+  } catch(e) {
+    alert('Storage full - data not saved! Please export immediately via Matches page.');
+    console.error('saveDB failed:', e);
+  }
+}
+function updateStorageIndicator() {
+  try {
+    var st=0; for(var k in localStorage){if(localStorage.hasOwnProperty(k)) st+=(localStorage[k].length+k.length)*2;}
+    var el=document.getElementById('storage-usage');
+    if(el){var kb=(st/1024).toFixed(0),pct=(st/(5*1024*1024)*100).toFixed(0);
+      el.textContent=kb+' KB used ('+pct+'%)';
+      el.style.color=pct>80?'var(--red)':pct>60?'#c8922a':'var(--ink-muted)';}
+  } catch(e){}
 }
 function genId() {
   return 'M' + Date.now() + Math.floor(Math.random()*1000);
@@ -2427,6 +2454,9 @@ function populateSeasonDropdowns() {
   if (pregYearSel) { const cur = pregYearSel.value; pregYearSel.innerHTML = yearOpts; if (cur) pregYearSel.value = cur; }
 }
 
+function _reRenderH2HIfActive() {
+  if (document.getElementById('mtab-h2h')?.style.display !== 'none') renderH2H();
+}
 function applySeasonFilter(selId, fromId, toId, renderFn) {
   const sel = document.getElementById(selId);
   const y = sel?.value;
@@ -2496,6 +2526,15 @@ function setHomeTypeFilter(which, filter) { setHomeGlobalType(filter); }
 function renderHome() {
   renderHomeRecent();
   populateSeasonDropdowns();
+  // Year range subtitle
+  const allYears = db.matches.map(m=>(m.date||'').slice(0,4)).filter(Boolean).sort();
+  const yrEl = document.getElementById('home-year-range');
+  if (yrEl && allYears.length) {
+    const first = allYears[0], last = allYears[allYears.length-1];
+    yrEl.textContent = first === last
+      ? 'Includes data from ' + first + '.'
+      : 'Includes data from ' + first + '\u2013' + last + '.';
+  }
   renderHomeFiltered();
 }
 
@@ -3491,11 +3530,21 @@ function _yearsActive(name) {
     return m ? (m.date||'').slice(0,4) : null;
   }).filter(Boolean))].sort();
   if (!years.length) return '';
-  // Compress into ranges e.g. 2019-2021, 2023
+  // Years that had no matches at all (e.g. 2020 covid) — treat as non-gaps
+  const allMatchYears = new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(Boolean));
+  const emptyYears = new Set(); // years that exist in the range but had no club cricket
+  const minY = parseInt(years[0]), maxY = parseInt(years[years.length-1]);
+  for (let y=minY; y<=maxY; y++) {
+    if (!allMatchYears.has(String(y))) emptyYears.add(String(y));
+  }
+  // Compress into ranges, skipping over empty years
   const ranges = [];
   let start = years[0], prev = years[0];
   for (let i=1; i<years.length; i++) {
-    if (parseInt(years[i]) === parseInt(prev)+1) { prev = years[i]; }
+    const gap = parseInt(years[i]) - parseInt(prev);
+    // Allow gap if all years in between had no matches
+    const bridgeable = gap > 1 && Array.from({length:gap-1},(_,j)=>String(parseInt(prev)+j+1)).every(y=>emptyYears.has(y));
+    if (gap === 1 || bridgeable) { prev = years[i]; }
     else { ranges.push(start===prev ? start : start+'–'+prev); start = prev = years[i]; }
   }
   ranges.push(start===prev ? start : start+'–'+prev);
@@ -3742,6 +3791,7 @@ document.getElementById('m-date').value = new Date().toISOString().split('T')[0]
     }
   }
   renderHome();
+  updateStorageIndicator();
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -5892,12 +5942,14 @@ function renderH2H() {
   // Respect current match filters + H2H specific filters
   const from   = document.getElementById('match-filter-from')?.value || '';
   const to     = document.getElementById('match-filter-to')?.value   || '';
+  const season = document.getElementById('match-filter-season')?.value || '';
   const type   = document.getElementById('h2h-type-filter')?.value || document.getElementById('match-filter-type')?.value || '';
   const oppF   = (document.getElementById('h2h-search')?.value || document.getElementById('match-filter-opp')?.value || '').toLowerCase().trim();
   const venueF = document.getElementById('match-filter-venue')?.value || '';
 
   let matches = db.matches.filter(m => {
     if (m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return false;
+    if (season && !(m.date||'').startsWith(season)) return false;
     if (from && m.date < from) return false;
     if (to   && m.date > to)   return false;
     if (type && !matchesTypeFilter(m.format, type)) return false;
@@ -5910,35 +5962,25 @@ function renderH2H() {
   const oppMap = {};
   matches.forEach(m => {
     const opp = m.opponent || 'Unknown';
-    if (!oppMap[opp]) oppMap[opp] = { opponent:opp, played:0, won:0, lost:0, draw:0, tie:0, abandoned:0, no_result:0, runs_for:0, runs_against:0, last:'', matches:[] };
+    if (!oppMap[opp]) oppMap[opp] = { opponent:opp, played:0, won:0, lost:0, draw:0, tied:0, abandoned:0, last:'', matches:[] };
     const r = oppMap[opp];
     r.played++;
     r.matches.push(m);
     if (m.date > r.last) r.last = m.date;
     if (m.result==='Won')          r.won++;
     else if (m.result==='Lost')    r.lost++;
+    else if (m.result==='Tie')     r.tied++;
     else if (m.result==='Draw')    r.draw++;
-    else if (m.result==='Tie')     r.tie++;
     else if (m.result==='Abandoned' || m.result==='No Result') r.abandoned++;
-
-    // Runs for/against
-    const godshillBat1 = m.bat_first === OUR_TEAM;
-    const bat1 = db.batting.filter(r=>r.match_id===m.id&&r.innings===1&&r.team===OUR_TEAM);
-    const bat2 = db.batting.filter(r=>r.match_id===m.id&&r.innings===2&&r.team===OUR_TEAM);
-    const opp1 = db.batting.filter(r=>r.match_id===m.id&&r.innings===1&&r.team!==OUR_TEAM);
-    const opp2 = db.batting.filter(r=>r.match_id===m.id&&r.innings===2&&r.team!==OUR_TEAM);
-    const sumR = arr => arr.reduce((s,x)=>s+x.runs,0);
-    r.runs_for     += godshillBat1 ? sumR(bat1)+sumR(bat2) : sumR(bat2)+sumR(bat1);
-    r.runs_against += godshillBat1 ? sumR(opp1)+sumR(opp2) : sumR(opp1)+sumR(opp2);
   });
 
   let rows = Object.values(oppMap);
   // Sort
   const k = _h2hSortKey, d = _h2hSortDir;
   rows.sort((a,b) => {
-    if (k==='opponent')     return d * a.opponent.localeCompare(b.opponent);
+    if (k==='opponent') return d * a.opponent.localeCompare(b.opponent);
     if (k==='winpct') {
-      const pa = a.won+a.lost+a.draw+a.tie, pb = b.won+b.lost+b.draw+b.tie;
+      const pa = a.won+a.lost+a.draw+a.tied, pb = b.won+b.lost+b.draw+b.tied;
       return d * ((pa?a.won/pa:0) - (pb?b.won/pb:0));
     }
     if (k==='last') return d * a.last.localeCompare(b.last);
@@ -5946,7 +5988,7 @@ function renderH2H() {
   });
 
   // Sort indicators
-  ['opponent','played','won','lost','draw','abandoned','winpct','runs_for','runs_against','last'].forEach(key => {
+  ['opponent','played','won','lost','tied','draw','abandoned','winpct','last'].forEach(key => {
     const el = document.getElementById('h2h-sort-'+key);
     if (el) el.textContent = _h2hSortKey===key ? (_h2hSortDir===1?' ▲':' ▼') : '';
   });
@@ -5956,7 +5998,7 @@ function renderH2H() {
 
   document.getElementById('tbody-h2h').innerHTML = rows.length
     ? rows.map((r,i) => {
-        const decisive = r.won + r.lost + r.draw + r.tie;
+        const decisive = r.won + r.lost + r.draw + r.tied;
         const winpct   = decisive > 0 ? Math.round(r.won/decisive*100) : '–';
         const pctCol   = typeof winpct==='number' ? (winpct>=60?'var(--green-mid)':winpct<=40?'var(--red)':'') : '';
         const stripe   = i%2===0?'row-odd':'row-even';
@@ -5969,11 +6011,10 @@ function renderH2H() {
           <td class="num">${r.played}</td>
           <td class="num" style="color:var(--green-mid);font-weight:600;">${r.won}</td>
           <td class="num" style="color:var(--red);">${r.lost}</td>
+          <td class="num">${r.tied||0}</td>
           <td class="num">${r.draw}</td>
           <td class="num" style="color:var(--ink-muted);">${r.abandoned}</td>
           <td class="num" style="font-weight:600;color:${pctCol};">${typeof winpct==='number'?winpct+'%':winpct}</td>
-          <td class="num">${r.runs_for||'–'}</td>
-          <td class="num">${r.runs_against||'–'}</td>
           <td style="font-size:12px;color:var(--ink-muted);">${r.last||'–'}</td>
         </tr>
         <tr id="h2h-detail-row-${i}" style="display:none;">
@@ -6027,11 +6068,6 @@ function showH2HDetail(opponent, oppIdx) {
 
   const rows = matches.map((m, idx) => {
     const cancelled = ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
-    const godshillBat = m.bat_first===OUR_TEAM ? 1 : 2;
-    const ourScore = cancelled ? '–' : getScore(m, godshillBat, OUR_TEAM);
-    const oppScore = cancelled ? '–' : getScore(m, godshillBat===1?2:1, m.opponent);
-    const scoreStr = ourScore!=='–'||oppScore!=='–'
-      ? `${OUR_TEAM} ${ourScore} / ${esc(opponent)} ${oppScore}` : '';
     const hasSc = !cancelled && db.batting.some(r=>r.match_id===m.id);
     const stripe = idx%2===0?'row-odd':'row-even';
     const dateCell = hasSc
@@ -6044,10 +6080,9 @@ function showH2HDetail(opponent, oppIdx) {
         <td>${esc(m.venue||'–')}</td>
         <td style="font-size:12px;">${esc(m.format||'')}</td>
         <td><span class="badge badge-result-${m.result}">${m.result}</span></td>
-        <td style="font-size:12px;">${scoreStr}</td>
       </tr>
       <tr id="h2h-sc-row-${oppIdx}-${idx}" class="inline-sc-row" style="display:none;">
-        <td colspan="5"><div class="inline-sc-wrap" id="h2h-sc-content-${oppIdx}-${idx}"></div></td>
+        <td colspan="4"><div class="inline-sc-wrap" id="h2h-sc-content-${oppIdx}-${idx}"></div></td>
       </tr>`;
   }).join('') || '<tr><td colspan="5" class="empty-state">No matches</td></tr>';
 
@@ -6058,7 +6093,7 @@ function showH2HDetail(opponent, oppIdx) {
     <div class="table-wrap">
       <table class="data-table" style="font-size:12px;">
         <thead><tr>
-          <th>Date</th><th>Venue</th><th>Format</th><th>Result</th><th>Scores</th>
+          <th>Date</th><th>Venue</th><th>Format</th><th>Result</th>
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>

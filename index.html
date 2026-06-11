@@ -3598,7 +3598,7 @@ function renderPlayers() {
   const rows = data.map(({p, origIdx, runs, wkts, m, years}) =>
     `<tr id="prow-${origIdx}" onclick="selectPlayer(${origIdx})" style="cursor:pointer;">
       <td style="text-align:center;" onclick="event.stopPropagation();">
-        <input type="checkbox" class="player-chk" value="${origIdx}">
+        <input type="checkbox" class="player-chk" value="${esc(p.id||p.name)}">
       </td>
       <td><a href="#" onclick="event.stopPropagation();openPlayerProfile(${origIdx});return false;"
              style="color:var(--green-mid);font-weight:600;text-decoration:none;"
@@ -3655,11 +3655,13 @@ function deleteCheckedPlayers() {
     document.getElementById('player-del-msg').innerHTML =
       '<div class="alert alert-warn">Tick at least one player first.</div>'; return;
   }
-  // Get indices in reverse order so splicing doesn't shift subsequent indices
-  const indices = checked.map(c=>parseInt(c.value)).sort((a,b)=>b-a);
-  const names   = indices.map(i=>db.players[i]?.name).filter(Boolean);
+  // Use id or name stored in value — safe regardless of filter/sort state
+  const keys = checked.map(c => c.value);
+  const toDelete = db.players.filter(p => keys.includes(p.id||p.name));
+  const names = toDelete.map(p => p.name);
+  if (!names.length) return;
   if (!confirm(`Remove ${names.join(', ')} from the register? Their match data is kept.`)) return;
-  indices.forEach(i=>db.players.splice(i,1));
+  db.players = db.players.filter(p => !keys.includes(p.id||p.name));
   saveDB(db);
   document.getElementById('player-del-msg').innerHTML =
     `<div class="alert alert-ok">&#10003; Removed: ${names.map(esc).join(', ')}</div>`;

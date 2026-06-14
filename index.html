@@ -1512,7 +1512,8 @@
   <!-- Profile tabs -->
   <div class="card" style="margin-top:20px;padding-bottom:0;">
     <div class="tab-bar" id="profile-tab-bar" style="border-bottom:none;">
-      <button class="tab-btn active" id="ptab-bat"   onclick="showProfileTabWithFilter('bat')"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px;"><path d="M3 21.5L16.5 8 20 4.5 19.5 9 15 13.5 16 14.5 3 21.5Z"/><circle cx="4.5" cy="20" r="2" fill="currentColor"/></svg> Batting</button>
+      <button class="tab-btn active" id="ptab-matches" onclick="showProfileTabWithFilter('matches')">&#128197; Matches</button>
+      <button class="tab-btn"        id="ptab-bat"   onclick="showProfileTabWithFilter('bat')"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px;"><path d="M3 21.5L16.5 8 20 4.5 19.5 9 15 13.5 16 14.5 3 21.5Z"/><circle cx="4.5" cy="20" r="2" fill="currentColor"/></svg> Batting</button>
       <button class="tab-btn"        id="ptab-bowl"  onclick="showProfileTabWithFilter('bowl')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:3px;"><circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" opacity="0.15"/><circle cx="12" cy="12" r="9"/><path d="M5.5 8.5 Q12 13 18.5 8.5" stroke-width="1.5"/><path d="M5.5 15.5 Q12 11 18.5 15.5" stroke-width="1.5"/></svg> Bowling</button>
       <button class="tab-btn"        id="ptab-field" onclick="showProfileTabWithFilter('field')"><svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:3px;"><path d="M6 3 C4 3 3 4.5 3 6 L3 14 C3 15.5 4.5 17 6 17 L8 17 L8 21 L16 21 L16 17 L18 17 C19.5 17 21 15.5 21 14 L21 10 C21 8.5 19.5 7 18 7 L16 7 L16 6 C16 4.5 14.5 3 13 3 Z" opacity="0.8"/><rect x="8" y="15" width="8" height="6" rx="1"/></svg> Fielding</button>
     </div>
@@ -1522,7 +1523,7 @@
   </div>
 
   <!-- BATTING TAB -->
-  <div id="profile-tab-bat" style="margin-top:0;">
+  <div id="profile-tab-bat" style="display:none;margin-top:0;">
     <div class="stat-row mt16" id="profile-bat-boxes"></div>
     <!-- Row 1: bar chart full width -->
     <div class="card" style="margin-top:16px;">
@@ -1677,6 +1678,26 @@
           <tbody id="tbody-profile-field"></tbody>
         </table>
         <div id="profile-field-pager" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Matches tab -->
+  <div id="profile-tab-matches" style="margin-top:0;">
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title"><span class="icon">&#128197;</span> All Matches</div>
+      <div class="table-wrap">
+        <table class="data-table" id="profile-matches-table">
+          <thead><tr>
+            <th>Date</th>
+            <th>Opponent</th>
+            <th class="num">Batting</th>
+            <th class="num">Bowling</th>
+            <th>Fielding</th>
+          </tr></thead>
+          <tbody id="tbody-profile-matches"></tbody>
+        </table>
+        <div id="profile-matches-pager" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
       </div>
     </div>
   </div>
@@ -3998,7 +4019,7 @@ function renderProfile() {
   const _currentActive = document.querySelector('#profile-tab-bar .tab-btn.active');
   const _currentTab = _currentActive ? _currentActive.id.replace('ptab-','') : null;
   const _currentVisible = _currentTab && document.getElementById('ptab-'+_currentTab)?.style.display !== 'none';
-  const firstTab = _currentVisible ? _currentTab : (hasBat ? 'bat' : hasBowl ? 'bowl' : 'field');
+  const firstTab = _currentVisible ? _currentTab : 'matches';
   showProfileTab(firstTab);
 
   // ── Batting by position ───────────────────────────────────
@@ -4075,12 +4096,13 @@ function renderProfile() {
 }
 
 function showProfileTab(which) {
-  ['bat','bowl','field'].forEach(t => {
+  ['bat','bowl','field','matches'].forEach(t => {
     const tabEl = document.getElementById('profile-tab-'+t);
     const btnEl = document.getElementById('ptab-'+t);
     if (tabEl) tabEl.style.display = t===which ? '' : 'none';
     if (btnEl) btnEl.classList.toggle('active', t===which);
   });
+  if (which === 'matches') renderProfileMatches();
 }
 
 // ── Runs bar chart + running average line ─────────────────────────────────────
@@ -6140,10 +6162,10 @@ function toggleH2HInlineSc(idx, el) {
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
   const col2 = i2bat.html
-    ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl.html}</div>` : '';
+    ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
     `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl.html}</div>
+      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>
       ${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
@@ -6564,6 +6586,166 @@ function toggleLTInlineSc(tblId, idx, el) {
   scRow.style.display = '';
   if (link) link.classList.add('open');
   _ltOpenSc[key] = true;
+}
+
+// ════════════════════════════════════════════════════════════
+// PROFILE MATCHES TAB
+// ════════════════════════════════════════════════════════════
+let _profileMatchesPage = 1;
+let _profileMatchesOpenSc = {};
+
+function renderProfileMatches() {
+  if (!profilePlayer) return;
+  const name = profilePlayer.name;
+
+  // Get all filtered match IDs from the current profile filters
+  const filtMids = _getProfileFilteredMids(name);
+
+  // Build one row per match the player appeared in
+  const rows = [...filtMids]
+    .map(mid => {
+      const m = db.matches.find(m=>m.id===mid);
+      if (!m) return null;
+      // Batting
+      const batRow = db.batting.find(r=>r.match_id===mid&&r.player===name&&r.team===OUR_TEAM);
+      let batCell = '';
+      if (batRow) {
+        if (batRow.how_out === 'did not bat') batCell = '<span style="color:var(--ink-muted);font-style:italic;">DNB</span>';
+        else {
+          const no = NO_OUT_MODES.includes(batRow.how_out) ? '*' : '';
+          batCell = `<strong>${batRow.runs}${no}</strong>`;
+        }
+      }
+      // Bowling (may have bowled without batting)
+      const bowlRow = db.bowling.find(r=>r.match_id===mid&&r.player===name&&r.team===OUR_TEAM);
+      let bowlCell = '';
+      if (bowlRow && (parseFloat(bowlRow.overs)||0) > 0) {
+        bowlCell = `${bowlRow.overs}-${bowlRow.maidens}-${bowlRow.runs}-${bowlRow.wickets}`;
+      }
+      // Fielding
+      const fieldRow = db.fielding.find(r=>r.match_id===mid&&r.player===name&&r.team===OUR_TEAM);
+      let fieldParts = [];
+      if (fieldRow) {
+        if (fieldRow.catches   > 0) fieldParts.push(fieldRow.catches   + (fieldRow.catches===1   ? ' catch'   : ' catches'));
+        if (fieldRow.run_outs  > 0) fieldParts.push(fieldRow.run_outs  + (fieldRow.run_outs===1  ? ' run out' : ' run outs'));
+        if (fieldRow.stumpings > 0) fieldParts.push(fieldRow.stumpings + (fieldRow.stumpings===1 ? ' stumping': ' stumpings'));
+      }
+      const fieldCell = fieldParts.join(', ');
+      return { m, batCell, bowlCell, fieldCell };
+    })
+    .filter(Boolean)
+    .sort((a,b) => b.m.date.localeCompare(a.m.date));
+
+  const pp = parseInt(document.getElementById('profile-per-page')?.value||'50')||50;
+  const ppF = pp===0 ? rows.length||1 : pp;
+  const cur = _profileMatchesPage;
+  const slice = ppF >= rows.length ? rows : rows.slice((cur-1)*ppF, cur*ppF);
+
+  _profileMatchesOpenSc = {};
+  document.getElementById('tbody-profile-matches').innerHTML = slice.length
+    ? slice.map((row, si) => {
+        const {m, batCell, bowlCell, fieldCell} = row;
+        const cancelled = ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+        const hasSc = !cancelled && db.batting.some(r=>r.match_id===m.id);
+        const stripe = si%2===0?'row-odd':'row-even';
+        const oppCell = hasSc
+          ? `<a class="sc-toggle-link" id="pm-sc-link-${si}"
+               onclick="toggleProfileMatchSc(${si},this)" data-mid="${m.id}"
+               style="cursor:pointer;">${esc(m.opponent)}</a>`
+          : esc(m.opponent);
+        return `<tr class="${stripe}">
+          <td style="color:var(--ink-muted);font-size:12px;">${m.date}</td>
+          <td>
+            ${oppCell}
+            <span class="badge badge-result-${m.result}" style="margin-left:6px;font-size:10px;">${m.result}</span>
+          </td>
+          <td class="num">${batCell||'–'}</td>
+          <td class="num" style="font-size:12px;">${bowlCell||'–'}</td>
+          <td style="font-size:12px;">${fieldCell||'–'}</td>
+        </tr>
+        <tr id="pm-sc-row-${si}" class="inline-sc-row" style="display:none;">
+          <td colspan="5"><div class="inline-sc-wrap" id="pm-sc-content-${si}"></div></td>
+        </tr>`;
+      }).join('')
+    : '<tr><td colspan="5" class="empty-state">No matches found.</td></tr>';
+
+  _mkPager('profile-matches-pager', cur, rows.length, ppF,
+    p => { _profileMatchesPage = p; renderProfileMatches(); });
+}
+
+function _getProfileFilteredMids(name) {
+  // Get match IDs based on current profile filter state
+  const season = document.getElementById('profile-filter-season')?.value || '';
+  const from   = document.getElementById('profile-filter-from')?.value   || '';
+  const to     = document.getElementById('profile-filter-to')?.value     || '';
+  const type   = document.getElementById('profile-filter-type')?.value   || '';
+  const opp    = (document.getElementById('profile-filter-opp')?.value   || '').toLowerCase().trim();
+  const venue  = document.getElementById('profile-filter-venue')?.value  || '';
+  const result = document.getElementById('profile-filter-result')?.value || '';
+
+  // All match IDs where this player appeared
+  const playerMids = new Set([
+    ...db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+    ...db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+  ]);
+
+  return [...playerMids].filter(mid => {
+    const m = db.matches.find(m=>m.id===mid);
+    if (!m) return false;
+    if (season && !(m.date||'').startsWith(season)) return false;
+    if (from   && m.date < from) return false;
+    if (to     && m.date > to)   return false;
+    if (type   && !matchesTypeFilter(m.format, type)) return false;
+    if (opp    && !(m.opponent||'').toLowerCase().includes(opp)) return false;
+    if (venue  && m.venue !== venue) return false;
+    if (result && m.result !== result) return false;
+    return true;
+  });
+}
+
+function toggleProfileMatchSc(si, el) {
+  const mid       = el.getAttribute('data-mid');
+  const scRow     = document.getElementById('pm-sc-row-'+si);
+  const scContent = document.getElementById('pm-sc-content-'+si);
+  const link      = document.getElementById('pm-sc-link-'+si);
+  if (!scRow) return;
+  const isOpen = _profileMatchesOpenSc[si];
+  Object.keys(_profileMatchesOpenSc).forEach(k => {
+    if (!_profileMatchesOpenSc[k]) return;
+    const r = document.getElementById('pm-sc-row-'+k);
+    const l = document.getElementById('pm-sc-link-'+k);
+    if (r) r.style.display = 'none';
+    if (l) l.classList.remove('open');
+    delete _profileMatchesOpenSc[k];
+  });
+  if (isOpen) return;
+  const m = db.matches.find(m=>m.id===mid);
+  if (!m) return;
+  const i1bat  = buildInningsBatHtml(mid, 1);
+  const i1bowl = buildInningsBowlHtml(mid, 1);
+  const i2bat  = buildInningsBatHtml(mid, 2);
+  const i2bowl = buildInningsBowlHtml(mid, 2);
+  const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
+  const rc = m.result==='Won'?'#155724':m.result==='Lost'?'#721c24':'#5d4037';
+  const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
+      margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--green-pale);">
+    <span style="font-family:'Playfair Display',serif;font-weight:900;font-size:15px;">
+      Godshill vs ${esc(m.opponent)}</span>
+    <span style="font-size:11px;color:var(--ink-muted);">
+      &bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
+    <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
+  </div>`;
+  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+  scContent.innerHTML = header +
+    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
+    </div>
+    <div style="text-align:right;margin-top:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
+    </div>`;
+  scRow.style.display = '';
+  if (link) link.classList.add('open');
+  _profileMatchesOpenSc[si] = true;
 }
 </script>
 </body>

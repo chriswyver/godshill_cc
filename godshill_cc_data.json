@@ -1,5 +1,5 @@
 {
-  "exported": "2026-06-14T15:36:02.427Z",
+  "exported": "2026-06-14T15:42:35.589Z",
   "version": 1,
   "players": [
     {
@@ -68493,6 +68493,189 @@
           "Pen": "-40",
           "Pts": "57",
           "Avg": "4.38"
+        }
+      ]
+    },
+    {
+      "id": "M1781451699562724",
+      "season": "2026",
+      "division": "Hampshire Cricket League Division 6C",
+      "cols": [
+        {
+          "key": "Pos",
+          "label": "Pos"
+        },
+        {
+          "key": "Team",
+          "label": "Team"
+        },
+        {
+          "key": "P",
+          "label": "P"
+        },
+        {
+          "key": "W",
+          "label": "W"
+        },
+        {
+          "key": "L",
+          "label": "L"
+        },
+        {
+          "key": "T",
+          "label": "T"
+        },
+        {
+          "key": "BatP",
+          "label": "BatP"
+        },
+        {
+          "key": "BowlP",
+          "label": "BowlP"
+        },
+        {
+          "key": "Pen",
+          "label": "Pen"
+        },
+        {
+          "key": "Pts",
+          "label": "Pts"
+        },
+        {
+          "key": "col_1781451415407",
+          "label": "Avg"
+        }
+      ],
+      "rows": [
+        {
+          "Pos": "1",
+          "Team": "Cadnam III",
+          "P": "4",
+          "W": "4",
+          "L": "0",
+          "T": "0",
+          "BatP": "28",
+          "BowlP": "20",
+          "Pen": "0",
+          "Pts": "96",
+          "col_1781451415407": "24.00"
+        },
+        {
+          "Pos": "2",
+          "Team": "Ampfield & North Baddesley II",
+          "P": "4",
+          "W": "3",
+          "L": "1",
+          "T": "0",
+          "BatP": "23",
+          "BowlP": "17",
+          "Pen": "0",
+          "Pts": "76",
+          "col_1781451415407": "19.00"
+        },
+        {
+          "Pos": "3",
+          "Team": "Redlynch & Hale III",
+          "P": "4",
+          "W": "3",
+          "L": "1",
+          "T": "0",
+          "BatP": "23",
+          "BowlP": "15",
+          "Pen": "0",
+          "Pts": "74",
+          "col_1781451415407": "18.50"
+        },
+        {
+          "Pos": "4",
+          "Team": "Wellow & Plaitford Knights II",
+          "P": "4",
+          "W": "2",
+          "L": "2",
+          "T": "0",
+          "BatP": "24",
+          "BowlP": "13",
+          "Pen": "0",
+          "Pts": "61",
+          "col_1781451415407": "15.25"
+        },
+        {
+          "Pos": "5",
+          "Team": "Breamore Dravidian III",
+          "P": "4",
+          "W": "2",
+          "L": "2",
+          "T": "0",
+          "BatP": "22",
+          "BowlP": "15",
+          "Pen": "0",
+          "Pts": "61",
+          "col_1781451415407": "15.25"
+        },
+        {
+          "Pos": "6",
+          "Team": "Godshill I",
+          "P": "4",
+          "W": "2",
+          "L": "2",
+          "T": "0",
+          "BatP": "23",
+          "BowlP": "12",
+          "Pen": "0",
+          "Pts": "59",
+          "col_1781451415407": "14.75"
+        },
+        {
+          "Pos": "7",
+          "Team": "Whiteparish III",
+          "P": "4",
+          "W": "2",
+          "L": "2",
+          "T": "0",
+          "BatP": "16",
+          "BowlP": "11",
+          "Pen": "0",
+          "Pts": "51",
+          "col_1781451415407": "12.75"
+        },
+        {
+          "Pos": "8",
+          "Team": "Bramshaw III",
+          "P": "4",
+          "W": "1",
+          "L": "3",
+          "T": "0",
+          "BatP": "17",
+          "BowlP": "15",
+          "Pen": "0",
+          "Pts": "44",
+          "col_1781451415407": "11.00"
+        },
+        {
+          "Pos": "9",
+          "Team": "Old Tauntonians & Romsey IV",
+          "P": "4",
+          "W": "0",
+          "L": "4",
+          "T": "0",
+          "BatP": "21",
+          "BowlP": "13",
+          "Pen": "0",
+          "Pts": "34",
+          "col_1781451415407": "8.50"
+        },
+        {
+          "Pos": "10",
+          "Team": "Michelmersh & Timsbury II",
+          "P": "4",
+          "W": "1",
+          "L": "3",
+          "T": "0",
+          "BatP": "12",
+          "BowlP": "9",
+          "Pen": "0",
+          "Pts": "33",
+          "col_1781451415407": "8.25"
         }
       ]
     }

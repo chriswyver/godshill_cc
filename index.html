@@ -280,6 +280,8 @@
   }
   /* striping handled via row-even/row-odd classes to skip inline-sc rows */
   .data-table tbody tr:hover td { background: var(--green-pale); cursor: pointer; }
+  .data-table tbody tr.no-hover:hover td { background: var(--green-pale) !important; cursor: default; }
+  .no-hover-table tbody tr:hover td { background: inherit !important; cursor: default; }
   .data-table tbody tr.selected td { background: #c7ecda; }
   .data-table td.r, .data-table th.r { text-align: center; }
   .data-table td.num, .data-table th.num {
@@ -559,7 +561,7 @@
 
   <!-- Row 3: recent scorecards full width -->
   <div class="card">
-    <div class="card-title"><span class="icon">&#128197;</span> Recent Scorecards</div>
+    <div class="card-title"><span class="icon">&#128197;</span> Recent Scorecards<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
     <div class="table-wrap"><table class="data-table" id="tbl-recent">
       <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th></tr></thead>
       <tbody id="tbody-recent"></tbody>
@@ -568,7 +570,7 @@
 
   <!-- Row 4: recently added scorecards -->
   <div class="card">
-    <div class="card-title"><span class="icon">&#128221;</span> Recently Added Scorecards</div>
+    <div class="card-title"><span class="icon">&#128221;</span> Recently Added Scorecards<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
     <p class="muted" style="font-size:12px;margin-bottom:10px;">The 5 most recently entered scorecards, in the order they were added.</p>
     <div class="table-wrap"><table class="data-table">
       <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th></tr></thead>
@@ -842,6 +844,7 @@
         </select>
       </span>
     </div>
+    <p class="muted" style="font-size:12px;margin-bottom:8px;">Click an opponent name to expand the full scorecard inline.</p>
     <div class="table-wrap">
       <table class="data-table">
         <thead><tr>
@@ -938,6 +941,7 @@
     </div><!-- /mtab-list -->
     <!-- Head to head tab -->
     <div id="mtab-h2h" style="display:none;">
+      <p class="muted" style="font-size:12px;margin-bottom:10px;">Click an opponent name to see all matches against them — then click a date to expand the scorecard.</p>
       <!-- Search bar -->
       <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;margin-bottom:14px;">
         <div style="flex:1;min-width:200px;">
@@ -992,7 +996,7 @@
     <!-- Season-by-season summary with inline expandable tables -->
     <div id="league-summary-card" class="card" style="display:none;margin-bottom:20px;">
       <div class="card-title">&#127942; Godshill — Season by Season</div>
-      <p class="muted" style="margin-bottom:12px;font-size:12px;">Click a year to expand the full table.</p>
+      <p class="muted" style="margin-bottom:12px;font-size:12px;">Click a year to expand the full league table and results. Click an opponent in the results to expand the scorecard.</p>
       <div class="table-wrap">
         <table class="data-table" style="font-size:12px;" id="league-summary-table">
           <thead><tr>
@@ -1626,7 +1630,7 @@
     </div>
     <!-- Row 2: Spells / Wickets sub-tabs -->
     <div class="card" style="margin-top:16px;">
-      <div class="card-title" style="margin-bottom:10px;"><span class="icon">&#128218;</span> Innings by Innings</div>
+      <div class="card-title" style="margin-bottom:10px;"><span class="icon">&#128218;</span> Innings by Innings<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
         <div class="tab-bar" style="border-bottom:none;margin-bottom:0;">
           <button class="tab-btn active" id="bwltab-spells"  onclick="showBowlSubTab('spells')"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:middle;margin-right:3px;"><circle cx="12" cy="12" r="9" fill="currentColor" stroke="none" opacity="0.15"/><circle cx="12" cy="12" r="9"/><path d="M5.5 8.5 Q12 13 18.5 8.5" stroke-width="1.5"/><path d="M5.5 15.5 Q12 11 18.5 15.5" stroke-width="1.5"/></svg> Spells</button>
@@ -1707,7 +1711,7 @@
   <!-- Matches tab -->
   <div id="profile-tab-matches" style="margin-top:0;">
     <div class="card" style="margin-top:16px;">
-      <div class="card-title"><span class="icon">&#128197;</span> All Matches</div>
+      <div class="card-title"><span class="icon">&#128197;</span> All Matches<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
       <div class="table-wrap">
         <table class="data-table" id="profile-matches-table">
           <thead><tr>
@@ -1787,6 +1791,7 @@
 
   <!-- Season leaders tab -->
   <div id="rtab-season" style="display:none;">
+    <p class="muted" style="font-size:12px;margin-bottom:12px;">Click a player name to go to their profile.</p>
     <div class="card" style="padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
       <label style="margin:0;font-size:13px;">Filter season:</label>
       <select id="rec-season-year-sel" onchange="renderRecords()" style="width:120px;">
@@ -1804,10 +1809,10 @@
   <!-- Record scores tab -->
   <div id="rtab-scores" style="display:none;">
     <div style="display:flex;flex-direction:column;gap:20px;">
-      <div class="card"><div class="card-title">Highest Team Score</div><div id="rec-hi-team"></div></div>
-      <div class="card"><div class="card-title">Lowest Team Score</div><div id="rec-lo-team"></div></div>
-      <div class="card"><div class="card-title">Highest Opposition Score</div><div id="rec-hi-opp"></div></div>
-      <div class="card"><div class="card-title">Lowest Opposition Score</div><div id="rec-lo-opp"></div></div>
+      <div class="card"><div class="card-title">Highest Team Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-hi-team"></div></div>
+      <div class="card"><div class="card-title">Lowest Team Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-lo-team"></div></div>
+      <div class="card"><div class="card-title">Highest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-hi-opp"></div></div>
+      <div class="card"><div class="card-title">Lowest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-lo-opp"></div></div>
     </div>
   </div>
 
@@ -1815,7 +1820,7 @@
   <div id="rtab-wicket" style="display:none;">
     <div class="card">
       <div class="card-title">Highest Score by Batting Position</div>
-      <p class="muted" style="margin-bottom:12px;font-size:12px;">Highest individual score at each batting position.</p>
+      <p class="muted" style="margin-bottom:12px;font-size:12px;">Highest individual score at each batting position. Click the opponent to expand the scorecard.</p>
       <div class="table-wrap">
         <table class="data-table" id="rec-wicket-table">
           <thead><tr>
@@ -1839,7 +1844,7 @@
       <!-- Best batting innings -->
       <div class="card">
         <div class="card-title">Best Batting Innings</div>
-        <p class="muted" style="margin-bottom:12px;font-size:12px;">Highest individual scores. * = not out. Top 10.</p>
+        <p class="muted" style="margin-bottom:12px;font-size:12px;">Highest individual scores. * = not out. Top 10. Click the opponent to expand the scorecard.</p>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr>
@@ -1858,7 +1863,7 @@
       <!-- Best bowling innings -->
       <div class="card">
         <div class="card-title">Best Bowling Innings</div>
-        <p class="muted" style="margin-bottom:12px;font-size:12px;">Best figures in a single innings (most wickets, then fewest runs, fewest overs, most maidens). Top 10.</p>
+        <p class="muted" style="margin-bottom:12px;font-size:12px;">Best figures in a single innings (most wickets, fewest runs, fewest overs, most maidens). Top 10. Click the opponent to expand the scorecard.</p>
         <div class="table-wrap">
           <table class="data-table">
             <thead><tr>
@@ -6843,7 +6848,7 @@ function renderLeagueTables() {
       </td>
     </tr>`;
 
-    return `<tr class="${i%2===0?'row-odd':'row-even'}" style="background:var(--green-pale);font-weight:600;">${dataRow}</tr>${expandRow}`;
+    return `<tr class="no-hover" style="font-weight:600;">${dataRow}</tr>${expandRow}`;
   }).join('') || '<tr><td colspan="12" class="empty-state">No tables yet.</td></tr>';
 
   // Edit/delete buttons for each table rendered inside expanded content
@@ -6873,11 +6878,11 @@ function _renderLeagueExpanded(idx, tbl) {
   }
 
   const colHeaders = cols.map(c=>`<th style="padding:6px 4px;white-space:nowrap;text-align:center;">${esc(c.label)}</th>`).join('');
-  const dataRows = tbl.rows.map(r=>{
+  const dataRows = tbl.rows.map((r,ri)=>{
     const isGodshill = cols.some(c=>String(r[c.key]||'').toLowerCase().includes('godshill'));
-    const rs = isGodshill?'background:var(--green-pale);font-weight:600;':'';
-    const cells = cols.map(c=>`<td style="padding:5px 4px;text-align:center;">${esc(String(r[c.key]??''))}</td>`).join('');
-    return `<tr style="${rs}">${cells}</tr>`;
+    const bg = isGodshill ? 'var(--green-pale)' : ri%2===0 ? 'var(--white,#fff)' : 'var(--cream,#faf8f2)';
+    const cells = cols.map(c=>`<td style="padding:5px 4px;text-align:center;background:${bg};">${esc(String(r[c.key]??''))}</td>`).join('');
+    return `<tr style="font-weight:${isGodshill?'600':'400'};">${cells}</tr>`;
   }).join('') || `<tr><td colspan="${cols.length}" class="empty-state">No data.</td></tr>`;
 
   const editBtns = isRO ? '' :
@@ -6896,22 +6901,27 @@ function _renderLeagueExpanded(idx, tbl) {
     const oppCell=hasSc
       ?`<a class="sc-toggle-link" id="lt-sc-link-${tblIdSafe}-${mi}" onclick="toggleLTInlineSc('${tblIdSafe}',${mi},this)" data-mid="${m.id}" style="cursor:pointer;">${esc(m.opponent)}</a>`
       :esc(m.opponent);
-    return `<tr class="${stripe}"><td style="color:var(--ink-muted);font-size:12px;">${m.date}</td><td>${oppCell}</td><td><span class="badge badge-result-${m.result}">${m.result}</span></td></tr>
-    <tr id="lt-sc-row-${tblIdSafe}-${mi}" class="inline-sc-row" style="display:none;"><td colspan="3"><div class="inline-sc-wrap" id="lt-sc-content-${tblIdSafe}-${mi}"></div></td></tr>`;
-  }).join('')||'<tr><td colspan="3" class="empty-state">No HCL matches.</td></tr>';
+    const venue = m.venue && m.venue.toLowerCase()==='away' ? 'Away' : 'Home';
+    const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===m.id));
+    const rc = m.result==='Won'?'var(--green-mid)':m.result==='Lost'?'var(--red)':'var(--ink-muted)';
+    const resultCell = cancelled
+      ? `<span style="color:var(--ink-muted);font-size:12px;">${m.result}</span>`
+      : `<span style="color:${rc};font-weight:600;font-size:12px;">${resultStr||m.result}</span>`;
+    return `<tr class="${stripe}"><td style="color:var(--ink-muted);font-size:12px;">${m.date}</td><td>${oppCell}</td><td style="font-size:12px;color:var(--ink-muted);">${venue}</td><td>${resultCell}</td></tr>
+    <tr id="lt-sc-row-${tblIdSafe}-${mi}" class="inline-sc-row" style="display:none;"><td colspan="4"><div class="inline-sc-wrap" id="lt-sc-content-${tblIdSafe}-${mi}"></div></td></tr>`;
+  }).join('')||'<tr><td colspan="4" class="empty-state">No HCL matches.</td></tr>';
 
   content.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       <strong style="color:var(--green-deep);">&#127942; ${esc(tbl.division)} &mdash; ${esc(tbl.season)}</strong>
       <div style="display:flex;gap:6px;">${editBtns}</div>
     </div>
-    <div class="table-wrap"><table class="data-table" style="font-size:12px;"><thead><tr>${colHeaders}</tr></thead><tbody>${dataRows}</tbody></table></div>
-    <div style="margin-top:8px;padding:8px 4px;font-size:11px;color:var(--ink-muted);line-height:1.8;border-top:1px solid var(--green-pale);">${LEAGUE_FOOTER_DEFAULT}</div>
+    <div class="table-wrap"><table class="data-table no-hover-table" style="font-size:12px;"><thead><tr>${colHeaders}</tr></thead><tbody>${dataRows}</tbody></table></div>
     <div style="margin-top:12px;border-top:1px solid var(--green-pale);padding-top:12px;">
       <strong style="font-size:12px;color:var(--green-deep);">&#127959; ${esc(tbl.season)} Results</strong>
       <div class="table-wrap" style="margin-top:8px;">
         <table class="data-table" style="font-size:12px;">
-          <thead><tr><th>Date</th><th>Opponent</th><th>Result</th></tr></thead>
+          <thead><tr><th>Date</th><th>Opponent</th><th>Venue</th><th>Result</th></tr></thead>
           <tbody>${matchRows}</tbody>
         </table>
       </div>

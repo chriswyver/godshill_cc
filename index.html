@@ -1788,6 +1788,7 @@
   <!-- Career records tab -->
   <div id="rtab-career">
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col-grid">
+      <div class="card"><div class="card-title">Most Matches (Career)</div><div id="rec-career-matches"></div></div>
       <div class="card"><div class="card-title">Most Runs (Career)</div><div id="rec-career-runs"></div></div>
       <div class="card"><div class="card-title">Most Wickets (Career)</div><div id="rec-career-wkts"></div></div>
       <div class="card"><div class="card-title">Most 50s (Career)</div><div id="rec-career-50s"></div></div>
@@ -7536,6 +7537,17 @@ function renderRecords() {
   const filtBowl  = db.bowling.filter(r=>filteredMids.has(r.match_id));
   const filtField = db.fielding.filter(r=>filteredMids.has(r.match_id));
 
+  // Most matches — count distinct matches where player appears in batting, bowling OR fielding
+  const careerMatches = players.map(name => {
+    const midsForPlayer = new Set([
+      ...filtBat.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+      ...filtBowl.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+      ...filtField.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+    ]);
+    return { name, val: midsForPlayer.size };
+  }).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
+  _recPlayerTable('rec-career-matches', careerMatches, 'Matches');
+
   // Most runs
   const careerRuns = players.map(name => ({
     name,
@@ -7579,7 +7591,7 @@ function renderRecords() {
   _recPlayerTable('rec-career-5wi', career5wi, '5WI');
 
   // Most fielding dismissals (including c&b)
-  const careerField = players.map(name => {
+  const careerField = players.filter(name=>!isUnsure(name)).map(name => {
     const fr = filtField.filter(r=>r.player===name&&r.team===OUR_TEAM);
     const br = filtBat.filter(r=>r.bowler===name);
     return { name, val: _fieldingTotals(name, fr, br).total };
@@ -7605,7 +7617,7 @@ function renderRecords() {
     if (sWkts) seasonWkts.push(sWkts);
 
     // Top fielder (including c&b)
-    const sField = players.map(name => {
+    const sField = players.filter(name=>!isUnsure(name)).map(name => {
       const fr = db.fielding.filter(r=>r.player===name&&r.team===OUR_TEAM&&mids.has(r.match_id));
       const br = db.batting.filter(r=>r.bowler===name&&mids.has(r.match_id));
       return { name, season, val: _fieldingTotals(name, fr, br).total };

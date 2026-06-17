@@ -975,7 +975,8 @@
             <th class="num" onclick="sortH2H('draw')">D <span id="h2h-sort-draw"></span></th>
             <th class="num" onclick="sortH2H('abandoned')">Abd <span id="h2h-sort-abandoned"></span></th>
             <th class="num" onclick="sortH2H('winpct')">Win% <span id="h2h-sort-winpct"></span></th>
-            <th onclick="sortH2H('last')">Last Played <span id="h2h-sort-last"></span></th>
+            <th onclick="sortH2H('first')">First Match <span id="h2h-sort-first"></span></th>
+            <th onclick="sortH2H('last')">Last Match <span id="h2h-sort-last"></span></th>
           </tr></thead>
           <tbody id="tbody-h2h"></tbody>
         </table>
@@ -1879,7 +1880,7 @@
             <thead><tr>
               <th class="num">#</th>
               <th>Player</th>
-              <th>Figures (O-M-R-W)</th>
+              <th>Figures</th>
               <th>Opponent</th>
               <th>Date</th>
               <th>Competition</th>
@@ -4834,9 +4835,8 @@ function buildInningsBatHtml(mid, innings) {
   } else {
     const wickets    = bat.filter(r=>COUNTS_AS_WICKET.includes(r.how_out)).length;
     const notOutLeft = bat.filter(r=>COUNTS_AS_NOT_OUT.includes(r.how_out)).length;
-    // All out = 10 wickets fallen (one batter always remains not out as last man)
-    // i.e. wickets === actualBatters - 1, or wickets >= 10
-    const allOut  = wickets >= 10 || wickets === actualBatters - 1;
+    // All out = ≤1 batter genuinely not out (retired out counts as dismissal)
+    const allOut  = actualBatters > 0 && notOutLeft <= 1 && bat.some(r=>COUNTS_AS_WICKET.includes(r.how_out));
     const scoreStr = allOut ? `${batTotal} All out` : `${batTotal}/${wickets}`;
     // Calculate overs bowled and run rate from bowling figures
     const bowlRows = db.bowling.filter(r=>r.match_id===mid&&r.innings===innings);
@@ -6488,11 +6488,12 @@ function renderH2H() {
   const oppMap = {};
   matches.forEach(m => {
     const opp = m.opponent || 'Unknown';
-    if (!oppMap[opp]) oppMap[opp] = { opponent:opp, played:0, won:0, lost:0, draw:0, tied:0, abandoned:0, last:'', matches:[] };
+    if (!oppMap[opp]) oppMap[opp] = { opponent:opp, played:0, won:0, lost:0, draw:0, tied:0, abandoned:0, last:'', first:'9999-99-99', matches:[] };
     const r = oppMap[opp];
     r.played++;
     r.matches.push(m);
-    if (m.date > r.last) r.last = m.date;
+    if (m.date > r.last)  r.last  = m.date;
+    if (m.date < r.first) r.first = m.date;
     if (m.result==='Won')          r.won++;
     else if (m.result==='Lost')    r.lost++;
     else if (m.result==='Tie')     r.tied++;
@@ -6509,12 +6510,13 @@ function renderH2H() {
       const pa = a.won+a.lost+a.draw+a.tied, pb = b.won+b.lost+b.draw+b.tied;
       return d * ((pa?a.won/pa:0) - (pb?b.won/pb:0));
     }
-    if (k==='last') return d * a.last.localeCompare(b.last);
+    if (k==='last')  return d * a.last.localeCompare(b.last);
+    if (k==='first') return d * a.first.localeCompare(b.first);
     return d * ((a[k]||0) - (b[k]||0));
   });
 
   // Sort indicators
-  ['opponent','played','won','lost','tied','draw','abandoned','winpct','last'].forEach(key => {
+  ['opponent','played','won','lost','tied','draw','abandoned','winpct','first','last'].forEach(key => {
     const el = document.getElementById('h2h-sort-'+key);
     if (el) el.textContent = _h2hSortKey===key ? (_h2hSortDir===1?' ▲':' ▼') : '';
   });
@@ -6541,6 +6543,7 @@ function renderH2H() {
           <td class="num">${r.draw}</td>
           <td class="num" style="color:var(--ink-muted);">${r.abandoned}</td>
           <td class="num" style="font-weight:600;color:${pctCol};">${typeof winpct==='number'?winpct+'%':winpct}</td>
+          <td style="font-size:12px;color:var(--ink-muted);">${r.first==='9999-99-99'?'–':r.first}</td>
           <td style="font-size:12px;color:var(--ink-muted);">${r.last||'–'}</td>
         </tr>
         <tr id="h2h-detail-row-${i}" style="display:none;">
@@ -7405,13 +7408,13 @@ function toggleRecInlineSc(idx, el) {
   _recOpenSc[idx] = true;
 }
 
-// ── Helper: render a top-5 player table ──────────────────────────────────────
+// ── Helper: render a top-10 player table ──────────────────────────────────────
 function _recPlayerTable(elId, rows, colLabel) {
   const el = document.getElementById(elId);
   if (!el) return;
   el.innerHTML = `<table class="data-table" style="font-size:12px;">
     <thead><tr><th class="num">#</th><th>Player</th><th class="num">${esc(colLabel)}</th></tr></thead>
-    <tbody>${rows.slice(0,5).map((r,i)=>
+    <tbody>${rows.slice(0,10).map((r,i)=>
       `<tr class="${i%2===0?'row-odd':'row-even'}">
         <td class="num" style="color:var(--ink-muted);">${i+1}</td>
         <td>${_recPlayerLink(r.name)}</td>
@@ -7430,7 +7433,7 @@ function _recScoreTable(elId, scores) {
     <thead><tr>
       <th class="num" style="width:100px;">Score</th><th>Opponent</th><th>Date</th><th>Competition</th>
     </tr></thead>
-    <tbody>${scores.slice(0,5).map((s,i) => {
+    <tbody>${scores.slice(0,10).map((s,i) => {
       const idx = _recScIdx++;
       const scLink = _recScLink(s.m, idx);
       const scRow  = `<tr id="rec-sc-row-${idx}" class="inline-sc-row" style="display:none;">
@@ -7651,10 +7654,12 @@ function renderRecords() {
     const runs   = bat.reduce((s,r)=>s+r.runs,0);
     const ex     = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
     const ext    = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
-    // All out if: 11 batters batted, OR fewer than 11 but ≤1 not out
-    const notOuts = bat.filter(r=>NO_OUT_MODES.includes(r.how_out)).length;
+    // All out if: 11 batters batted, OR fewer than 11 but ≤1 genuinely not out
+    // "retired out" counts as a dismissal for all-out purposes
+    const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
+    const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
     const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
-    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat'));
+    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
     const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
     return { total: runs+ext, wkts };
   };

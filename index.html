@@ -391,6 +391,12 @@
   .data-table tbody tr.row-even td { background:var(--cream); }
   .data-table tbody tr.row-odd td { background:var(--white); }
   .inline-sc-wrap { padding:14px 18px; border-top:2px solid var(--green-pale); animation:scSlideIn 0.18s ease; }
+  .sc-innings-grid { display:flex; gap:20px; flex-wrap:wrap; }
+  .sc-innings-grid > div { flex:1; min-width:280px; }
+  @media (max-width:640px) {
+    .sc-innings-grid { flex-direction:column; gap:14px; }
+    .sc-innings-grid > div { min-width:0; }
+  }
   @keyframes scSlideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
   .inline-sc-wrap table { font-size:12px; width:auto; min-width:320px; }
   .inline-sc-wrap th { font-size:11px; padding:4px 8px; }
@@ -2174,9 +2180,9 @@ function buildScorecard() {
   tbs[3].textContent = `${batFirst === OUR_TEAM ? OUR_TEAM : opp} · Bowling`;
 
   document.getElementById('tab-i1bat').innerHTML  = buildBatTable(i1bat,  i1bowl, 'i1b');
-  document.getElementById('tab-i1bowl').innerHTML = buildBowlTable(i1bowl, 'i1bw');
+  document.getElementById('tab-i1bowl').innerHTML = buildBowlTable(i1bowl, 'i1bw', i1bowl !== wiz.team1);
   document.getElementById('tab-i2bat').innerHTML  = buildBatTable(i2bat,  i2bowl, 'i2b');
-  document.getElementById('tab-i2bowl').innerHTML = buildBowlTable(i2bowl, 'i2bw');
+  document.getElementById('tab-i2bowl').innerHTML = buildBowlTable(i2bowl, 'i2bw', i2bowl !== wiz.team1);
 }
 
 function populateScorecardFromEdit() {
@@ -2312,7 +2318,7 @@ function buildBatTable(batters, fielders, pfx) {
   </table></div>`;
 }
 
-function buildBowlTable(bowlers, pfx) {
+function buildBowlTable(bowlers, pfx, addUnsure) {
   if (!bowlers.length) return '<p class="muted" style="padding:12px;">No bowlers — check team sheet.</p>';
   let rows = bowlers.map((nm, idx) => {
     const i = idx + 1;
@@ -2328,6 +2334,20 @@ function buildBowlTable(bowlers, pfx) {
       <td class="r"><input type="number" id="${pfx}_wk_${i}" placeholder="-" min="0" max="10" style="width:45px;text-align:right;" oninput="bwUpdate('${pfx}')"></td>
     </tr>`;
   }).join('');
+  if (addUnsure) {
+    const i = bowlers.length + 1;
+    rows += `<tr style="opacity:0.7;">
+      <td class="r"><input type="number" id="${pfx}_ord_${i}" placeholder="#" min="1" max="99"
+                 style="width:38px;text-align:center;" title="Bowling order"></td>
+      <td class="name-cell" style="min-width:150px;color:var(--ink-muted);font-style:italic;">Unsure</td>
+      <td class="r"><input type="number" id="${pfx}_ov_${i}" placeholder="-" min="0" step="0.1"
+                 style="width:55px;text-align:right;"
+                 oninput="bwUpdate('${pfx}')"></td>
+      <td class="r"><input type="number" id="${pfx}_md_${i}" placeholder="-" min="0" style="width:45px;text-align:right;"></td>
+      <td class="r"><input type="number" id="${pfx}_rn_${i}" placeholder="-" min="0" style="width:55px;text-align:right;" oninput="bwUpdate('${pfx}')"></td>
+      <td class="r"><input type="number" id="${pfx}_wk_${i}" placeholder="-" min="0" max="10" style="width:45px;text-align:right;" oninput="bwUpdate('${pfx}')"></td>
+    </tr>`;
+  }
   rows += `<tr class="sc-total">
     <td></td><td>Totals</td>
     <td class="r" id="${pfx}_tot_ov">-</td>
@@ -2392,8 +2412,8 @@ function readBatData(pfx, batters) {
     };
   });
 }
-function readBowlData(pfx, bowlers) {
-  return bowlers.map((nm, idx) => {
+function readBowlData(pfx, bowlers, hasUnsure) {
+  const results = bowlers.map((nm, idx) => {
     const i = idx + 1;
     const ordEl = document.getElementById(pfx+'_ord_'+i);
     const ord   = ordEl && ordEl.value !== '' ? parseInt(ordEl.value) : idx + 1;
@@ -2405,8 +2425,28 @@ function readBowlData(pfx, bowlers) {
       runs:        num(pfx+'_rn_'+i),
       wickets:     num(pfx+'_wk_'+i),
     };
-  }).filter(r => document.getElementById(pfx+'_ov_'+(bowlers.indexOf(r.player)+1))?.value !== '')
-    .sort((a,b) => a.bowl_order - b.bowl_order);
+  }).filter(r => {
+    const i = bowlers.indexOf(r.player) + 1;
+    return document.getElementById(pfx+'_ov_'+i)?.value !== '';
+  }).sort((a,b) => a.bowl_order - b.bowl_order);
+
+  // Read Unsure row if present and filled in
+  if (hasUnsure) {
+    const i = bowlers.length + 1;
+    const ovEl = document.getElementById(pfx+'_ov_'+i);
+    if (ovEl && ovEl.value !== '') {
+      const ordEl = document.getElementById(pfx+'_ord_'+i);
+      results.push({
+        player:     'Unsure',
+        bowl_order: ordEl && ordEl.value !== '' ? parseInt(ordEl.value) : i,
+        overs:      numF(pfx+'_ov_'+i),
+        maidens:    num(pfx+'_md_'+i),
+        runs:       num(pfx+'_rn_'+i),
+        wickets:    num(pfx+'_wk_'+i),
+      });
+    }
+  }
+  return results;
 }
 function readExtras(pfx) {
   const b=num(pfx+'_eb'), lb=num(pfx+'_elb'), w=num(pfx+'_ew'),
@@ -2429,7 +2469,7 @@ function runValidation() {
   [[i1bat,i1bowl,'i1b','i1bw',1],[i2bat,i2bowl,'i2b','i2bw',2]].forEach(([bat,bowl,pb,pbw,inn]) => {
     if (!bat.length) return;
     const bdf = readBatData(pb, bat);
-    const wdf = readBowlData(pbw, bowl);
+    const wdf = readBowlData(pbw, bowl, bowl !== wiz.team1);
     const ext = readExtras(pb);
     const batRuns = bdf.reduce((s,r)=>s+r.runs, 0);
     const total   = batRuns + ext.total;
@@ -2564,7 +2604,7 @@ function saveScorecard() {
     m['extras_i'+cfg.inn] = extras;
 
     if (!cfg.bowl.length) return;
-    const wdf = readBowlData(cfg.pbw, cfg.bowl);
+    const wdf = readBowlData(cfg.pbw, cfg.bowl, cfg.bowlTeam !== OUR_TEAM);
     wdf.forEach(r => {
       db.bowling.push({
         match_id: mid, innings: cfg.inn, team: cfg.bowlTeam,
@@ -2849,10 +2889,10 @@ function toggleHomeRecentlyAddedSc(idx, mid) {
       &bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div class="sc-innings-col">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
+    `<div class="sc-innings-grid">
+      <div class="sc-innings-col">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -6670,10 +6710,10 @@ function toggleH2HInlineSc(idx, el) {
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
   const col2 = i2bat.html
-    ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+    ? `<div class="sc-innings-col">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>
+    `<div class="sc-innings-grid">
+      <div class="sc-innings-col">${i1bat.html}${i1bowl}</div>
       ${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
@@ -7317,10 +7357,10 @@ function toggleProfileMatchSc(si, el) {
       &bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div class="sc-innings-col">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
+    `<div class="sc-innings-grid">
+      <div class="sc-innings-col">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -7395,10 +7435,10 @@ function toggleRecInlineSc(idx, el) {
     <span style="font-size:11px;color:var(--ink-muted);">&bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div class="sc-innings-col">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
+    `<div class="sc-innings-grid">
+      <div class="sc-innings-col">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>

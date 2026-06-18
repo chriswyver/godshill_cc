@@ -391,12 +391,7 @@
   .data-table tbody tr.row-even td { background:var(--cream); }
   .data-table tbody tr.row-odd td { background:var(--white); }
   .inline-sc-wrap { padding:14px 18px; border-top:2px solid var(--green-pale); animation:scSlideIn 0.18s ease; }
-  .sc-innings-grid { display:flex; gap:20px; flex-wrap:wrap; }
-  .sc-innings-grid > div { flex:1; min-width:280px; }
-  @media (max-width:640px) {
-    .sc-innings-grid { flex-direction:column; gap:14px; }
-    .sc-innings-grid > div { min-width:0; }
-  }
+
   @keyframes scSlideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
   .inline-sc-wrap table { font-size:12px; width:auto; min-width:320px; }
   .inline-sc-wrap th { font-size:11px; padding:4px 8px; }
@@ -980,6 +975,7 @@
             <th class="num" onclick="sortH2H('tied')">T <span id="h2h-sort-tied"></span></th>
             <th class="num" onclick="sortH2H('draw')">D <span id="h2h-sort-draw"></span></th>
             <th class="num" onclick="sortH2H('abandoned')">Abd <span id="h2h-sort-abandoned"></span></th>
+            <th class="num" onclick="sortH2H('cancelled')">Canc <span id="h2h-sort-cancelled"></span></th>
             <th class="num" onclick="sortH2H('winpct')">Win% <span id="h2h-sort-winpct"></span></th>
             <th onclick="sortH2H('first')">First Match <span id="h2h-sort-first"></span></th>
             <th onclick="sortH2H('last')">Last Match <span id="h2h-sort-last"></span></th>
@@ -1790,6 +1786,7 @@
     <button class="tab-btn"        id="rtab-scores-btn"  onclick="showRecordsTab('scores')">Record Scores</button>
     <button class="tab-btn"        id="rtab-wicket-btn"    onclick="showRecordsTab('wicket')">Record by Position</button>
     <button class="tab-btn"        id="rtab-innings-btn"  onclick="showRecordsTab('innings')">Individual Records</button>
+    <button class="tab-btn"        id="rtab-milestones-btn" onclick="showRecordsTab('milestones')">Upcoming Milestones</button>
   </div>
 
   <!-- Career records tab -->
@@ -1851,6 +1848,40 @@
           <tbody id="tbody-rec-wicket"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- Milestones tab -->
+  <div id="rtab-milestones" style="display:none;">
+    <p class="muted" style="font-size:12px;margin-bottom:16px;">Players active in the most recent season. Next milestone thresholds: every 500 runs, 50 wickets, 50 catches. Sorted by distance to milestone.</p>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col-grid">
+
+      <!-- All competitions card -->
+      <div class="card">
+        <div class="card-title">All Competitions</div>
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
+          <button class="tab-btn active" id="ms-all-bat-btn"   onclick="showMilestoneTab('all','bat')"   style="font-size:12px;padding:5px 12px;">Batting</button>
+          <button class="tab-btn"        id="ms-all-bowl-btn"  onclick="showMilestoneTab('all','bowl')"  style="font-size:12px;padding:5px 12px;">Bowling</button>
+          <button class="tab-btn"        id="ms-all-field-btn" onclick="showMilestoneTab('all','field')" style="font-size:12px;padding:5px 12px;">Fielding</button>
+        </div>
+        <div id="ms-all-bat"></div>
+        <div id="ms-all-bowl"  style="display:none;"></div>
+        <div id="ms-all-field" style="display:none;"></div>
+      </div>
+
+      <!-- HCL card -->
+      <div class="card">
+        <div class="card-title">Hampshire Cricket League</div>
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
+          <button class="tab-btn active" id="ms-hcl-bat-btn"   onclick="showMilestoneTab('hcl','bat')"   style="font-size:12px;padding:5px 12px;">Batting</button>
+          <button class="tab-btn"        id="ms-hcl-bowl-btn"  onclick="showMilestoneTab('hcl','bowl')"  style="font-size:12px;padding:5px 12px;">Bowling</button>
+          <button class="tab-btn"        id="ms-hcl-field-btn" onclick="showMilestoneTab('hcl','field')" style="font-size:12px;padding:5px 12px;">Fielding</button>
+        </div>
+        <div id="ms-hcl-bat"></div>
+        <div id="ms-hcl-bowl"  style="display:none;"></div>
+        <div id="ms-hcl-field" style="display:none;"></div>
+      </div>
+
     </div>
   </div>
 
@@ -2077,7 +2108,7 @@ function saveCancelledMatch() {
     venue:     document.getElementById('m-venue').value.trim(),
     format:    document.getElementById('m-format').value,
     overs:     0,
-    result:    'Cancelled',
+    result:    document.getElementById('m-result').value || 'Cancelled',
     toss:      '', choice: '', bat_first: '',
     notes:     document.getElementById('m-notes').value.trim(),
     cancelled: true,
@@ -2085,7 +2116,7 @@ function saveCancelledMatch() {
   saveDB(db);
   renderHome();
   document.getElementById('save-msg').innerHTML =
-    `<div class="alert alert-ok">&#10003; Saved: ${esc(opp)} (${document.getElementById('m-date').value}) &mdash; Cancelled</div>`;
+    `<div class="alert alert-ok">&#10003; Saved: ${esc(opp)} (${document.getElementById('m-date').value}) &mdash; ${esc(document.getElementById('m-result').value||'Cancelled')}</div>`;
   setTimeout(() => { resetWizard(); }, 1200);
 }
 
@@ -2815,9 +2846,7 @@ function renderHomeRecent() {
                 onclick="toggleHomeInlineSc(${idx},'${m.id}')"
               >${esc(m.opponent)}</a>`
           : `<span style="color:var(--ink-muted);font-style:italic;">${esc(m.opponent)}</span>`;
-        const _rcRs = calcResultString(m, db.batting.filter(r=>r.match_id===m.id)) || m.result;
-        const _rcRc = m.result==='Won'?'var(--green-mid)':m.result==='Lost'?'var(--red)':'var(--ink-muted)';
-        const _rcCell = '<span style="color:'+_rcRc+';font-weight:600;font-size:12px;">'+_rcRs+'</span>';
+        const _rcCell = resultCell(m, db.batting.filter(r=>r.match_id===m.id));
         return `<tr>
           <td>${m.date}</td><td>${oppCell}</td>
           <td>${esc(m.format)}</td>
@@ -2840,9 +2869,7 @@ function renderHomeRecent() {
   document.getElementById('tbody-recently-added').innerHTML = recentlyAdded.length
     ? recentlyAdded.map((m, idx) => {
         const sid = 'ra-' + idx;
-        const _raRs = calcResultString(m, db.batting.filter(r=>r.match_id===m.id)) || m.result;
-        const _raRc = m.result==='Won'?'var(--green-mid)':m.result==='Lost'?'var(--red)':'var(--ink-muted)';
-        const _raResultCell = '<span style="color:'+_raRc+';font-weight:600;font-size:12px;">'+_raRs+'</span>';
+        const _raResultCell = resultCell(m, db.batting.filter(r=>r.match_id===m.id));
         return `<tr>
           <td style="color:var(--ink-muted);font-size:12px;">${m.date}</td>
           <td><a class="sc-toggle-link" id="home-ra-link-${idx}"
@@ -2889,10 +2916,10 @@ function toggleHomeRecentlyAddedSc(idx, mid) {
       &bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div class="sc-innings-col">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div class="sc-innings-grid">
-      <div class="sc-innings-col">${i1bat.html}${i1bowl}</div>${col2}
+    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -3174,30 +3201,24 @@ function _renderMatchesPage() {
           : `<td><a class="sc-toggle-link" id="match-sc-link-${idx}"
                 onclick="toggleMatchInlineSc(${idx},'${m.id}')"
               >${esc(m.opponent)}</a></td>`;
-        const editBtn   = cancelled
-          ? '<td><span style="font-size:11px;color:var(--ink-muted);">&#8211;</span></td>'
-          : _isReadOnly
+        const editBtn   = _isReadOnly
           ? `<td><button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;"
                title="Export PDF" onclick="exportMatchPDF('${m.id}')">PDF</button></td>`
           : `<td style="display:flex;gap:4px;">
                <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;"
                  onclick="editMatch('${m.id}')">&#9998; Edit</button>
-               <button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;"
-                 title="Export PDF" onclick="exportMatchPDF('${m.id}')">PDF</button>
+               ${cancelled ? '' : `<button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;"
+                 title="Export PDF" onclick="exportMatchPDF('${m.id}')">PDF</button>`}
              </td>`;
         const venue = m.venue && m.venue.toLowerCase()==='away' ? 'Away' : 'Home';
-        const resultStr = cancelled ? m.result : (calcResultString(m, db.batting.filter(r=>r.match_id===m.id))||m.result);
-        const rc = m.result==='Won'?'var(--green-mid)':m.result==='Lost'?'var(--red)':'var(--ink-muted)';
-        const resultCell = cancelled
-          ? `<span style="color:var(--ink-muted);font-size:12px;">${m.result}</span>`
-          : `<span style="color:${rc};font-weight:600;font-size:12px;">${resultStr}</span>`;
+        const _matchResultCell = resultCell(m, db.batting.filter(r=>r.match_id===m.id));
         return `<tr id="mrow-${m.id}" class="${stripeClass}" style="${rowStyle}">
           <td style="text-align:center;" class="edit-only"><input type="checkbox" class="match-chk" value="${m.id}"></td>
           <td style="font-size:12px;color:var(--ink-muted);">${m.date}</td>
           ${oppCell}
           <td style="font-size:12px;color:var(--ink-muted);">${venue}</td>
           <td style="font-size:12px;">${esc(m.format)}</td>
-          <td>${resultCell}</td>
+          <td>${_matchResultCell}</td>
           ${editBtn}
         </tr>
         ${cancelled ? '' : `<tr id="match-sc-row-${idx}" class="inline-sc-row" style="display:none;">
@@ -3325,11 +3346,32 @@ function calcResultString(match, allBat) {
   // fallback: just show won/lost with opponent name
   if (result === 'Won')  return `Godshill won`;
   if (result === 'Lost') return `${match.opponent} won`;
-  if (result === 'Godshill Conceded') return `Godshill conceded`;
+  if (result === 'Cancelled') return 'Cancelled';
+  if (result === 'Godshill Conceded') return 'Godshill conceded';
   if (result === 'Opposition Conceded') return `${match.opponent} conceded`;
   return result;
 }
 
+
+function resultColour(result) {
+  if (result==='Won')  return 'var(--green-mid)';
+  if (result==='Lost') return 'var(--red)';
+  return 'var(--ink-muted)';
+}
+
+function resultCell(m, allBat) {
+  const cancelResult = ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+  const isCancelled  = cancelResult || (m.cancelled && !['Won','Lost','Draw','Tie','Abandoned','No Result'].includes(m.result));
+  if (isCancelled) {
+    const label = m.result==='Godshill Conceded' ? 'Godshill conceded'
+                : m.result==='Opposition Conceded' ? esc(m.opponent)+' conceded'
+                : 'Cancelled';
+    return '<span style="color:var(--ink-muted);font-size:12px;">'+label+'</span>';
+  }
+  const rs = calcResultString(m, allBat) || m.result;
+  const rc = resultColour(m.result);
+  return '<span style="color:'+rc+';font-weight:600;font-size:12px;">'+rs+'</span>';
+}
 
 function toggleAllMatches(cb) {
   document.querySelectorAll('.match-chk').forEach(c => c.checked = cb.checked);
@@ -3682,10 +3724,6 @@ function sortStats(table, key, colIdx) {
   if (table==='bat')   renderBatTable(rows);
   if (table==='bowl')  renderBowlTable(rows);
   if (table==='field') renderFieldTable(rows);
-}
-
-function updateMinPlaceholder() {
-  // Legacy no-op — pills handle state via setMinPill()
 }
 
 function setMinPill(btn) {
@@ -6514,7 +6552,6 @@ function renderH2H() {
   const venueF = document.getElementById('match-filter-venue')?.value || '';
 
   let matches = db.matches.filter(m => {
-    if (m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return false;
     if (season && !(m.date||'').startsWith(season)) return false;
     if (from && m.date < from) return false;
     if (to   && m.date > to)   return false;
@@ -6528,16 +6565,18 @@ function renderH2H() {
   const oppMap = {};
   matches.forEach(m => {
     const opp = m.opponent || 'Unknown';
-    if (!oppMap[opp]) oppMap[opp] = { opponent:opp, played:0, won:0, lost:0, draw:0, tied:0, abandoned:0, last:'', first:'9999-99-99', matches:[] };
+    if (!oppMap[opp]) oppMap[opp] = { opponent:opp, played:0, won:0, lost:0, draw:0, tied:0, abandoned:0, cancelled:0, last:'', first:'9999-99-99', matches:[] };
     const r = oppMap[opp];
-    r.played++;
+    const isCancelled = m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+    if (!isCancelled) r.played++;
     r.matches.push(m);
     if (m.date > r.last)  r.last  = m.date;
     if (m.date < r.first) r.first = m.date;
-    if (m.result==='Won')          r.won++;
-    else if (m.result==='Lost')    r.lost++;
-    else if (m.result==='Tie')     r.tied++;
-    else if (m.result==='Draw')    r.draw++;
+    if (isCancelled)                    r.cancelled++;
+    else if (m.result==='Won')          r.won++;
+    else if (m.result==='Lost')         r.lost++;
+    else if (m.result==='Tie')          r.tied++;
+    else if (m.result==='Draw')         r.draw++;
     else if (m.result==='Abandoned' || m.result==='No Result') r.abandoned++;
   });
 
@@ -6556,7 +6595,7 @@ function renderH2H() {
   });
 
   // Sort indicators
-  ['opponent','played','won','lost','tied','draw','abandoned','winpct','first','last'].forEach(key => {
+  ['opponent','played','won','lost','tied','draw','abandoned','cancelled','winpct','first','last'].forEach(key => {
     const el = document.getElementById('h2h-sort-'+key);
     if (el) el.textContent = _h2hSortKey===key ? (_h2hSortDir===1?' ▲':' ▼') : '';
   });
@@ -6582,12 +6621,13 @@ function renderH2H() {
           <td class="num">${r.tied||0}</td>
           <td class="num">${r.draw}</td>
           <td class="num" style="color:var(--ink-muted);">${r.abandoned}</td>
+          <td class="num" style="color:var(--ink-muted);">${r.cancelled||0}</td>
           <td class="num" style="font-weight:600;color:${pctCol};">${typeof winpct==='number'?winpct+'%':winpct}</td>
           <td style="font-size:12px;color:var(--ink-muted);">${r.first==='9999-99-99'?'–':r.first}</td>
           <td style="font-size:12px;color:var(--ink-muted);">${r.last||'–'}</td>
         </tr>
         <tr id="h2h-detail-row-${i}" style="display:none;">
-          <td colspan="10" style="padding:0;">
+          <td colspan="11" style="padding:0;">
             <div id="h2h-detail-content-${i}" style="padding:12px 16px;background:var(--cream-dark);border-top:2px solid var(--green-pale);"></div>
           </td>
         </tr>`;
@@ -6644,9 +6684,7 @@ function showH2HDetail(opponent, oppIdx) {
              onclick="toggleH2HInlineSc('${oppIdx}-${idx}', this)"
              data-mid="${m.id}" style="cursor:pointer;">${m.date}</a>`
       : `<span style="color:var(--ink-muted);">${m.date}</span>`;
-    const _h2hRs = calcResultString(m, db.batting.filter(r=>r.match_id===m.id)) || m.result;
-    const _h2hRc = m.result==='Won'?'var(--green-mid)':m.result==='Lost'?'var(--red)':'var(--ink-muted)';
-    const _h2hCell = '<span style="color:'+_h2hRc+';font-weight:600;font-size:12px;">'+_h2hRs+'</span>';
+    const _h2hCell = resultCell(m, db.batting.filter(r=>r.match_id===m.id));
     return `<tr class="${stripe}">
         <td>${dateCell}</td>
         <td>${esc(m.venue||'–')}</td>
@@ -6710,11 +6748,10 @@ function toggleH2HInlineSc(idx, el) {
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
   const col2 = i2bat.html
-    ? `<div class="sc-innings-col">${i2bat.html}${i2bowl}</div>` : '';
+    ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div class="sc-innings-grid">
-      <div class="sc-innings-col">${i1bat.html}${i1bowl}</div>
-      ${col2}
+    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -7086,12 +7123,8 @@ function _renderLeagueExpanded(idx, tbl) {
       ?`<a class="sc-toggle-link" id="lt-sc-link-${tblIdSafe}-${mi}" onclick="toggleLTInlineSc('${tblIdSafe}',${mi},this)" data-mid="${m.id}" style="cursor:pointer;">${esc(m.opponent)}</a>`
       :esc(m.opponent);
     const venue = m.venue && m.venue.toLowerCase()==='away' ? 'Away' : 'Home';
-    const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===m.id));
-    const rc = m.result==='Won'?'var(--green-mid)':m.result==='Lost'?'var(--red)':'var(--ink-muted)';
-    const resultCell = cancelled
-      ? `<span style="color:var(--ink-muted);font-size:12px;">${m.result}</span>`
-      : `<span style="color:${rc};font-weight:600;font-size:12px;">${resultStr||m.result}</span>`;
-    return `<tr class="${stripe}"><td style="color:var(--ink-muted);font-size:12px;">${m.date}</td><td>${oppCell}</td><td style="font-size:12px;color:var(--ink-muted);">${venue}</td><td>${resultCell}</td></tr>
+    const _ltResultCell = resultCell(m, db.batting.filter(r=>r.match_id===m.id));
+    return `<tr class="${stripe}"><td style="color:var(--ink-muted);font-size:12px;">${m.date}</td><td>${oppCell}</td><td style="font-size:12px;color:var(--ink-muted);">${venue}</td><td>${_ltResultCell}</td></tr>
     <tr id="lt-sc-row-${tblIdSafe}-${mi}" class="inline-sc-row" style="display:none;"><td colspan="4"><div class="inline-sc-wrap" id="lt-sc-content-${tblIdSafe}-${mi}"></div></td></tr>`;
   }).join('')||'<tr><td colspan="4" class="empty-state">No HCL matches.</td></tr>';
 
@@ -7133,9 +7166,6 @@ function toggleLeagueTableInline(idx, tblId) {
   _leagueOpenTable = tblId;
   row.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
-
-// Legacy stub — replaced by _renderLeagueExpanded
-function _renderLegacyLeagueTable(tbl) { return ''; }
 
 let _ltOpenSc = {};
 
@@ -7357,10 +7387,10 @@ function toggleProfileMatchSc(si, el) {
       &bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div class="sc-innings-col">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div class="sc-innings-grid">
-      <div class="sc-innings-col">${i1bat.html}${i1bowl}</div>${col2}
+    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -7378,7 +7408,7 @@ let _recOpenSc = {};
 let _recCurrentTab = 'career';
 
 function showRecordsTab(which) {
-  ['career','season','scores','wicket','innings'].forEach(t => {
+  ['career','season','scores','wicket','innings','milestones'].forEach(t => {
     const el = document.getElementById('rtab-'+t);
     const btn = document.getElementById('rtab-'+t+'-btn');
     if (el)  el.style.display  = t===which ? '' : 'none';
@@ -7435,10 +7465,10 @@ function toggleRecInlineSc(idx, el) {
     <span style="font-size:11px;color:var(--ink-muted);">&bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div class="sc-innings-col">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div class="sc-innings-grid">
-      <div class="sc-innings-col">${i1bat.html}${i1bowl}</div>${col2}
+    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -7446,6 +7476,102 @@ function toggleRecInlineSc(idx, el) {
   scRow.style.display = '';
   if (link) link.classList.add('open');
   _recOpenSc[idx] = true;
+}
+
+// ── Milestones ────────────────────────────────────────────────────────────────
+function showMilestoneTab(card, which) {
+  ['bat','bowl','field'].forEach(t => {
+    const panel = document.getElementById('ms-'+card+'-'+t);
+    const btn   = document.getElementById('ms-'+card+'-'+t+'-btn');
+    if (panel) panel.style.display = t===which ? '' : 'none';
+    if (btn)   btn.classList.toggle('active', t===which);
+  });
+}
+
+function _renderMilestones(players, allBat, allBowl, allField) {
+  const db = loadDB();
+
+  // Find the most recent season that has actual match data with batting rows
+  const seasons = [...new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(s=>s.length===4))].sort();
+  const latestSeason = [...seasons].reverse().find(s =>
+    allBat.some(r=>r.team===OUR_TEAM&&(db.matches.find(m=>m.id===r.match_id)?.date||'').startsWith(s))
+  );
+  if (!latestSeason) return;
+
+  // Players active in the latest season — must have a batting, bowling OR fielding row in a latest-season match
+  const latestMids = new Set(db.matches.filter(m=>(m.date||'').startsWith(latestSeason)).map(m=>m.id));
+  const activeSet = new Set([
+    ...allBat.filter(r=>latestMids.has(r.match_id)&&r.team===OUR_TEAM).map(r=>r.player),
+    ...allBowl.filter(r=>latestMids.has(r.match_id)&&r.team===OUR_TEAM).map(r=>r.player),
+    ...allField.filter(r=>latestMids.has(r.match_id)&&r.team===OUR_TEAM).map(r=>r.player),
+  ]);
+  const activePlayers = players.filter(n => activeSet.has(n));
+
+  const RUNS_STEP    = 500;
+  const WKTS_STEP    = 50;
+  const CATCHES_STEP = 50;
+
+  function _nextMilestone(val, step) { return Math.ceil((val + 1) / step) * step; }
+
+  function _batRows(mids) {
+    return activePlayers.map(name => {
+      const total = allBat.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM&&r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0);
+      const next  = _nextMilestone(total, RUNS_STEP);
+      return { name, current:total, milestone:next, needed:next-total };
+    }).filter(r=>r.current>0).sort((a,b)=>a.needed-b.needed);
+  }
+
+  function _bowlRows(mids) {
+    return activePlayers.map(name => {
+      const total = allBowl.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM).reduce((s,r)=>s+r.wickets,0);
+      const next  = _nextMilestone(total, WKTS_STEP);
+      return { name, current:total, milestone:next, needed:next-total };
+    }).filter(r=>r.current>0).sort((a,b)=>a.needed-b.needed);
+  }
+
+  function _fieldRows(mids) {
+    return activePlayers.map(name => {
+      const batRows   = allBat.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM);
+      const fieldRows = allField.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM);
+      const saved  = fieldRows.reduce((s,r)=>s+r.catches,0);
+      const cnb    = batRows.filter(r=>r.how_out==='caught and bowled'&&!allField.some(f=>f.match_id===r.match_id&&f.player===name)).length;
+      const total  = saved + cnb;
+      const next   = _nextMilestone(total, CATCHES_STEP);
+      return { name, current:total, milestone:next, needed:next-total };
+    }).filter(r=>r.current>0).sort((a,b)=>a.needed-b.needed);
+  }
+
+  function _renderMilestoneTable(elId, rows, colLabel) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!rows.length) { el.innerHTML='<div class="empty-state">No data.</div>'; return; }
+    el.innerHTML = `<table class="data-table" style="font-size:12px;">
+      <thead><tr>
+        <th>Player</th>
+        <th class="num">Current</th><th class="num">Next</th><th class="num">Need</th>
+      </tr></thead>
+      <tbody>${rows.slice(0,15).map((r,i)=>{
+        const pct = Math.min(100, Math.round((r.current / r.milestone) * 100));
+        const bar = '<div style="background:var(--green-pale);border-radius:3px;height:4px;margin-top:3px;"><div style="background:var(--green-light);border-radius:3px;height:4px;width:'+pct+'%;"></div></div>';
+        return '<tr class="'+(i%2===0?'row-odd':'row-even')+'">'+
+          '<td>'+_recPlayerLink(r.name)+'</td>'+
+          '<td class="num"><strong>'+r.current+'</strong>'+bar+'</td>'+
+          '<td class="num" style="color:var(--ink-muted);">'+r.milestone+'</td>'+
+          '<td class="num" style="color:var(--green-mid);font-weight:700;">–'+r.needed+'</td>'+
+        '</tr>';
+      }).join('')}</tbody>
+    </table>`;
+  }
+
+  const allMids = new Set(db.matches.map(m=>m.id));
+  const hclMids = new Set(db.matches.filter(m=>isHCL(m.format)).map(m=>m.id));
+
+  _renderMilestoneTable('ms-all-bat',   _batRows(allMids),   'Runs');
+  _renderMilestoneTable('ms-all-bowl',  _bowlRows(allMids),  'Wickets');
+  _renderMilestoneTable('ms-all-field', _fieldRows(allMids), 'Catches');
+  _renderMilestoneTable('ms-hcl-bat',   _batRows(hclMids),   'Runs');
+  _renderMilestoneTable('ms-hcl-bowl',  _bowlRows(hclMids),  'Wickets');
+  _renderMilestoneTable('ms-hcl-field', _fieldRows(hclMids), 'Catches');
 }
 
 // ── Helper: render a top-10 player table ──────────────────────────────────────
@@ -7640,6 +7766,9 @@ function renderRecords() {
     return { name, val: _fieldingTotals(name, fr, br).total };
   }).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-field', careerField, 'Dismissals');
+
+  // ── MILESTONES ────────────────────────────────────────────────────────────
+  _renderMilestones(players, db.batting, db.bowling, db.fielding);
 
   // ── SEASON RECORDS ────────────────────────────────────────────────────────
   const seasonRuns = [], seasonWkts = [], seasonField = [];

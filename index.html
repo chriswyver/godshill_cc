@@ -785,15 +785,25 @@
       <div id="issues-summary" style="margin-bottom:10px;"></div>
       <!-- Tabs -->
       <div class="tab-bar" style="margin-bottom:12px;">
-        <button class="tab-btn active" id="issues-tab-errors-btn" onclick="showIssuesTab('errors')">&#9679; Errors <span id="issues-errors-count" class="badge" style="margin-left:4px;"></span></button>
+        <button class="tab-btn active" id="issues-tab-maths-btn"   onclick="showIssuesTab('maths')">&#9651; Maths <span id="issues-maths-count" class="badge" style="margin-left:4px;"></span></button>
+        <button class="tab-btn"        id="issues-tab-wickets-btn" onclick="showIssuesTab('wickets')">&#9675; Wickets <span id="issues-wickets-count" class="badge" style="margin-left:4px;"></span></button>
         <button class="tab-btn"        id="issues-tab-unsures-btn" onclick="showIssuesTab('unsures')">&#9650; Unsures <span id="issues-unsures-count" class="badge" style="margin-left:4px;"></span></button>
       </div>
-      <!-- Errors tab -->
-      <div id="issues-tab-errors">
+      <!-- Maths tab -->
+      <div id="issues-tab-maths">
         <div class="table-wrap">
           <table class="data-table">
-            <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th><th>Issues</th><th>Action</th></tr></thead>
-            <tbody id="tbody-issues"></tbody>
+            <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th><th>Issue</th><th>Action</th></tr></thead>
+            <tbody id="tbody-issues-maths"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Wickets tab -->
+      <div id="issues-tab-wickets" style="display:none;">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th><th>Issue</th><th>Action</th></tr></thead>
+            <tbody id="tbody-issues-wickets"></tbody>
           </table>
         </div>
       </div>
@@ -5059,7 +5069,7 @@ const OTHER_DISM_E        = ['run out','handled the ball','obstructing the field
 const NOT_DISM_E          = ['not out','retired hurt','retired out','retired not out','absent hurt','did not bat'];
 
 function checkMatchErrors(mid) {
-  // Returns array of error strings for a match, empty if clean
+  // Returns array of {type, msg} objects. Types: maths, wickets, unsure
   const m = db.matches.find(m=>m.id===mid);
   if (!m || m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return [];
   const issues = [];
@@ -5086,25 +5096,25 @@ function checkMatchErrors(mid) {
       const wr = bowl.reduce((s,r)=>s+r.runs,0);
       const ww = bowl.reduce((s,r)=>s+r.wickets,0);
       if (wr !== bowlingExp)
-        issues.push(`${lbl}: Bowling runs ${wr} ≠ expected ${bowlingExp} (bat ${batRuns} + w ${extObj.w} + nb ${extObj.nb})`);
+        issues.push({type:'maths', msg:`${lbl}: Bowling runs ${wr} ≠ expected ${bowlingExp} (bat ${batRuns} + w ${extObj.w} + nb ${extObj.nb})`});
       if (ww !== bowlWkts) {
         const extra = otherDism>0 ? ` (+ ${otherDism} other)` : '';
-        issues.push(`${lbl}: Bowling wickets ${ww} ≠ bowler-credited dismissals ${bowlWkts}${extra}`);
+        issues.push({type:'wickets', msg:`${lbl}: Bowling wickets ${ww} ≠ bowler-credited dismissals ${bowlWkts}${extra}`});
       }
     }
 
     // Missing bowler/fielder
     bat.filter(r=>NEEDS_BOWLER.includes(r.how_out)&&!r.bowler)
-       .forEach(r=>issues.push(`${lbl}: No bowler for ${r.player} (${r.how_out})`));
+       .forEach(r=>issues.push({type:'maths', msg:`${lbl}: No bowler for ${r.player} (${r.how_out})`}));
     bat.filter(r=>NEEDS_FIELDER.includes(r.how_out)&&!r.fielder)
-       .forEach(r=>issues.push(`${lbl}: No fielder for ${r.player} (${r.how_out})`));
+       .forEach(r=>issues.push({type:'maths', msg:`${lbl}: No fielder for ${r.player} (${r.how_out})`}));
     bat.filter(r=>r.runs<0)
-       .forEach(r=>issues.push(`${lbl}: Negative runs for ${r.player}`));
+       .forEach(r=>issues.push({type:'maths', msg:`${lbl}: Negative runs for ${r.player}`}));
 
     // More than 1 not-out batter
     const notOutCount = bat.filter(r=>r.how_out==='not out').length;
     if (notOutCount > 2)
-      issues.push(`${lbl}: ${notOutCount} batters listed as "not out" — maximum 2 is possible`);
+      issues.push({type:'maths', msg:`${lbl}: ${notOutCount} batters listed as "not out" — maximum 2 is possible`});
 
     // ── Unsure Godshill players (to be identified later) ─────────────────────────
     const isUnsure = n => (n||'').trim().toLowerCase() === 'unsure';
@@ -5114,16 +5124,16 @@ function checkMatchErrors(mid) {
     if (godshillBatting) {
       // Godshill batting: flag any batter listed as "Unsure"
       bat.filter(r => r.how_out!=='did not bat' && isUnsure(r.player))
-         .forEach(r => issues.push(`${lbl}: Godshill batter listed as "Unsure" at position ${r.position}`));
+         .forEach(r => issues.push({type:'unsure', msg:`${lbl}: Godshill batter listed as "Unsure" at position ${r.position}`}));
     } else {
       // Opposition batting: flag Godshill bowlers listed as "Unsure"
       bowl.filter(r => r.team===OUR_TEAM && isUnsure(r.player))
-          .forEach(r => issues.push(`${lbl}: Godshill bowler listed as "Unsure"`));
+          .forEach(r => issues.push({type:'unsure', msg:`${lbl}: Godshill bowler listed as "Unsure"`}));
       // Flag bowler/fielder on dismissals listed as "Unsure"
       bat.filter(r => NEEDS_BOWLER.includes(r.how_out) && isUnsure(r.bowler))
-         .forEach(r => issues.push(`${lbl}: Bowler listed as "Unsure" for dismissal of ${r.player}`));
+         .forEach(r => issues.push({type:'unsure', msg:`${lbl}: Bowler listed as "Unsure" for dismissal of ${r.player}`}));
       bat.filter(r => NEEDS_FIELDER.includes(r.how_out) && isUnsure(r.fielder))
-         .forEach(r => issues.push(`${lbl}: Fielder listed as "Unsure" for dismissal of ${r.player}`));
+         .forEach(r => issues.push({type:'unsure', msg:`${lbl}: Fielder listed as "Unsure" for dismissal of ${r.player}`}));
     }
   }
   // ── Check 3: bowling wickets tally (bat innings vs bowl innings) ─────────
@@ -5139,7 +5149,7 @@ function checkMatchErrors(mid) {
         BOWL_WICKET_TYPES_E.includes(b.how_out) && b.bowler===br.player
       ).length;
       if (br.wickets !== credited)
-        issues.push(`Inns ${inn}: ${br.player} has ${br.wickets}w in bowling table but is credited with ${credited} dismissal(s) in batting`);
+        issues.push({type:'wickets', msg:`Inns ${inn}: ${br.player} has ${br.wickets}w in bowling table but is credited with ${credited} dismissal(s) in batting`});
     });
   }
 
@@ -5153,9 +5163,9 @@ function checkMatchErrors(mid) {
       const recWon  = m.result === 'Won';
       const recLost = m.result === 'Lost';
       if (recWon && calcLost)
-        issues.push(`Result mismatch: recorded as "Won" but scorecard suggests ${calcResult}`);
+        issues.push({type:'maths', msg:`Result mismatch: recorded as "Won" but scorecard suggests ${calcResult}`});
       else if (recLost && calcWon)
-        issues.push(`Result mismatch: recorded as "Lost" but scorecard suggests ${calcResult}`);
+        issues.push({type:'maths', msg:`Result mismatch: recorded as "Lost" but scorecard suggests ${calcResult}`});
     }
   }
 
@@ -5178,21 +5188,25 @@ function renderIssues() {
     .filter(x => x.issues.length > 0)
     .sort((a,b) => b.m.date.localeCompare(a.m.date));
 
-  // Split: unsures = contains "Unsure", errors = maths/data issues
-  const isUnsureIssue = i => i.includes('"Unsure"');
-  const errMatches    = allChecked.map(x=>({m:x.m, issues:x.issues.filter(i=>!isUnsureIssue(i))})).filter(x=>x.issues.length>0);
-  const unsureMatches = allChecked.map(x=>({m:x.m, issues:x.issues.filter(i=> isUnsureIssue(i))})).filter(x=>x.issues.length>0);
+  const byType = type => allChecked
+    .map(x => ({m:x.m, issues:x.issues.filter(i=>i.type===type)}))
+    .filter(x => x.issues.length > 0);
+
+  const mathsMatches   = byType('maths');
+  const wicketsMatches = byType('wickets');
+  const unsureMatches  = byType('unsure');
+
+  // Badges
+  const setBadge = (id, n) => { const el=document.getElementById(id); if(el) el.textContent=n||''; };
+  setBadge('issues-maths-count',   mathsMatches.length);
+  setBadge('issues-wickets-count', wicketsMatches.length);
+  setBadge('issues-unsures-count', unsureMatches.length);
 
   const total = matchesWithData.length;
-  // Update tab badges
-  const errBadge = document.getElementById('issues-errors-count');
-  const unsureBadge = document.getElementById('issues-unsures-count');
-  if (errBadge)    errBadge.textContent    = errMatches.length    || '';
-  if (unsureBadge) unsureBadge.textContent = unsureMatches.length || '';
-
   const summaryParts = [];
-  if (errMatches.length)    summaryParts.push(`<span style="color:var(--red);">&#9679; ${errMatches.length} with errors</span>`);
-  if (unsureMatches.length) summaryParts.push(`<span style="color:#c8922a;">&#9650; ${unsureMatches.length} with unsures</span>`);
+  if (mathsMatches.length)   summaryParts.push(`<span style="color:var(--red);">&#9651; ${mathsMatches.length} maths</span>`);
+  if (wicketsMatches.length) summaryParts.push(`<span style="color:var(--red);">&#9675; ${wicketsMatches.length} wickets</span>`);
+  if (unsureMatches.length)  summaryParts.push(`<span style="color:#c8922a;">&#9650; ${unsureMatches.length} unsures</span>`);
   document.getElementById('issues-summary').innerHTML = summaryParts.length
     ? `<div class="alert alert-warn">&#9888; ${total} scorecards checked — ${summaryParts.join(' &nbsp;')}</div>`
     : `<div class="alert alert-ok">&#10003; All ${total} scorecards checked — no issues found.</div>`;
@@ -5202,7 +5216,7 @@ function renderIssues() {
       ? matches.map((x,idx) => {
           const m = x.m;
           const issueHtml = x.issues.map(i=>
-            `<div style="font-size:11px;margin-bottom:2px;">&#9679; ${esc(i)}</div>`
+            `<div style="font-size:11px;margin-bottom:2px;">&#9679; ${esc(i.msg)}</div>`
           ).join('');
           const stripeClass = idx%2===0?'row-odd':'row-even';
           return `<tr id="${prefix}-row-${m.id}" class="${stripeClass}">
@@ -5211,7 +5225,7 @@ function renderIssues() {
                    onclick="toggleErrInlineSc(${idx},'${m.id}','${prefix}')"
                  >${esc(m.opponent)}</a></td>
             <td>${esc(m.format)}</td>
-            <td><span class="badge badge-result-${m.result}">${m.result}</span></td>
+            <td>${resultCell(m, [])}</td>
             <td>${issueHtml}</td>
             <td><button class="btn btn-secondary btn-sm" style="padding:3px 8px;font-size:11px;"
                   onclick="editMatch('${m.id}')">&#9998; Edit</button></td>
@@ -5223,8 +5237,9 @@ function renderIssues() {
       : `<tr><td colspan="6"><div class="empty-state">&#10003; None</div></td></tr>`;
   };
 
-  makeRows(errMatches,    'tbody-issues',   'err');
-  makeRows(unsureMatches, 'tbody-unsures',  'uns');
+  makeRows(mathsMatches,   'tbody-issues-maths',   'mth');
+  makeRows(wicketsMatches, 'tbody-issues-wickets', 'wkt');
+  makeRows(unsureMatches,  'tbody-unsures',        'uns');
 }
 
 function toggleErrInlineSc(idx, mid, pfx) {
@@ -5717,7 +5732,7 @@ function isUnsure(v) { return !v || UNSURE_WORDS.test(v.trim()); }
 
 // ── Toggle panels ─────────────────────────────────────────────────────────────
 function showIssuesTab(which) {
-  ['errors','unsures'].forEach(t => {
+  ['maths','wickets','unsures'].forEach(t => {
     document.getElementById('issues-tab-'+t).style.display = t===which ? '' : 'none';
     document.getElementById('issues-tab-'+t+'-btn').classList.toggle('active', t===which);
   });
@@ -7286,7 +7301,7 @@ function renderProfileMatches() {
       return { m, batCell, bowlCell, fieldCell };
     })
     .filter(Boolean)
-    .sort((a,b) => b.m.date.localeCompare(a.m.date));
+    .sort((a,b) => a.m.date.localeCompare(b.m.date));
 
   const pp = parseInt(document.getElementById('profile-per-page')?.value||'50')||50;
   const ppF = pp===0 ? rows.length||1 : pp;
@@ -7489,8 +7504,6 @@ function showMilestoneTab(card, which) {
 }
 
 function _renderMilestones(players, allBat, allBowl, allField) {
-  const db = loadDB();
-
   // Find the most recent season that has actual match data with batting rows
   const seasons = [...new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(s=>s.length===4))].sort();
   const latestSeason = [...seasons].reverse().find(s =>

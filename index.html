@@ -509,7 +509,7 @@
 <!-- ═══════════════════════════════════════ HOME ═══════ -->
 <div id="page-home" class="page active">
   <h2>Dashboard</h2>
-  <p class="muted" style="margin-bottom:16px;">Your club cricket record at a glance. <span id="home-year-range"></span></p>
+  <p class="muted" style="margin-bottom:16px;"> <span id="home-year-range"></span></p>
 
   <!-- Shared home filter -->
   <div class="card" style="padding:12px 16px;margin-bottom:16px;" id="home-filter-card">
@@ -632,6 +632,23 @@
       <input type="hidden" id="m-toss" value="Godshill">
       <input type="hidden" id="m-toss-us" value="Godshill">
       <input type="hidden" id="m-choice" value="Bat">
+      <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+        <label style="margin:0;display:flex;align-items:center;gap:6px;cursor:pointer;">
+          <input type="checkbox" id="m-rain" onchange="toggleRainFields()" style="width:16px;height:16px;">
+          <span>&#127783; Rain affected (DLS)</span>
+        </label>
+        <div id="rain-fields" style="display:none;gap:12px;align-items:center;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <label style="margin:0;white-space:nowrap;font-size:13px;">Revised target</label>
+            <input type="number" id="m-dls-target" min="0" placeholder="e.g. 187" style="width:80px;">
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;">
+            <label style="margin:0;white-space:nowrap;font-size:13px;">from</label>
+            <input type="number" id="m-dls-overs" min="0" step="0.1" placeholder="e.g. 35" style="width:70px;">
+            <label style="margin:0;font-size:13px;">overs</label>
+          </div>
+        </div>
+      </div>
       <div style="margin-top:12px;">
         <label>Notes</label>
         <textarea id="m-notes" placeholder="Any notes about the match..."></textarea>
@@ -1537,7 +1554,6 @@
     <!-- Row 2: contextual filters + count + clear -->
     <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
       <button class="btn btn-secondary btn-sm" onclick="clearProfileFilters()">&#10005; Clear</button>
-      <span id="profile-match-count" class="badge">0 matches</span>
     </div><!-- /profile-filter-collapsible -->
       <!-- filters moved to pie chart clicks -->
       <input type="hidden" id="profile-filter-dism" value="">
@@ -1733,7 +1749,7 @@
   <!-- Matches tab -->
   <div id="profile-tab-matches" style="margin-top:0;">
     <div class="card" style="margin-top:16px;">
-      <div class="card-title"><span class="icon">&#128197;</span> All Matches<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
+      <div class="card-title"><span class="icon">&#128197;</span> <span id="profile-matches-heading">Matches</span><span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
       <div class="table-wrap">
         <table class="data-table" id="profile-matches-table">
           <thead><tr>
@@ -1868,7 +1884,7 @@
 
       <!-- All competitions card -->
       <div class="card">
-        <div class="card-title">All Competitions</div>
+        <div class="card-title">All Matches</div>
         <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
           <button class="tab-btn active" id="ms-all-bat-btn"   onclick="showMilestoneTab('all','bat')"   style="font-size:12px;padding:5px 12px;">Batting</button>
           <button class="tab-btn"        id="ms-all-bowl-btn"  onclick="showMilestoneTab('all','bowl')"  style="font-size:12px;padding:5px 12px;">Bowling</button>
@@ -2087,6 +2103,12 @@ function goStep(n) {
   }
 }
 
+function toggleRainFields() {
+  const cb = document.getElementById('m-rain');
+  const fields = document.getElementById('rain-fields');
+  if (fields) fields.style.display = cb && cb.checked ? 'flex' : 'none';
+}
+
 function step1Next() {
   const opp    = document.getElementById('m-opp').value.trim();
   const result = document.getElementById('m-result').value;
@@ -2122,6 +2144,9 @@ function saveCancelledMatch() {
     toss:      '', choice: '', bat_first: '',
     notes:     document.getElementById('m-notes').value.trim(),
     cancelled: true,
+    rain_affected: !!(document.getElementById('m-rain')?.checked),
+    dls_target:   parseInt(document.getElementById('m-dls-target')?.value)||null,
+    dls_overs:    parseFloat(document.getElementById('m-dls-overs')?.value)||null,
   });
   saveDB(db);
   renderHome();
@@ -2596,6 +2621,9 @@ function saveScorecard() {
     choice:     document.getElementById('m-choice').value,
     bat_first:  batFirst,
     notes:      document.getElementById('m-notes').value.trim(),
+    rain_affected: !!(document.getElementById('m-rain')?.checked),
+    dls_target:   parseInt(document.getElementById('m-dls-target')?.value)||null,
+    dls_overs:    parseFloat(document.getElementById('m-dls-overs')?.value)||null,
   });
 
   const cfgs = [
@@ -2705,6 +2733,10 @@ function resetWizard() {
   document.getElementById('m-opp').value    = '';
   document.getElementById('m-venue').value  = '';
   document.getElementById('m-notes').value  = '';
+  const _rainCb = document.getElementById('m-rain'); if(_rainCb) _rainCb.checked = false;
+  const _dlsT = document.getElementById('m-dls-target'); if(_dlsT) _dlsT.value = '';
+  const _dlsO = document.getElementById('m-dls-overs');  if(_dlsO) _dlsO.value = '';
+  toggleRainFields();
   document.getElementById('m-overs').value  = '0';
   wiz.team1 = []; wiz.team2 = [];
   wiz.editingMatchId = null;
@@ -3334,28 +3366,34 @@ function calcResultString(match, allBat) {
   const i2TeamName = match.bat_first === 'Godshill' ? match.opponent : 'Godshill';
 
   if (i1Total && i2Total) {
-    if (i1Total > i2Total) {
-      const winner = i1TeamName;
-      const margin = i1Total - i2Total;
-      if ((winner === 'Godshill') === godshillWon)
-        return `${winner} won by ${margin} run${margin===1?'':'s'}`;
-      // winner doesn't match stored result - still show the margin with correct winner
-      const actualWinner = godshillWon ? 'Godshill' : match.opponent;
-      return `${actualWinner} won by ${margin} run${margin===1?'':'s'}`;
-    } else if (i2Total > i1Total) {
+    // For DLS games with a revised target, compare chasing innings against the target
+    const dlsTarget = match.rain_affected && match.dls_target ? match.dls_target : null;
+    const chasingTotal = i2Total; // innings 2 always chases
+    const settingTotal = dlsTarget || i1Total;
+
+    if (chasingTotal > settingTotal) {
+      // Chasing team (innings 2) won by wickets
       const winner = i2TeamName;
       const wktsLeft = 10 - i2Wkts;
       if ((winner === 'Godshill') === godshillWon)
-        return `${winner} won by ${wktsLeft} wicket${wktsLeft===1?'':'s'}`;
+        return `${winner} won by ${wktsLeft} wicket${wktsLeft===1?'':'s'}${match.rain_affected?' (DLS)':''}`;
       const actualWinner = godshillWon ? 'Godshill' : match.opponent;
-      return `${actualWinner} won by ${wktsLeft} wicket${wktsLeft===1?'':'s'}`;
+      return `${actualWinner} won by ${wktsLeft} wicket${wktsLeft===1?'':'s'}${match.rain_affected?' (DLS)':''}`;
+    } else if (settingTotal > chasingTotal) {
+      // Setting team (innings 1) won by runs
+      const winner = i1TeamName;
+      const margin = dlsTarget ? settingTotal - chasingTotal : i1Total - i2Total;
+      if ((winner === 'Godshill') === godshillWon)
+        return `${winner} won by ${margin} run${margin===1?'':'s'}${match.rain_affected?' (DLS)':''}`;
+      const actualWinner = godshillWon ? 'Godshill' : match.opponent;
+      return `${actualWinner} won by ${margin} run${margin===1?'':'s'}${match.rain_affected?' (DLS)':''}`;
     } else {
       return 'Tie';
     }
   }
   // fallback: just show won/lost with opponent name
-  if (result === 'Won')  return `Godshill won`;
-  if (result === 'Lost') return `${match.opponent} won`;
+  if (result === 'Won')  return `Godshill won${match.rain_affected?' (DLS)':''}`;
+  if (result === 'Lost') return `${match.opponent} won${match.rain_affected?' (DLS)':''}`;
   if (result === 'Cancelled') return 'Cancelled';
   if (result === 'Godshill Conceded') return 'Godshill conceded';
   if (result === 'Opposition Conceded') return `${match.opponent} conceded`;
@@ -3425,6 +3463,10 @@ function editMatch(mid) {
   document.getElementById('m-result').value     = m.result     || 'Won';
   document.getElementById('m-bat-first').value  = m.bat_first  || OUR_TEAM;
   document.getElementById('m-notes').value      = m.notes      || '';
+  const rainCb = document.getElementById('m-rain');
+  if (rainCb) { rainCb.checked = !!(m.rain_affected); toggleRainFields(); }
+  if (m.dls_target) { const t = document.getElementById('m-dls-target'); if(t) t.value = m.dls_target; }
+  if (m.dls_overs)  { const o = document.getElementById('m-dls-overs');  if(o) o.value = m.dls_overs; }
 
   // Pre-populate team sheets from existing batting records (sorted by position)
   const batFirst  = m.bat_first || OUR_TEAM;
@@ -4331,7 +4373,7 @@ function renderProfile() {
   const n = profileMatchDates.length;
 
   if (!n) {
-    document.getElementById('profile-match-count').textContent = '0 matches';
+    
     if (document.getElementById('tbody-profile-bat'))
       document.getElementById('tbody-profile-bat').innerHTML  = '<tr><td colspan="6" class="empty-state">No data</td></tr>';
     if (document.getElementById('tbody-profile-bowl'))
@@ -4367,7 +4409,7 @@ function renderProfile() {
 
   _profilePage.bat=1; _profilePage.bowl=1; _profilePage.wickets=1; _profilePage.field=1;
   populateSeasonDropdowns();
-  document.getElementById('profile-match-count').textContent = activeDates.length + ' match' + (activeDates.length!==1?'es':'');
+  
 
   // ── Batting data ──────────────────────────────────────────
   const dismFilter = document.getElementById('profile-filter-dism')?.value || '';
@@ -4952,6 +4994,7 @@ function buildInningsBatHtml(mid, innings) {
       ${esc(teamLabel)}
       <span style="font-weight:400;font-size:11px;color:var(--ink-muted);">
         &mdash; Innings ${innings}</span>
+      ${(innings===2 && m?.rain_affected) ? '<span style="font-size:11px;color:#2980b9;margin-left:8px;">&#127783; DLS' + (m.dls_target ? ' — target ' + m.dls_target : '') + (m.dls_overs ? ' from ' + m.dls_overs + ' overs' : '') + '</span>' : ''}
     </div>
     <table class="scorebook" style="width:100%;margin-bottom:10px;">
       <thead><tr><th>#</th><th>Batter</th><th>Dismissal</th><th class="r">R</th></tr></thead>
@@ -7302,6 +7345,11 @@ function renderProfileMatches() {
     })
     .filter(Boolean)
     .sort((a,b) => a.m.date.localeCompare(b.m.date));
+
+  // Update tab badge
+  const _pmcEl = document.getElementById('ptab-matches-count');
+  const _pmhEl = document.getElementById('profile-matches-heading');
+  if (_pmhEl) _pmhEl.textContent = rows.length + ' Match' + (rows.length!==1?'es':'');
 
   const pp = parseInt(document.getElementById('profile-per-page')?.value||'50')||50;
   const ppF = pp===0 ? rows.length||1 : pp;

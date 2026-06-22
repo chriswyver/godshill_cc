@@ -2028,31 +2028,54 @@ function genId() {
 
 let db = loadDB();
 
+// ── BROWSER HISTORY ───────────────────────────────────────────────────────────
+window.addEventListener('popstate', function(e) {
+  if (e.state && e.state.page) {
+    if (e.state.page === 'profile' && e.state.profilePlayer != null) {
+      const idx = db.players.findIndex(p=>p.name===e.state.profilePlayer);
+      if (idx >= 0) { openPlayerProfile(idx, true); return; }
+    }
+    showPage(e.state.page, null, true);
+  } else {
+    showPage('home', null, true);
+  }
+});
+
 // ════════════════════════════════════════════════════════════
 // NAVIGATION
 // ════════════════════════════════════════════════════════════
 let _currentPage = 'home';
 let _prevPage    = null;
 
-function showPage(name, btn) {
+function showPage(name, btn, fromPopState) {
   if (name !== _currentPage) { _prevPage = _currentPage; }
   _currentPage = name;
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   if (btn) btn.classList.add('active');
+  else {
+    // Highlight the correct nav button by page name
+    const navMap = {home:0,scorecard:1,matches:2,stats:3,players:4,league:5,records:6};
+    const navBtns = document.querySelectorAll('nav button');
+    if (navMap[name] !== undefined && navBtns[navMap[name]]) navBtns[navMap[name]].classList.add('active');
+  }
   if (name === 'home')    renderHome();
   if (name === 'matches') renderMatches();
   if (name === 'stats')   { populateStatFilters(); renderStats(); }
   if (name === 'players') renderPlayers();
   if (name === 'league')  renderLeagueTables();
   if (name === 'records') renderRecords();
+  // Push browser history (unless triggered by popstate or profile — profile pushes its own)
+  if (!fromPopState && name !== 'profile') {
+    history.pushState({ page: name }, '', '#' + name);
+  }
   // Update back button
   const bb = document.getElementById('profile-back-btn');
   if (bb) {
     if (name === 'profile' && _prevPage && _prevPage !== 'profile') {
       const labels = {home:'Home',scorecard:'New Scorecard',matches:'Matches',
-                      stats:'Stats',players:'Players'};
+                      stats:'Stats',players:'Players',league:'League Tables',records:'Records'};
       bb.textContent = '← Back to ' + (labels[_prevPage] || _prevPage);
       bb.style.display = '';
     } else if (name !== 'profile') {
@@ -4297,6 +4320,12 @@ document.getElementById('m-date').value = new Date().toISOString().split('T')[0]
   }
   renderHome();
   updateStorageIndicator();
+  // Set initial history state
+  const _initHash = window.location.hash.replace('#','');
+  const _validPages = ['home','matches','stats','players','league','records'];
+  const _startPage = _validPages.includes(_initHash) ? _initHash : 'home';
+  history.replaceState({ page: _startPage }, '', '#' + _startPage);
+  if (_startPage !== 'home') showPage(_startPage, null, true);
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4325,7 +4354,7 @@ function openPlayerByName(name) {
   if (idx >= 0) openPlayerProfile(idx);
 }
 
-function openPlayerProfile(idx) {
+function openPlayerProfile(idx, fromPopState) {
   profilePlayer = db.players[idx];
   // Build sorted list of match dates this player appeared in
   // Include records where team matches OUR_TEAM OR where team is missing/blank (legacy data)
@@ -4350,7 +4379,10 @@ function openPlayerProfile(idx) {
   document.getElementById('profile-name').textContent = profilePlayer.name;
   filterProfileSwitchList();
   document.getElementById('nav-profile').style.display = '';
-  showPage('profile', document.getElementById('nav-profile'));
+  showPage('profile', document.getElementById('nav-profile'), fromPopState);
+  if (!fromPopState) {
+    history.pushState({ page:'profile', profilePlayer: profilePlayer.name }, '', '#profile');
+  }
   // Small delay to ensure DOM is ready before rendering
   setTimeout(renderProfile, 0);
 }

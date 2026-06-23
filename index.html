@@ -724,6 +724,16 @@
   </div>
   <!-- Summary boxes (update with filters) -->
   <div class="stat-row" id="match-stat-boxes" style="margin-bottom:16px;"></div>
+  <!-- Matches by year chart -->
+  <div class="card" style="padding:16px;margin-bottom:12px;">
+    <div class="card-title" style="margin-bottom:12px;">Matches by Season</div>
+    <div id="matches-year-chart" style="overflow-x:auto;"></div>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px;">
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#2e5c38;display:inline-block;"></span>HCL</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#c8922a;display:inline-block;"></span>NVKO</span>
+      <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#5a9a6a;display:inline-block;"></span>Friendly</span>
+    </div>
+  </div>
   <!-- Filters -->
   <div class="card" style="padding:14px 16px;margin-bottom:12px;" id="match-filter-card">
     <button class="filter-toggle-btn" onclick="toggleFilterPanel('match-filter')" id="match-filter-toggle">
@@ -1070,6 +1080,10 @@
     <div id="lwiz-step1">
       <div class="card" style="max-width:600px;">
         <div class="card-title"><span class="icon">&#128197;</span> Table Details</div>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <button id="lwiz-mode-full" class="min-pill active" onclick="setLeagueWizMode('full')" style="font-size:13px;padding:5px 14px;">Full Table</button>
+          <button id="lwiz-mode-summary" class="min-pill" onclick="setLeagueWizMode('summary')" style="font-size:13px;padding:5px 14px;">Godshill Only</button>
+        </div>
         <div class="form-grid cols-2" style="margin-bottom:16px;">
           <div>
             <label>Season <span style="color:var(--red);">*</span></label>
@@ -1080,12 +1094,30 @@
             <input type="text" id="lwiz-division" placeholder="e.g. Division 6C" style="width:100%;">
           </div>
         </div>
-        <div style="margin-bottom:16px;">
+        <!-- Full table columns editor (hidden in summary mode) -->
+        <div id="lwiz-full-section" style="margin-bottom:16px;">
           <label style="margin-bottom:6px;display:block;">Columns <span style="font-size:11px;color:var(--ink-muted);">(edit, reorder or remove)</span></label>
           <div id="lwiz-col-editor" style="max-height:260px;overflow-y:auto;padding:4px;border:1px solid var(--green-pale);border-radius:4px;background:var(--cream);"></div>
         </div>
+        <!-- Godshill-only quick entry (shown in summary mode) -->
+        <div id="lwiz-summary-section" style="display:none;margin-bottom:16px;">
+          <p class="muted" style="font-size:12px;margin-bottom:12px;">Enter Godshill's row only — useful when you only know your own position.</p>
+          <div class="form-grid cols-4" style="gap:10px;">
+            <div><label style="font-size:12px;">Pos</label><input type="number" id="lwiz-s-pos" min="1" style="width:100%;"></div>
+            <div><label style="font-size:12px;">Teams</label><input type="number" id="lwiz-s-teams" min="1" placeholder="total" style="width:100%;"></div>
+            <div><label style="font-size:12px;">P</label><input type="number" id="lwiz-s-p" min="0" style="width:100%;"></div>
+            <div><label style="font-size:12px;">W</label><input type="number" id="lwiz-s-w" min="0" style="width:100%;"></div>
+            <div><label style="font-size:12px;">L</label><input type="number" id="lwiz-s-l" min="0" style="width:100%;"></div>
+            <div><label style="font-size:12px;">T</label><input type="number" id="lwiz-s-t" min="0" style="width:100%;"></div>
+            <div><label style="font-size:12px;">BatP</label><input type="number" id="lwiz-s-batp" min="0" style="width:100%;"></div>
+            <div><label style="font-size:12px;">BowlP</label><input type="number" id="lwiz-s-bowlp" min="0" style="width:100%;"></div>
+            <div><label style="font-size:12px;">Pen</label><input type="number" id="lwiz-s-pen" min="0" style="width:100%;"></div>
+            <div><label style="font-size:12px;">Pts</label><input type="number" id="lwiz-s-pts" min="0" style="width:100%;"></div>
+          </div>
+        </div>
         <div id="lwiz-step1-err" style="color:var(--red);font-size:13px;margin-bottom:10px;display:none;"></div>
-        <button class="btn btn-primary btn-lg" onclick="leagueWizardStep2()">Next: Enter Rows &rarr;</button>
+        <button id="lwiz-next-btn" class="btn btn-primary btn-lg" onclick="leagueWizardStep2()">Next: Enter Rows &rarr;</button>
+        <button id="lwiz-save-summary-btn" class="btn btn-primary btn-lg" onclick="leagueWizardSaveSummary()" style="display:none;">&#10003; Save</button>
         <button class="btn btn-secondary" onclick="leagueWizardCancel()" style="margin-left:8px;">Cancel</button>
       </div>
     </div>
@@ -2719,7 +2751,7 @@ function saveScorecard() {
   if (matchForLog) {
     const issues = checkMatchErrors(mid);
     if (issues.length > 0) {
-      const issueText = '[Issues: ' + issues.join('; ') + ']';
+      const issueText = '[Issues: ' + issues.map(i=>i.msg||i).join('; ') + ']';
       // Only append if not already there
       const existingNotes = matchForLog.notes || '';
       if (!existingNotes.includes('[Issues:')) {
@@ -3198,11 +3230,97 @@ function clearStatsFilters() {
   renderStats();
 }
 
+function renderMatchesYearChart() {
+  const el = document.getElementById('matches-year-chart');
+  if (!el) return;
+
+  // Get all years from first match year to current, always include 2020
+  const matchYears = db.matches.map(m=>(m.date||'').slice(0,4)).filter(y=>y.length===4).map(Number);
+  if (!matchYears.length) { el.innerHTML = '<div class="empty-state">No match data yet.</div>'; return; }
+  const minYear = Math.min(...matchYears);
+  const maxYear = Math.max(...matchYears);
+  const years = [];
+  for (let y = minYear; y <= Math.max(maxYear, 2020); y++) years.push(y);
+  if (!years.includes(2020)) years.push(2020);
+  years.sort((a,b)=>a-b);
+
+  // Count by year and type
+  const counts = {};
+  years.forEach(y => counts[y] = {hcl:0, nvk:0, friendly:0});
+  db.matches.forEach(m => {
+    const y = parseInt((m.date||'').slice(0,4));
+    if (!counts[y]) return;
+    if (isHCL(m.format))       counts[y].hcl++;
+    else if (isNVK(m.format))  counts[y].nvk++;
+    else                        counts[y].friendly++;
+  });
+
+  const maxTotal = Math.max(...years.map(y => counts[y].hcl + counts[y].nvk + counts[y].friendly), 1);
+  const BAR_W = 32, GAP = 8, PAD_L = 36, PAD_R = 16, PAD_T = 12, PAD_B = 44;
+  const chartH = 180;
+  const W = years.length * (BAR_W + GAP) + PAD_L + PAD_R;
+  const H = chartH + PAD_T + PAD_B;
+  const scale = chartH / maxTotal;
+
+  // Y axis ticks
+  const ticks = [];
+  const tickStep = maxTotal <= 10 ? 2 : maxTotal <= 20 ? 5 : 10;
+  for (let t = 0; t <= maxTotal; t += tickStep) ticks.push(t);
+
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:${W}px;max-width:900px;">`;
+
+  // Grid lines + y labels
+  ticks.forEach(t => {
+    const y = PAD_T + chartH - t * scale;
+    svg += `<line x1="${PAD_L}" y1="${y}" x2="${W-PAD_R}" y2="${y}" stroke="#e8e4da" stroke-width="1"/>`;
+    svg += `<text x="${PAD_L-4}" y="${y+4}" text-anchor="end" font-size="10" fill="#6b6b5f">${t}</text>`;
+  });
+
+  // Bars
+  years.forEach((y, i) => {
+    const x = PAD_L + i * (BAR_W + GAP);
+    const d = counts[y];
+    let stackY = PAD_T + chartH;
+
+    const segments = [
+      {val:d.hcl,     col:'#2e5c38'},
+      {val:d.nvk,     col:'#c8922a'},
+      {val:d.friendly,col:'#5a9a6a'},
+    ].filter(s=>s.val>0);
+    segments.forEach((s, si) => {
+      const bh = s.val * scale;
+      stackY -= bh;
+      const isTop = si === segments.length - 1;
+      const r = isTop ? 3 : 0;
+      // Rounded top corners only via path
+      const rx = x, ry = stackY, rw = BAR_W, rh = bh;
+      const path = r > 0
+        ? `M${rx+r},${ry} H${rx+rw-r} Q${rx+rw},${ry} ${rx+rw},${ry+r} V${ry+rh} H${rx} V${ry+r} Q${rx},${ry} ${rx+r},${ry}`
+        : `M${rx},${ry} H${rx+rw} V${ry+rh} H${rx} Z`;
+      svg += `<path d="${path}" fill="${s.col}"><title>${y} — ${s.val} match${s.val!==1?'es':''}</title></path>`;
+    });
+
+    // Total label above bar
+    const total = d.hcl + d.nvk + d.friendly;
+    if (total > 0) {
+      const labelY = PAD_T + chartH - total * scale - 3;
+      svg += `<text x="${x+BAR_W/2}" y="${labelY}" text-anchor="middle" font-size="9" fill="#1c3a22" font-weight="600">${total}</text>`;
+    }
+
+    // X label — rotate for readability
+    svg += `<text x="${x+BAR_W/2}" y="${PAD_T+chartH+14}" text-anchor="middle" font-size="10" fill="${y===2020&&total===0?'#aaa':'#6b6b5f'}" transform="rotate(-45,${x+BAR_W/2},${PAD_T+chartH+14})">${y}</text>`;
+  });
+
+  svg += '</svg>';
+  el.innerHTML = svg;
+}
+
 function renderMatches() {
   _matchPage.matches=1;
   populateSeasonDropdowns();
   selectedMatchId = null;
   document.getElementById('match-del-msg').innerHTML = '';
+  renderMatchesYearChart();
 
   const ft     = document.getElementById('match-filter-type')?.value   || '';
   const from   = document.getElementById('match-filter-from')?.value   || '';
@@ -6887,6 +7005,62 @@ function populateLeagueSeasonSel() {
 let _lwizEditId = null;
 let _lwizRows   = [];
 let _lwizCols   = [];
+let _lwizMode   = 'full'; // 'full' or 'summary'
+
+function setLeagueWizMode(mode) {
+  _lwizMode = mode;
+  document.getElementById('lwiz-mode-full').classList.toggle('active', mode==='full');
+  document.getElementById('lwiz-mode-summary').classList.toggle('active', mode==='summary');
+  document.getElementById('lwiz-full-section').style.display    = mode==='full' ? '' : 'none';
+  document.getElementById('lwiz-summary-section').style.display = mode==='summary' ? '' : 'none';
+  document.getElementById('lwiz-next-btn').style.display         = mode==='full' ? '' : 'none';
+  document.getElementById('lwiz-save-summary-btn').style.display = mode==='summary' ? '' : 'none';
+}
+
+function leagueWizardSaveSummary() {
+  const season   = document.getElementById('lwiz-season').value.trim();
+  const division = document.getElementById('lwiz-division').value.trim();
+  if (!season || !division) {
+    const err = document.getElementById('lwiz-step1-err');
+    err.textContent = 'Please fill in Season and Division.';
+    err.style.display = '';
+    return;
+  }
+  const v = id => { const el = document.getElementById(id); return el && el.value !== '' ? parseInt(el.value)||0 : null; };
+  const row = {
+    team:  OUR_TEAM,
+    pos:   v('lwiz-s-pos'),
+    teams: v('lwiz-s-teams'),
+    p:     v('lwiz-s-p'),
+    w:     v('lwiz-s-w'),
+    l:     v('lwiz-s-l'),
+    t:     v('lwiz-s-t'),
+    batp:  v('lwiz-s-batp'),
+    bowlp: v('lwiz-s-bowlp'),
+    pen:   v('lwiz-s-pen'),
+    pts:   v('lwiz-s-pts'),
+  };
+  // Remove null fields
+  Object.keys(row).forEach(k => { if (row[k]===null) delete row[k]; });
+
+  const cols = [
+    {key:'team',label:'Team'},{key:'pos',label:'Pos'},{key:'teams',label:'Teams'},
+    {key:'p',label:'P'},{key:'w',label:'W'},{key:'l',label:'L'},{key:'t',label:'T'},
+    {key:'batp',label:'BatP'},{key:'bowlp',label:'BowlP'},{key:'pen',label:'Pen'},{key:'pts',label:'Pts'}
+  ].filter(c => c.key==='team' || row[c.key] !== undefined);
+
+  const tbl = { season, division, cols, rows: [row], summaryOnly: true };
+  if (_lwizEditId) {
+    const idx = db.leagueTables.findIndex(t=>t.id===_lwizEditId);
+    if (idx>=0) { tbl.id = _lwizEditId; db.leagueTables[idx] = tbl; }
+  } else {
+    tbl.id = genId();
+    db.leagueTables.push(tbl);
+  }
+  saveDB();
+  leagueWizardCancel();
+  renderLeagueTables();
+}
 
 function leagueWizardStart(editId) {
   _lwizEditId = editId || null;
@@ -6921,6 +7095,23 @@ function leagueWizardStart(editId) {
   }
 
   renderLwizColEditor();
+
+  // Detect and set mode
+  const isSummaryEdit = _lwizEditId && (db.leagueTables.find(t=>t.id===_lwizEditId)||{}).summaryOnly;
+  _lwizMode = isSummaryEdit ? 'summary' : 'full';
+  if (isSummaryEdit) {
+    const tbl = db.leagueTables.find(t=>t.id===_lwizEditId);
+    const row = tbl.rows[0] || {};
+    ['pos','teams','p','w','l','t','batp','bowlp','pen','pts'].forEach(k => {
+      const el = document.getElementById('lwiz-s-'+k);
+      if (el) el.value = row[k] !== undefined ? row[k] : '';
+    });
+  } else {
+    ['pos','teams','p','w','l','t','batp','bowlp','pen','pts'].forEach(k => {
+      const el = document.getElementById('lwiz-s-'+k); if (el) el.value = '';
+    });
+  }
+  setLeagueWizMode(_lwizMode);
   window.scrollTo({top:0, behavior:'smooth'});
 }
 

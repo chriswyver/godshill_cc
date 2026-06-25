@@ -391,6 +391,8 @@
   .data-table tbody tr.row-even td { background:var(--cream); }
   .data-table tbody tr.row-odd td { background:var(--white); }
   .inline-sc-wrap { padding:14px 18px; border-top:2px solid var(--green-pale); animation:scSlideIn 0.18s ease; }
+  .sc-two-col { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  @media (max-width:768px) { .sc-two-col { grid-template-columns:1fr; gap:14px; } }
 
   @keyframes scSlideIn { from { opacity:0; transform:translateY(-6px); } to { opacity:1; transform:none; } }
   .inline-sc-wrap table { font-size:12px; width:auto; min-width:320px; }
@@ -726,7 +728,8 @@
   <div class="stat-row" id="match-stat-boxes" style="margin-bottom:16px;"></div>
   <!-- Matches by year chart -->
   <div class="card" style="padding:16px;margin-bottom:12px;">
-    <div class="card-title" style="margin-bottom:12px;">Matches by Season</div>
+    <div class="card-title" style="margin-bottom:4px;">Matches by Season</div>
+    <p class="muted" style="font-size:11px;margin-bottom:12px;">Click a bar to filter the match list to that season. Click again to clear.</p>
     <div id="matches-year-chart" style="overflow-x:auto;"></div>
     <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px;">
       <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#2e5c38;display:inline-block;"></span>HCL</span>
@@ -908,11 +911,6 @@
       <span style="font-size:11px;" id="storage-usage"></span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:4px;">
-      <div class="card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
-        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#8595; Export</div>
-        <p class="muted" style="font-size:11px;margin-bottom:8px;">Download all data as <code>godshill_cc_data.json</code></p>
-        <button class="btn btn-primary btn-sm" onclick="exportData()">Export all data</button>
-      </div>
       <div class="edit-only card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
         <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#8593; Import</div>
         <p class="muted" style="font-size:11px;margin-bottom:8px;">Restore from a previously exported file</p>
@@ -1034,10 +1032,8 @@
 
   <!-- VIEW mode -->
   <div id="league-view">
-    <div class="card" style="padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <button class="btn btn-primary btn-sm edit-only" onclick="leagueWizardStart()">
-        &#43; New Table
-      </button>
+    <div style="margin-bottom:12px;" class="edit-only">
+      <button class="btn btn-primary btn-sm" onclick="leagueWizardStart()">&#43; New Table</button>
     </div>
     <!-- Season-by-season summary with inline expandable tables -->
     <div id="league-summary-card" class="card" style="display:none;margin-bottom:20px;">
@@ -1338,7 +1334,7 @@
         <table class="data-table sortable">
           <thead class="sortable"><tr>
             <th onclick="sortStats100s('player',0)" style="cursor:pointer;">Player</th>
-            <th onclick="sortStats100s('date',1)" style="cursor:pointer;">Date</th>
+            <th onclick="sortStats100s('date',1)" style="cursor:pointer;">Date &#9650;</th>
             <th>Opponent</th>
             <th>Format</th>
             <th class="r" onclick="sortStats100s('runs',4)" style="cursor:pointer;">Score &#9660;</th>
@@ -1362,13 +1358,13 @@
         <table class="data-table sortable">
           <thead class="sortable"><tr>
             <th onclick="sortStats5wi('player',0)" style="cursor:pointer;">Player</th>
-            <th onclick="sortStats5wi('date',1)" style="cursor:pointer;">Date</th>
+            <th onclick="sortStats5wi('date',1)" style="cursor:pointer;">Date &#9650;</th>
             <th>Opponent</th>
             <th>Format</th>
             <th class="r" onclick="sortStats5wi('overs',4)" style="cursor:pointer;">O</th>
             <th class="r" onclick="sortStats5wi('maidens',5)" style="cursor:pointer;">M</th>
             <th class="r" onclick="sortStats5wi('runs',6)" style="cursor:pointer;">R</th>
-            <th class="r" onclick="sortStats5wi('wickets',7)" style="cursor:pointer;">W &#9660;</th>
+            <th class="r" onclick="sortStats5wi('wickets',7)" style="cursor:pointer;">W</th>
           </tr></thead>
           <tbody id="tbody-5wi"></tbody>
         </table>
@@ -1842,6 +1838,7 @@
     <button class="tab-btn active" id="rtab-career-btn"  onclick="showRecordsTab('career')">Individual Career</button>
     <button class="tab-btn"        id="rtab-season-btn"  onclick="showRecordsTab('season')">Season Leaders</button>
     <button class="tab-btn"        id="rtab-scores-btn"  onclick="showRecordsTab('scores')">Record Scores</button>
+    <button class="tab-btn"        id="rtab-margins-btn" onclick="showRecordsTab('margins')">Result Margins</button>
     <button class="tab-btn"        id="rtab-wicket-btn"    onclick="showRecordsTab('wicket')">Record by Position</button>
     <button class="tab-btn"        id="rtab-innings-btn"  onclick="showRecordsTab('innings')">Individual Records</button>
     <button class="tab-btn"        id="rtab-milestones-btn" onclick="showRecordsTab('milestones')">Upcoming Milestones</button>
@@ -1864,13 +1861,6 @@
   <!-- Season leaders tab -->
   <div id="rtab-season" style="display:none;">
     <p class="muted" style="font-size:12px;margin-bottom:12px;">Click a player name to go to their profile.</p>
-    <div class="card" style="padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
-      <label style="margin:0;font-size:13px;">Filter season:</label>
-      <select id="rec-season-year-sel" onchange="renderRecords()" style="width:120px;">
-        <option value="">All Seasons</option>
-      </select>
-      <button class="btn btn-secondary btn-sm" onclick="document.getElementById('rec-season-year-sel').value='';renderRecords()">&#10005; Clear</button>
-    </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col-grid">
       <div class="card"><div class="card-title">Most Runs (by Season)</div><div id="rec-season-runs"></div></div>
       <div class="card"><div class="card-title">Most Wickets (by Season)</div><div id="rec-season-wkts"></div></div>
@@ -1885,6 +1875,51 @@
       <div class="card"><div class="card-title">Lowest Team Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-lo-team"></div></div>
       <div class="card"><div class="card-title">Highest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-hi-opp"></div></div>
       <div class="card"><div class="card-title">Lowest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-lo-opp"></div></div>
+    </div>
+  </div>
+
+  <!-- Biggest wins/losses tab -->
+  <div id="rtab-margins" style="display:none;">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col-grid">
+      <div class="card">
+        <div class="card-title">Biggest Wins<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
+          <button class="tab-btn active" id="margin-win-runs-btn"   onclick="showMarginTab('win','runs')"   style="font-size:12px;padding:5px 12px;">By Runs</button>
+          <button class="tab-btn"        id="margin-win-wkts-btn"   onclick="showMarginTab('win','wkts')"   style="font-size:12px;padding:5px 12px;">By Wickets</button>
+        </div>
+        <div id="margin-win-runs"></div>
+        <div id="margin-win-wkts" style="display:none;"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Biggest Losses<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
+          <button class="tab-btn active" id="margin-loss-runs-btn"  onclick="showMarginTab('loss','runs')"  style="font-size:12px;padding:5px 12px;">By Runs</button>
+          <button class="tab-btn"        id="margin-loss-wkts-btn"  onclick="showMarginTab('loss','wkts')"  style="font-size:12px;padding:5px 12px;">By Wickets</button>
+        </div>
+        <div id="margin-loss-runs"></div>
+        <div id="margin-loss-wkts" style="display:none;"></div>
+      </div>
+    </div>
+    <!-- Narrowest -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px;" class="two-col-grid">
+      <div class="card">
+        <div class="card-title">Narrowest Wins<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
+          <button class="tab-btn active" id="margin-nwin-runs-btn"  onclick="showMarginTab('nwin','runs')"  style="font-size:12px;padding:5px 12px;">By Runs</button>
+          <button class="tab-btn"        id="margin-nwin-wkts-btn"  onclick="showMarginTab('nwin','wkts')"  style="font-size:12px;padding:5px 12px;">By Wickets</button>
+        </div>
+        <div id="margin-nwin-runs"></div>
+        <div id="margin-nwin-wkts" style="display:none;"></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Narrowest Losses<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
+        <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
+          <button class="tab-btn active" id="margin-nloss-runs-btn" onclick="showMarginTab('nloss','runs')" style="font-size:12px;padding:5px 12px;">By Runs</button>
+          <button class="tab-btn"        id="margin-nloss-wkts-btn" onclick="showMarginTab('nloss','wkts')" style="font-size:12px;padding:5px 12px;">By Wickets</button>
+        </div>
+        <div id="margin-nloss-runs"></div>
+        <div id="margin-nloss-wkts" style="display:none;"></div>
+      </div>
     </div>
   </div>
 
@@ -3013,10 +3048,10 @@ function toggleHomeRecentlyAddedSc(idx, mid) {
       &bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
+    `<div class="sc-two-col">
+      <div style="">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -3058,7 +3093,7 @@ function renderHomeFiltered() {
     [wins,               'Wins'],
     [losses,             'Losses'],
     [runs,               'Total Runs'],
-    [new Set(db.batting.filter(r=>r.team===OUR_TEAM && filtMids.has(r.match_id)).map(r=>r.player)).size, 'Players Used'],
+    [new Set(db.batting.filter(r=>r.team===OUR_TEAM && filtMids.has(r.match_id)).map(r=>r.player)).size, 'Players'],
   ].map(([v,l]) => `<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
 
   renderHomeTopBat(_homeFilter);
@@ -3197,7 +3232,7 @@ function toggleHomeInlineSc(idx, mid) {
 let selectedMatchId = null;
 
 function clearMatchFilters() {
-  ['match-filter-type','match-filter-from','match-filter-to',
+  ['match-filter-season','match-filter-type','match-filter-from','match-filter-to',
    'match-filter-opp','match-filter-venue','match-filter-result'].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.value = '';
@@ -3220,7 +3255,7 @@ function clearStatsFilters() {
   document.querySelectorAll('.min-pill').forEach(p=>p.classList.remove('active'));
   const vw = document.getElementById('stats-min-val-wrap');
   if (vw) { vw.style.display = 'none'; }
-  ['filter-player','filter-type','filter-year',
+  ['stats-filter-season','filter-player','filter-type','filter-year',
    'stats-filter-from','stats-filter-to','stats-filter-opp',
    'stats-filter-venue','stats-filter-result',
    'stats-min-val','filter-other-player'].forEach(id=>{
@@ -3234,7 +3269,6 @@ function renderMatchesYearChart() {
   const el = document.getElementById('matches-year-chart');
   if (!el) return;
 
-  // Get all years from first match year to current, always include 2020
   const matchYears = db.matches.map(m=>(m.date||'').slice(0,4)).filter(y=>y.length===4).map(Number);
   if (!matchYears.length) { el.innerHTML = '<div class="empty-state">No match data yet.</div>'; return; }
   const minYear = Math.min(...matchYears);
@@ -3244,16 +3278,19 @@ function renderMatchesYearChart() {
   if (!years.includes(2020)) years.push(2020);
   years.sort((a,b)=>a-b);
 
-  // Count by year and type
   const counts = {};
   years.forEach(y => counts[y] = {hcl:0, nvk:0, friendly:0});
-  db.matches.forEach(m => {
+  db.matches.filter(m => !m.cancelled && !['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result) &&
+    (m.result !== 'Abandoned' && m.result !== 'No Result' || db.batting.some(b=>b.match_id===m.id))).forEach(m => {
     const y = parseInt((m.date||'').slice(0,4));
     if (!counts[y]) return;
-    if (isHCL(m.format))       counts[y].hcl++;
-    else if (isNVK(m.format))  counts[y].nvk++;
-    else                        counts[y].friendly++;
+    if (isHCL(m.format)) counts[y].hcl++;
+    else if (isNVK(m.format)) counts[y].nvk++;
+    else counts[y].friendly++;
   });
+
+  const selEl = document.getElementById('match-filter-season');
+  const selYear = selEl ? selEl.value : '';
 
   const maxTotal = Math.max(...years.map(y => counts[y].hcl + counts[y].nvk + counts[y].friendly), 1);
   const BAR_W = 32, GAP = 8, PAD_L = 36, PAD_R = 16, PAD_T = 12, PAD_B = 44;
@@ -3262,57 +3299,72 @@ function renderMatchesYearChart() {
   const H = chartH + PAD_T + PAD_B;
   const scale = chartH / maxTotal;
 
-  // Y axis ticks
   const ticks = [];
   const tickStep = maxTotal <= 10 ? 2 : maxTotal <= 20 ? 5 : 10;
   for (let t = 0; t <= maxTotal; t += tickStep) ticks.push(t);
 
-  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:${W}px;max-width:900px;">`;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" style="width:100%;min-width:${W}px;max-width:900px;cursor:pointer;">`;
 
-  // Grid lines + y labels
   ticks.forEach(t => {
     const y = PAD_T + chartH - t * scale;
     svg += `<line x1="${PAD_L}" y1="${y}" x2="${W-PAD_R}" y2="${y}" stroke="#e8e4da" stroke-width="1"/>`;
     svg += `<text x="${PAD_L-4}" y="${y+4}" text-anchor="end" font-size="10" fill="#6b6b5f">${t}</text>`;
   });
 
-  // Bars
   years.forEach((y, i) => {
     const x = PAD_L + i * (BAR_W + GAP);
     const d = counts[y];
     let stackY = PAD_T + chartH;
+    const isSelected = String(y) === selYear;
+    const total = d.hcl + d.nvk + d.friendly;
+    const fn = `_chartClickYear(${y})`;
+
+    if (isSelected) {
+      svg += `<rect x="${x-3}" y="${PAD_T-4}" width="${BAR_W+6}" height="${chartH+8}" fill="#ddeee0" rx="3" onclick="${fn}" style="cursor:pointer;"/>`;
+    }
 
     const segments = [
-      {val:d.hcl,     col:'#2e5c38'},
-      {val:d.nvk,     col:'#c8922a'},
-      {val:d.friendly,col:'#5a9a6a'},
+      {val:d.hcl, col:'#2e5c38'},
+      {val:d.nvk, col:'#c8922a'},
+      {val:d.friendly, col:'#5a9a6a'},
     ].filter(s=>s.val>0);
+
     segments.forEach((s, si) => {
       const bh = s.val * scale;
       stackY -= bh;
       const isTop = si === segments.length - 1;
       const r = isTop ? 3 : 0;
-      // Rounded top corners only via path
       const rx = x, ry = stackY, rw = BAR_W, rh = bh;
       const path = r > 0
         ? `M${rx+r},${ry} H${rx+rw-r} Q${rx+rw},${ry} ${rx+rw},${ry+r} V${ry+rh} H${rx} V${ry+r} Q${rx},${ry} ${rx+r},${ry}`
         : `M${rx},${ry} H${rx+rw} V${ry+rh} H${rx} Z`;
-      svg += `<path d="${path}" fill="${s.col}"><title>${y} — ${s.val} match${s.val!==1?'es':''}</title></path>`;
+      const opacity = selYear && !isSelected ? '0.45' : '1';
+      svg += `<path d="${path}" fill="${s.col}" opacity="${opacity}" onclick="${fn}" style="cursor:pointer;"><title>${y}: ${d.hcl} HCL, ${d.nvk} NVKO, ${d.friendly} Friendly</title></path>`;
     });
 
-    // Total label above bar
-    const total = d.hcl + d.nvk + d.friendly;
     if (total > 0) {
       const labelY = PAD_T + chartH - total * scale - 3;
-      svg += `<text x="${x+BAR_W/2}" y="${labelY}" text-anchor="middle" font-size="9" fill="#1c3a22" font-weight="600">${total}</text>`;
+      const labelFill = selYear && !isSelected ? '#bbb' : '#1c3a22';
+      svg += `<text x="${x+BAR_W/2}" y="${labelY}" text-anchor="middle" font-size="9" fill="${labelFill}" font-weight="600" onclick="${fn}" style="cursor:pointer;">${total}</text>`;
     }
 
-    // X label — rotate for readability
-    svg += `<text x="${x+BAR_W/2}" y="${PAD_T+chartH+14}" text-anchor="middle" font-size="10" fill="${y===2020&&total===0?'#aaa':'#6b6b5f'}" transform="rotate(-45,${x+BAR_W/2},${PAD_T+chartH+14})">${y}</text>`;
+    svg += `<rect x="${x}" y="${PAD_T}" width="${BAR_W}" height="${chartH}" fill="transparent" onclick="${fn}" style="cursor:pointer;"/>`;
+
+    const xFill = total===0 ? '#bbb' : isSelected ? 'var(--green-deep)' : selYear ? '#bbb' : '#6b6b5f';
+    const xWeight = isSelected ? 'bold' : 'normal';
+    svg += `<text x="${x+BAR_W/2}" y="${PAD_T+chartH+14}" text-anchor="middle" font-size="10" fill="${xFill}" font-weight="${xWeight}" transform="rotate(-45,${x+BAR_W/2},${PAD_T+chartH+14})" onclick="${fn}" style="cursor:pointer;">${y}</text>`;
   });
 
   svg += '</svg>';
   el.innerHTML = svg;
+}
+
+function _chartClickYear(year) {
+  const selEl = document.getElementById('match-filter-season');
+  if (!selEl) return;
+  selEl.value = String(selEl.value) === String(year) ? '' : String(year);
+  applySeasonFilter('match-filter-season','match-filter-from','match-filter-to',
+    function(){ renderMatches(); _reRenderH2HIfActive(); });
 }
 
 function renderMatches() {
@@ -4090,7 +4142,7 @@ function renderStats() {
     .map(r=>{ const m=db.matches.find(m=>m.id===r.match_id); return {...r,date:m?.date||'',opponent:m?.opponent||'',format:m?.format||''}; })
     .sort((a,b)=>b.runs-a.runs);
   _data100s = centuries.map(r=>({...r}));
-  _sort100s.key='runs'; _sort100s.dir=-1;
+  _sort100s.key='date'; _sort100s.dir=1;
   renderStats100sTable(_data100s);
 
   // 5-wicket hauls tab
@@ -4100,7 +4152,7 @@ function renderStats() {
     .map(r=>{ const m=db.matches.find(m=>m.id===r.match_id); return {...r,date:m?.date||'',opponent:m?.opponent||'',format:m?.format||''}; })
     .sort((a,b)=>b.wickets-a.wickets||b.date.localeCompare(a.date));
   _data5wi = fiveWis.map(r=>({...r}));
-  _sort5wi.key='wickets'; _sort5wi.dir=-1;
+  _sort5wi.key='date'; _sort5wi.dir=1;
   renderStats5wiTable(_data5wi);
 
   // Re-apply correct tab visibility after data refresh
@@ -4654,9 +4706,9 @@ function renderProfile() {
   const firstTab = _currentVisible ? _currentTab : 'matches';
   showProfileTab(firstTab);
 
-  // ── Batting by position ───────────────────────────────────
+  // ── Batting by position (uses filtered innings, not dismFilter) ──────────
   const posMap = {};
-  batInningsAll.forEach(r=>{
+  batInnings.forEach(r=>{
     const pos = r.position || '?';
     if (!posMap[pos]) posMap[pos]={inns:0,no:0,runs:0,hs:0,hsNo:false};
     const pm = posMap[pos];
@@ -5246,7 +5298,7 @@ function toggleInlineSc(pfx, idx, mid, innings, focus) {
   </div>`;
 
   scContent.innerHTML = header +
-    `<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">`+
+    `<div class="sc-two-col">`+
     `<div>${col1}</div><div>${col2}</div></div>` + footer;
 
   scRow.style.display = '';
@@ -5745,8 +5797,8 @@ function sortProfileField(key) {
 }
 
 function renderProfileBatTable(data) {
-  const _ppProf = parseInt(document.getElementById('profile-per-page')?.value||'50')||50;
-  const _ppProfF = _ppProf===0?data.length||1:_ppProf;
+  const _ppProfRaw = parseInt(document.getElementById('profile-per-page')?.value??'50'); const _ppProf = isNaN(_ppProfRaw) ? 50 : _ppProfRaw;
+  const _ppProfF = _ppProf===0?Math.max(data.length,1):_ppProf;
   const cur = _profilePage.bat;
   const slice = _ppProfF>=data.length?data:data.slice((cur-1)*_ppProfF, cur*_ppProfF);
   const offset = _ppProfF>=data.length?0:(cur-1)*_ppProfF;
@@ -5770,8 +5822,8 @@ function renderProfileBatTable(data) {
 }
 
 function renderProfileBowlTable(data) {
-  const _ppProf = parseInt(document.getElementById('profile-per-page')?.value||'50')||50;
-  const _ppProfF = _ppProf===0?data.length||1:_ppProf;
+  const _ppProfRaw = parseInt(document.getElementById('profile-per-page')?.value??'50'); const _ppProf = isNaN(_ppProfRaw) ? 50 : _ppProfRaw;
+  const _ppProfF = _ppProf===0?Math.max(data.length,1):_ppProf;
   const cur = _profilePage.bowl;
   const slice = _ppProfF>=data.length?data:data.slice((cur-1)*_ppProfF, cur*_ppProfF);
   const offset = _ppProfF>=data.length?0:(cur-1)*_ppProfF;
@@ -5800,8 +5852,8 @@ function renderProfileBowlTable(data) {
 
 function renderProfileFieldTable(data) {
   if (!document.getElementById('tbody-profile-field')) return;
-  const _ppProf = parseInt(document.getElementById('profile-per-page')?.value||'50')||50;
-  const _ppProfF = _ppProf===0?data.length||1:_ppProf;
+  const _ppProfRaw = parseInt(document.getElementById('profile-per-page')?.value??'50'); const _ppProf = isNaN(_ppProfRaw) ? 50 : _ppProfRaw;
+  const _ppProfF = _ppProf===0?Math.max(data.length,1):_ppProf;
   const cur = _profilePage.field;
   const slice = _ppProfF>=data.length?data:data.slice((cur-1)*_ppProfF, cur*_ppProfF);
   const offset = _ppProfF>=data.length?0:(cur-1)*_ppProfF;
@@ -5826,8 +5878,8 @@ function renderProfileFieldTable(data) {
 // ── Stats page 100s / 5wi sorting ────────────────────────────────────────────
 let _data100s = [];
 let _data5wi  = [];
-const _sort100s = {key:'runs', dir:-1};
-const _sort5wi  = {key:'wickets', dir:-1};
+const _sort100s = {key:'date', dir:1};
+const _sort5wi  = {key:'date', dir:1};
 
 function sortStats100s(key, colIdx) {
   _sort100s.dir = (_sort100s.key===key) ? -_sort100s.dir : -1;
@@ -6047,7 +6099,7 @@ function renderBowlWicketsTab() {
     })
     .sort((a,b)=>a.date.localeCompare(b.date));
 
-  const _ppProf = parseInt(document.getElementById('profile-per-page')?.value||'50')||50;
+  const _ppProfRaw = parseInt(document.getElementById('profile-per-page')?.value??'50'); const _ppProf = isNaN(_ppProfRaw) ? 50 : _ppProfRaw;
   const _ppProfF = _ppProf===0?rows.length||1:_ppProf;
   const cur = _profilePage.wickets;
   const offset = _ppProfF>=rows.length?0:(cur-1)*_ppProfF;
@@ -6380,7 +6432,7 @@ function statsDownloadCSV() {
   const {headers, rows} = _statsCurrentRows();
   const filters = _statsFilterSummary();
   const lines = [];
-  lines.push(csvEsc('Godshill CC Player Statistics – ' + label));
+  lines.push(csvEsc('Godshill CC Player Statistics - ' + label));
   if (filters.length) lines.push(csvEsc('Filters: ' + filters.join(' | ')));
   lines.push('');
   lines.push(headers.map(csvEsc).join(','));
@@ -6420,8 +6472,8 @@ function statsDownloadPDF() {
 <style>
   @page { size: A4 landscape; margin: 0; }
   * { box-sizing: border-box; margin:0; padding:0; }
-  body { font-family: Georgia, serif; font-size: 11px; background:#faf8f2; color:#1a1a16; padding:16mm 20mm; }
-  @media print { @page { size: A4 landscape; margin:0; } body { padding:16mm 20mm; } html { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
+  body { font-family: Georgia, serif; font-size: 11px; background:#faf8f2; color:#1a1a16; padding:20mm 28mm; }
+  @media print { @page { size: A4 landscape; margin:0; } body { padding:20mm 28mm; } html { -webkit-print-color-adjust:exact; print-color-adjust:exact; } }
   h1 { font-size:18px; color:#1c3a22; margin-bottom:2px; }
   h2 { font-size:13px; color:#2e5c38; font-weight:600; margin-bottom:6px; }
   table { width:100%; border-collapse:collapse; margin-top:8px; font-size:11px; }
@@ -6956,10 +7008,10 @@ function toggleH2HInlineSc(idx, el) {
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
   const col2 = i2bat.html
-    ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+    ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
+    `<div class="sc-two-col">
+      <div style="">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -7574,7 +7626,7 @@ function renderProfileMatches() {
   const _pmhEl = document.getElementById('profile-matches-heading');
   if (_pmhEl) _pmhEl.textContent = rows.length + ' Match' + (rows.length!==1?'es':'');
 
-  const pp = parseInt(document.getElementById('profile-per-page')?.value||'50')||50;
+  const ppRaw = parseInt(document.getElementById('profile-per-page')?.value??'50'); const pp = isNaN(ppRaw) ? 50 : ppRaw;
   const ppF = pp===0 ? rows.length||1 : pp;
   const cur = _profileMatchesPage;
   const slice = ppF >= rows.length ? rows : rows.slice((cur-1)*ppF, cur*ppF);
@@ -7673,10 +7725,10 @@ function toggleProfileMatchSc(si, el) {
       &bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
+    `<div class="sc-two-col">
+      <div style="">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -7694,7 +7746,7 @@ let _recOpenSc = {};
 let _recCurrentTab = 'career';
 
 function showRecordsTab(which) {
-  ['career','season','scores','wicket','innings','milestones'].forEach(t => {
+  ['career','season','scores','margins','wicket','innings','milestones'].forEach(t => {
     const el = document.getElementById('rtab-'+t);
     const btn = document.getElementById('rtab-'+t+'-btn');
     if (el)  el.style.display  = t===which ? '' : 'none';
@@ -7751,10 +7803,10 @@ function toggleRecInlineSc(idx, el) {
     <span style="font-size:11px;color:var(--ink-muted);">&bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''}</span>
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
-  const col2 = i2bat.html ? `<div style="flex:1;min-width:280px;">${i2bat.html}${i2bowl}</div>` : '';
+  const col2 = i2bat.html ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
   scContent.innerHTML = header +
-    `<div style="display:flex;gap:20px;flex-wrap:wrap;">
-      <div style="flex:1;min-width:280px;">${i1bat.html}${i1bowl}</div>${col2}
+    `<div class="sc-two-col">
+      <div style="">${i1bat.html}${i1bowl}</div>${col2}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -7762,6 +7814,43 @@ function toggleRecInlineSc(idx, el) {
   scRow.style.display = '';
   if (link) link.classList.add('open');
   _recOpenSc[idx] = true;
+}
+
+// ── Biggest wins/losses ───────────────────────────────────────────────────────
+function showMarginTab(card, which) {
+  ['runs','wkts'].forEach(t => {
+    const panel = document.getElementById('margin-'+card+'-'+t);
+    const btn   = document.getElementById('margin-'+card+'-'+t+'-btn');
+    if (panel) panel.style.display = t===which ? '' : 'none';
+    if (btn)   btn.classList.toggle('active', t===which);
+  });
+}
+
+function _renderMarginTable(elId, rows, isWin) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  if (!rows.length) { el.innerHTML='<div class="empty-state">No data.</div>'; return; }
+  const marginCol = isWin ? 'var(--green-mid)' : 'var(--red)';
+  el.innerHTML = `<table class="data-table" style="font-size:12px;">
+    <thead><tr><th class="num" style="width:32px;">#</th><th>Opponent</th><th style="width:90px;">Date</th><th class="num" style="width:110px;white-space:nowrap;">Margin</th><th style="width:35%;font-size:11px;">Competition</th></tr></thead>
+    <tbody>${rows.slice(0,10).map((r,i)=>{
+      const uid = elId+'-'+i;
+      const hasSc = db.batting.some(b=>b.match_id===r.m.id);
+      const oppCell = hasSc
+        ? `<a class="sc-toggle-link" id="rec-sc-link-${uid}" onclick="toggleRecInlineSc('${uid}',this)" data-mid="${r.m.id}" style="cursor:pointer;">${esc(r.m.opponent)}</a>`
+        : esc(r.m.opponent);
+      return `<tr class="${i%2===0?'row-odd':'row-even'}">
+        <td class="num" style="color:var(--ink-muted);">${i+1}</td>
+        <td>${oppCell}</td>
+        <td style="color:var(--ink-muted);font-size:11px;">${r.m.date||''}</td>
+        <td class="num" style="font-weight:700;color:${marginCol};white-space:nowrap;">${r.marginStr}</td>
+        <td style="font-size:11px;color:var(--ink-muted);">${esc(r.m.format||'')}</td>
+      </tr>
+      <tr id="rec-sc-row-${uid}" class="inline-sc-row" style="display:none;">
+        <td colspan="5"><div class="inline-sc-wrap" id="rec-sc-content-${uid}"></div></td>
+      </tr>`;
+    }).join('')}</tbody>
+  </table>`;
 }
 
 // ── Milestones ────────────────────────────────────────────────────────────────
@@ -8080,23 +8169,9 @@ function renderRecords() {
     }).filter(r=>r.val>0).sort((a,b)=>b.val-a.val)[0];
     if (sField) seasonField.push(sField);
   });
-  // Populate season year selector
-  const seasonYearSel = document.getElementById('rec-season-year-sel');
-  if (seasonYearSel) {
-    const cur = seasonYearSel.value;
-    seasonYearSel.innerHTML = '<option value="">All Seasons</option>' +
-      [...seasons].reverse().map(y=>`<option value="${y}">${y}</option>`).join('');
-    if (cur) seasonYearSel.value = cur;
-  }
-  const seasonYearFilter = seasonYearSel?.value || '';
-
-  const filterSeasons = arr => seasonYearFilter
-    ? arr.filter(r=>r.season===seasonYearFilter)
-    : arr;
-
-  _recSeasonTable('rec-season-runs',  filterSeasons([...seasonRuns].reverse()),  'Runs');
-  _recSeasonTable('rec-season-wkts',  filterSeasons([...seasonWkts].reverse()),  'Wickets');
-  _recSeasonTable('rec-season-field', filterSeasons([...seasonField].reverse()), 'Dismissals');
+  _recSeasonTable('rec-season-runs',  [...seasonRuns].reverse(),  'Runs');
+  _recSeasonTable('rec-season-wkts',  [...seasonWkts].reverse(),  'Wickets');
+  _recSeasonTable('rec-season-field', [...seasonField].reverse(), 'Dismissals');
 
   // ── RECORD SCORES ─────────────────────────────────────────────────────────
   const getTeamScore = (m, team) => {
@@ -8149,6 +8224,70 @@ function renderRecords() {
     return s ? { m, score: s.total, wkts: s.wkts } : null;
   }).filter(Boolean).sort((a,b)=>a.score-b.score);
   _recScoreTable('rec-lo-opp', loOpp);
+
+  // ── BIGGEST WINS / LOSSES ────────────────────────────────────────────────
+  const winsWithData   = matchesWithScores.filter(m=>m.result==='Won');
+  const lossesWithData = matchesWithScores.filter(m=>m.result==='Lost');
+
+  // Wins by runs: Godshill batted first, margin = GodTotal - OppTotal
+  const winsByRuns = winsWithData.map(m => {
+    const godBatFirst = m.bat_first===OUR_TEAM;
+    if (!godBatFirst) return null; // wicket wins are in wkts tab
+    const gs = getTeamScore(m, OUR_TEAM);
+    const os = getTeamScore(m, m.opponent);
+    if (!gs || !os) return null;
+    const margin = gs.total - os.total;
+    return margin > 0 ? { m, margin, marginStr: margin+' run'+(margin===1?'':'s') } : null;
+  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
+
+  // Wins by wickets: Godshill chased, margin = wickets remaining
+  const winsByWkts = winsWithData.map(m => {
+    if (m.bat_first===OUR_TEAM) return null;
+    const inn = 2; // Godshill bat in innings 2 when chasing
+    const bat = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===OUR_TEAM);
+    if (!bat.length) return null;
+    const wktsDown = bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length;
+    const wktsLeft = 10 - wktsDown;
+    return wktsLeft >= 0 ? { m, margin:wktsLeft, marginStr: wktsLeft+' wicket'+(wktsLeft===1?'':'s') } : null;
+  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
+
+  // Losses by runs: opposition batted first, margin = OppTotal - GodTotal
+  const lossesByRuns = lossesWithData.map(m => {
+    const godBatFirst = m.bat_first===OUR_TEAM;
+    if (godBatFirst) return null;
+    const gs = getTeamScore(m, OUR_TEAM);
+    const os = getTeamScore(m, m.opponent);
+    if (!gs || !os) return null;
+    const margin = os.total - gs.total;
+    return margin > 0 ? { m, margin, marginStr: margin+' run'+(margin===1?'':'s') } : null;
+  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
+
+  // Losses by wickets: Godshill batted first, opposition chased
+  const lossesByWkts = lossesWithData.map(m => {
+    if (m.bat_first!==OUR_TEAM) return null;
+    const inn = 2; // opposition bat in innings 2 when chasing
+    const bat = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===m.opponent);
+    if (!bat.length) return null;
+    const wktsDown = bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length;
+    const wktsLeft = 10 - wktsDown;
+    return wktsLeft >= 0 ? { m, margin:wktsLeft, marginStr: wktsLeft+' wicket'+(wktsLeft===1?'':'s') } : null;
+  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
+
+  _renderMarginTable('margin-win-runs',   winsByRuns,   true);
+  _renderMarginTable('margin-win-wkts',   winsByWkts,   true);
+  _renderMarginTable('margin-loss-runs',  lossesByRuns,  false);
+  _renderMarginTable('margin-loss-wkts',  lossesByWkts,  false);
+
+  // Narrowest: same data, sorted ascending
+  const narrowWinsByRuns  = [...winsByRuns].sort((a,b)=>a.margin-b.margin);
+  const narrowWinsByWkts  = [...winsByWkts].sort((a,b)=>a.margin-b.margin);
+  const narrowLossByRuns  = [...lossesByRuns].sort((a,b)=>a.margin-b.margin);
+  const narrowLossByWkts  = [...lossesByWkts].sort((a,b)=>a.margin-b.margin);
+
+  _renderMarginTable('margin-nwin-runs',  narrowWinsByRuns,  true);
+  _renderMarginTable('margin-nwin-wkts',  narrowWinsByWkts,  true);
+  _renderMarginTable('margin-nloss-runs', narrowLossByRuns,  false);
+  _renderMarginTable('margin-nloss-wkts', narrowLossByWkts,  false);
 
   // ── BEST BATTING INNINGS ──────────────────────────────────────────────────
   const bestBat = filtBat

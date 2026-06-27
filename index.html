@@ -569,12 +569,22 @@
     </div>
   </div>
 
+  <!-- Upcoming matches -->
   <!-- Row 3: recent scorecards full width -->
   <div class="card">
     <div class="card-title"><span class="icon">&#128197;</span> Recent Scorecards<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
     <div class="table-wrap"><table class="data-table" id="tbl-recent">
       <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th></tr></thead>
       <tbody id="tbody-recent"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Upcoming fixtures -->
+  <div class="card" id="home-upcoming-card" style="display:none;">
+    <div class="card-title"><span class="icon">&#128337;</span> Upcoming Fixtures</div>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Date</th><th>Opponent</th><th>Venue</th><th>Format</th><th class="edit-only"></th></tr></thead>
+      <tbody id="tbody-upcoming"></tbody>
     </table></div>
   </div>
 
@@ -621,6 +631,7 @@
         </div>
         <div><label>Result</label>
           <select id="m-result">
+            <option value="Upcoming">Upcoming</option>
             <option>Won</option><option>Lost</option><option>Draw</option>
             <option>Tie</option><option>No Result</option><option>Abandoned</option><option>Cancelled</option><option>Godshill Conceded</option><option>Opposition Conceded</option>
           </select>
@@ -1646,6 +1657,8 @@
             </tr></thead>
             <tbody id="tbody-profile-pos"></tbody>
           </table>
+          <p class="muted" style="font-size:11px;margin-top:4px;">Click a row to filter the innings table.</p>
+          <p id="prof-pos-note" class="muted" style="font-size:11px;color:var(--green-mid);min-height:14px;"></p>
         </div>
       </div>
     </div>
@@ -2205,7 +2218,7 @@ function step1Next() {
   if (!opp) { alert('Please enter the opponent name.'); return; }
   document.getElementById('m-toss-us').textContent = OUR_TEAM;
   document.getElementById('m-bf-us').textContent   = OUR_TEAM;
-  if (['Cancelled','Godshill Conceded','Opposition Conceded'].includes(result)) {
+  if (['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming'].includes(result)) {
     // Save immediately — no teams or scorecard needed
     saveCancelledMatch();
   } else {
@@ -2944,6 +2957,7 @@ function setHomeSeason(which, mode, year) { setHomeGlobalSeason(mode, year); }
 function setHomeTypeFilter(which, filter) { setHomeGlobalType(filter); }
 
 function renderHome() {
+  renderUpcoming();
   renderHomeRecent();
   populateSeasonDropdowns();
   // Year range subtitle
@@ -2963,10 +2977,37 @@ let _homeBowlFilter = 'all';
 
 let _homeRecentlyAddedOpenSc = {};
 
+function renderUpcoming() {
+  const today = new Date().toISOString().slice(0,10);
+  const upcoming = db.matches
+    .filter(m => m.result === 'Upcoming' && m.date >= today)
+    .sort((a,b) => a.date.localeCompare(b.date));
+
+  // Home upcoming card
+  const homeCard = document.getElementById('home-upcoming-card');
+  const homeTbody = document.getElementById('tbody-upcoming');
+  if (homeCard && homeTbody) {
+    homeCard.style.display = upcoming.length ? '' : 'none';
+    homeTbody.innerHTML = upcoming.map((m,i) => {
+      const venue = m.venue && m.venue.toLowerCase()==='away' ? 'Away' : 'Home';
+      return `<tr class="${i%2===0?'row-odd':'row-even'}">
+        <td style="font-weight:600;">${m.date}</td>
+        <td>${esc(m.opponent)}</td>
+        <td style="color:var(--ink-muted);font-size:12px;">${venue}</td>
+        <td style="font-size:12px;">${esc(m.format||'')}</td>
+        <td class="edit-only" style="text-align:right;">
+          <button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px;" onclick="editMatch('${m.id}')">&#9998; Edit</button>
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" class="empty-state">No upcoming fixtures.</td></tr>';
+  }
+
+}
+
 function renderHomeRecent() {
   const year      = _homeYear;
   const filter    = _homeFilter;
-  let matches = [...db.matches].sort((a,b)=>b.date.localeCompare(a.date));
+  let matches = [...db.matches].filter(m=>m.result!=='Upcoming').sort((a,b)=>b.date.localeCompare(a.date));
   if (year)            matches = matches.filter(m=>(m.date||'').startsWith(year));
   if (filter !== 'all') matches = matches.filter(m=>matchesTypeFilter(m.format, filter));
   const sorted = matches.slice(0,8);
@@ -3383,6 +3424,7 @@ function renderMatches() {
 
   const sorted = [...db.matches]
     .filter(m=>{
+      if (m.result==='Upcoming' && resF!=='Upcoming') return false;
       if (!matchesTypeFilter(m.format, ft)) return false;
       if (from && m.date < from) return false;
       if (to   && m.date > to)   return false;
@@ -3969,6 +4011,81 @@ function sortStats(table, key, colIdx) {
   if (table==='bat')   renderBatTable(rows);
   if (table==='bowl')  renderBowlTable(rows);
   if (table==='field') renderFieldTable(rows);
+}
+
+let _profPosFilter = null;
+
+function _posMOut(el) {
+  const pos = el.id.replace('pos-row-','');
+  el.style.background = String(pos) === String(_profPosFilter) ? 'var(--green-pale)' : '';
+}
+
+function _togglePosFilter(pos) {
+  _profPosFilter = String(_profPosFilter) === String(pos) ? null : String(pos);
+
+  // Highlight/unhighlight rows
+  document.querySelectorAll('[id^="pos-row-"]').forEach(el => {
+    const p = el.id.replace('pos-row-','');
+    const sel = String(p) === String(_profPosFilter);
+    el.style.background = sel ? 'var(--green-pale)' : '';
+    const btn = el.querySelector('button');
+    if (btn) btn.style.color = sel ? 'var(--green-deep)' : 'var(--green-mid)';
+  });
+
+  // Update note
+  const posNote = document.getElementById('prof-pos-note');
+  if (posNote) posNote.textContent = _profPosFilter
+    ? `Showing position ${_profPosFilter} — click again to clear`
+    : '';
+
+  if (!_profBatData) return;
+
+  // Filter innings
+  const filtered = _profPosFilter
+    ? _profBatData.filter(r => String(r.position||'?') === _profPosFilter)
+    : _profBatData;
+
+  // Recompute running average for filtered data
+  let cRuns=0, cInns=0, cNO=0;
+  const NO_M = ['not out','retired hurt','retired out','retired not out','absent hurt'];
+  const recomputed = filtered.map((r,i) => {
+    cRuns += r.runs; cInns++;
+    if (NO_M.includes(r.how_out)) cNO++;
+    return {...r, innsNum:i+1, runAvg: (cInns-cNO)>0 ? cRuns/(cInns-cNO) : cRuns};
+  });
+
+  // Update stat boxes
+  const boxEl = document.getElementById('profile-bat-boxes');
+  if (boxEl && recomputed.length) {
+    const finalAvg = (cInns-cNO)>0 ? (cRuns/(cInns-cNO)).toFixed(2) : '-';
+    const hs = Math.max(...recomputed.map(r=>r.runs));
+    const hsR = recomputed.reduce((b,r)=>r.runs>b.runs?r:b, recomputed[0]);
+    const hsNo = NO_M.includes(hsR.how_out);
+    const f50s  = recomputed.filter(r=>r.runs>=50&&r.runs<100).length;
+    const f100s = recomputed.filter(r=>r.runs>=100).length;
+    const ducks = recomputed.filter(r=>r.runs===0&&!NO_M.includes(r.how_out)&&r.how_out!=='did not bat').length;
+    boxEl.innerHTML = [
+      [cInns,   'Innings'],
+      [cRuns,   'Runs'],
+      [finalAvg,'Average'],
+      [f50s,    '50s'],
+      [f100s,   '100s'],
+      [cNO,     'Not Outs'],
+      [ducks,   'Ducks'],
+      [hs+(hsNo?'*':''), `HS vs ${esc(hsR.opponent||'?')} (${hsR.date||'?'})`],
+    ].map(([v,l])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
+  } else if (boxEl && !recomputed.length) {
+    boxEl.innerHTML = '<div class="empty-state">No innings at this position.</div>';
+  }
+
+  // Update charts
+  _profilePage.bat = 1;
+  drawRunsChart(recomputed, 'chart-runs');
+  drawRunsYearChart(recomputed, 'chart-runs-year');
+  drawDismChart(recomputed, 'chart-dism');
+
+  // Update innings table
+  renderProfileBatTable(recomputed);
 }
 
 function setMinPill(btn) {
@@ -4707,6 +4824,7 @@ function renderProfile() {
   showProfileTab(firstTab);
 
   // ── Batting by position (uses filtered innings, not dismFilter) ──────────
+  _profPosFilter = null;
   const posMap = {};
   batInnings.forEach(r=>{
     const pos = r.position || '?';
@@ -4726,11 +4844,13 @@ function renderProfile() {
   const posTableEl = document.getElementById('tbody-profile-pos');
   if (posTableEl) {
     posTableEl.innerHTML = posRows.length
-      ? posRows.map(r=>`<tr>
-          <td class="num" style="font-weight:700;">${r.pos}</td>
+      ? posRows.map(r=>{
+          const p = r.pos;
+          return `<tr id="pos-row-${p}" onclick="_togglePosFilter('${p}')" style="cursor:pointer;">
+          <td class="num" style="font-weight:700;color:var(--green-mid);">${p}</td>
           <td class="num">${r.inns}</td><td class="num">${r.runs}</td>
           <td class="num">${r.avg}</td><td class="num">${r.hs}${r.hsNo?'*':''}</td>
-        </tr>`).join('')
+        </tr>`;}).join('')
       : '<tr><td colspan="5" class="empty-state">No data</td></tr>';
   }
 
@@ -5818,7 +5938,8 @@ function renderProfileBatTable(data) {
           <td colspan="6"><div class="inline-sc-wrap" id="pbat-sc-content-${idx}"></div></td>
         </tr>`;}).join('')
     : '<tr><td colspan="6" class="empty-state">No batting data in range</td></tr>';
-  _mkPager('profile-bat-pager', cur, data.length, _ppProfF, p=>{_profilePage.bat=p;renderProfileBatTable(_profBatData);});
+  const _posData = _profPosFilter ? _profBatData.filter(r=>String(r.position||r.pos||'?')===_profPosFilter) : _profBatData;
+  _mkPager('profile-bat-pager', cur, data.length, _ppProfF, p=>{_profilePage.bat=p;renderProfileBatTable(_posData);});
 }
 
 function renderProfileBowlTable(data) {
@@ -6818,6 +6939,7 @@ function renderH2H() {
     if (type && !matchesTypeFilter(m.format, type)) return false;
     if (oppF && !(m.opponent||'').toLowerCase().includes(oppF)) return false;
     if (venueF && m.venue !== venueF) return false;
+    if (m.result === 'Upcoming') return false;
     return true;
   });
 
@@ -7445,20 +7567,28 @@ function _renderLeagueExpanded(idx, tbl) {
       <button class="btn btn-secondary btn-sm edit-only" style="color:var(--red);" onclick="deleteLeagueTable('${tbl.id}')">&#128465; Delete</button>
      </div>`;
 
-  // Match results
+  // Match results + upcoming fixtures for this season
+  const today = new Date().toISOString().slice(0,10);
   const seasonMatches = db.matches.filter(m=>(m.date||'').startsWith(tbl.season)&&isHCL(m.format)).sort((a,b)=>a.date.localeCompare(b.date));
   const tblIdSafe = tbl.id.replace(/[^a-z0-9]/gi,'');
   const matchRows = seasonMatches.map((m,mi)=>{
+    const isUpcoming = m.result==='Upcoming';
     const cancelled=['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
-    const hasSc=!cancelled&&db.batting.some(r=>r.match_id===m.id);
+    const hasSc=!cancelled&&!isUpcoming&&db.batting.some(r=>r.match_id===m.id);
     const stripe=mi%2===0?'row-odd':'row-even';
     const oppCell=hasSc
       ?`<a class="sc-toggle-link" id="lt-sc-link-${tblIdSafe}-${mi}" onclick="toggleLTInlineSc('${tblIdSafe}',${mi},this)" data-mid="${m.id}" style="cursor:pointer;">${esc(m.opponent)}</a>`
       :esc(m.opponent);
     const venue = m.venue && m.venue.toLowerCase()==='away' ? 'Away' : 'Home';
-    const _ltResultCell = resultCell(m, db.batting.filter(r=>r.match_id===m.id));
-    return `<tr class="${stripe}"><td style="color:var(--ink-muted);font-size:12px;">${m.date}</td><td>${oppCell}</td><td style="font-size:12px;color:var(--ink-muted);">${venue}</td><td>${_ltResultCell}</td></tr>
-    <tr id="lt-sc-row-${tblIdSafe}-${mi}" class="inline-sc-row" style="display:none;"><td colspan="4"><div class="inline-sc-wrap" id="lt-sc-content-${tblIdSafe}-${mi}"></div></td></tr>`;
+    const resultTd = isUpcoming
+      ? `<td><span style="color:var(--ink-muted);font-size:12px;font-style:italic;">Upcoming</span></td>`
+      : `<td>${resultCell(m, db.batting.filter(r=>r.match_id===m.id))}</td>`;
+    return `<tr class="${stripe}" style="${isUpcoming?'opacity:0.7;':''}">`+
+      `<td style="color:var(--ink-muted);font-size:12px;">${m.date}</td>`+
+      `<td>${oppCell}</td>`+
+      `<td style="font-size:12px;color:var(--ink-muted);">${venue}</td>`+
+      resultTd+`</tr>`+
+      (hasSc?`<tr id="lt-sc-row-${tblIdSafe}-${mi}" class="inline-sc-row" style="display:none;"><td colspan="4"><div class="inline-sc-wrap" id="lt-sc-content-${tblIdSafe}-${mi}"></div></td></tr>`:'');
   }).join('')||'<tr><td colspan="4" class="empty-state">No HCL matches.</td></tr>';
 
   content.innerHTML = `
@@ -8066,6 +8196,7 @@ function renderRecords() {
   const recFrom = document.getElementById('rec-filter-from')?.value || '';
   const recTo   = document.getElementById('rec-filter-to')?.value   || '';
   const filteredMatches = db.matches.filter(m =>
+    m.result !== 'Upcoming' &&
     (!recSeason || (m.date||'').startsWith(recSeason)) &&
     (!recFrom   || m.date >= recFrom) &&
     (!recTo     || m.date <= recTo) &&

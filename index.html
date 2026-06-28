@@ -1344,11 +1344,11 @@
       <div class="table-wrap">
         <table class="data-table sortable">
           <thead class="sortable"><tr>
-            <th onclick="sortStats100s('player',0)" style="cursor:pointer;">Player</th>
-            <th onclick="sortStats100s('date',1)" style="cursor:pointer;">Date &#9650;</th>
+            <th onclick="sortStats100s('player',0)" style="cursor:pointer;">Player <span id="sort100s-player"></span></th>
+            <th onclick="sortStats100s('date',1)" style="cursor:pointer;">Date <span id="sort100s-date">&#9650;</span></th>
             <th>Opponent</th>
             <th>Format</th>
-            <th class="r" onclick="sortStats100s('runs',4)" style="cursor:pointer;">Score &#9660;</th>
+            <th class="r" onclick="sortStats100s('runs',4)" style="cursor:pointer;">Score <span id="sort100s-runs"></span></th>
             <th>How Out</th>
           </tr></thead>
           <tbody id="tbody-100s"></tbody>
@@ -1363,19 +1363,19 @@
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
         <span></span>
         <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 10px;"
-                onclick="sortStats5wi('best')">&#9733; Best Figures</button>
+onclick="sortStats5wi('best')">&#9733; Best Figures</button>
       </div>
       <div class="table-wrap">
         <table class="data-table sortable">
           <thead class="sortable"><tr>
-            <th onclick="sortStats5wi('player',0)" style="cursor:pointer;">Player</th>
-            <th onclick="sortStats5wi('date',1)" style="cursor:pointer;">Date &#9650;</th>
+            <th onclick="sortStats100s('player',0)" style="cursor:pointer;">Player <span id="sort100s-player"></span></th>
+            <th onclick="sortStats100s('date',1)" style="cursor:pointer;">Date <span id="sort100s-date">&#9650;</span></th>
             <th>Opponent</th>
             <th>Format</th>
-            <th class="r" onclick="sortStats5wi('overs',4)" style="cursor:pointer;">O</th>
-            <th class="r" onclick="sortStats5wi('maidens',5)" style="cursor:pointer;">M</th>
-            <th class="r" onclick="sortStats5wi('runs',6)" style="cursor:pointer;">R</th>
-            <th class="r" onclick="sortStats5wi('wickets',7)" style="cursor:pointer;">W</th>
+            <th class="r" onclick="sortStats5wi('overs',4)" style="cursor:pointer;">O <span id="sort5wi-overs"></span></th>
+            <th class="r" onclick="sortStats5wi('maidens',5)" style="cursor:pointer;">M <span id="sort5wi-maidens"></span></th>
+            <th class="r" onclick="sortStats5wi('runs',6)" style="cursor:pointer;">R <span id="sort5wi-runs"></span></th>
+            <th class="r" onclick="sortStats5wi('wickets',7)" style="cursor:pointer;">W <span id="sort5wi-wickets"></span></th>
           </tr></thead>
           <tbody id="tbody-5wi"></tbody>
         </table>
@@ -1719,7 +1719,7 @@
           <!-- wicket type filter now via pie chart click -->
           <input type="hidden" id="bowl-wkt-filter" value="">
           <button class="btn btn-secondary btn-sm" style="font-size:11px;padding:3px 10px;"
-                  id="bowl-best-btn" onclick="sortProfileBowl('best')">&#9733; Best Figures</button>
+                  id="bowl-best-btn" onclick="sortProfileBowl('best')"onclick="sortStats5wi('best')">&#9733; Best Figures</button>
         </div>
       </div>
 
@@ -4257,7 +4257,7 @@ function renderStats() {
     .filter(r=>r.team===OUR_TEAM && mids.has(r.match_id) && r.runs>=100)
     .filter(r=>!fp || r.player===fp)
     .map(r=>{ const m=db.matches.find(m=>m.id===r.match_id); return {...r,date:m?.date||'',opponent:m?.opponent||'',format:m?.format||''}; })
-    .sort((a,b)=>b.runs-a.runs);
+    .sort((a,b)=>a.date.localeCompare(b.date));
   _data100s = centuries.map(r=>({...r}));
   _sort100s.key='date'; _sort100s.dir=1;
   renderStats100sTable(_data100s);
@@ -4267,7 +4267,7 @@ function renderStats() {
     .filter(r=>r.team===OUR_TEAM && mids.has(r.match_id) && r.wickets>=5)
     .filter(r=>!fp || r.player===fp)
     .map(r=>{ const m=db.matches.find(m=>m.id===r.match_id); return {...r,date:m?.date||'',opponent:m?.opponent||'',format:m?.format||''}; })
-    .sort((a,b)=>b.wickets-a.wickets||b.date.localeCompare(a.date));
+    .sort((a,b)=>a.date.localeCompare(b.date));
   _data5wi = fiveWis.map(r=>({...r}));
   _sort5wi.key='date'; _sort5wi.dir=1;
   renderStats5wiTable(_data5wi);
@@ -6003,12 +6003,16 @@ const _sort100s = {key:'date', dir:1};
 const _sort5wi  = {key:'date', dir:1};
 
 function sortStats100s(key, colIdx) {
-  _sort100s.dir = (_sort100s.key===key) ? -_sort100s.dir : -1;
+  _sort100s.dir = (_sort100s.key===key) ? -_sort100s.dir : 1;
   _sort100s.key = key;
   _data100s = [..._data100s].sort((a,b)=>{
     const av=a[key], bv=b[key];
     if (typeof av==='string') return _sort100s.dir*av.localeCompare(bv);
     return _sort100s.dir*((av||0)-(bv||0));
+  });
+  ['player','date','runs'].forEach(k=>{
+    const el=document.getElementById('sort100s-'+k);
+    if(el) el.textContent = k===key ? (_sort100s.dir===1?'▲':'▼') : '';
   });
   renderStats100sTable(_data100s);
 }
@@ -6019,9 +6023,9 @@ function sortStats5wi(key) {
       b.wickets-a.wickets || a.runs-b.runs ||
       (oversToBalIs(a.overs)-oversToBalIs(b.overs))
     );
-    _sort5wi.key='best';
+    _sort5wi.key='best'; _sort5wi.dir=1;
   } else {
-    _sort5wi.dir = (_sort5wi.key===key) ? -_sort5wi.dir : -1;
+    _sort5wi.dir = (_sort5wi.key===key) ? -_sort5wi.dir : 1;
     _sort5wi.key = key;
     _data5wi = [..._data5wi].sort((a,b)=>{
       if (key==='overs') return _sort5wi.dir*(oversToBalIs(a.overs)-oversToBalIs(b.overs));
@@ -6030,6 +6034,10 @@ function sortStats5wi(key) {
       return _sort5wi.dir*((av||0)-(bv||0));
     });
   }
+  ['player','date','overs','maidens','runs','wickets'].forEach(k=>{
+    const el=document.getElementById('sort5wi-'+k);
+    if(el) el.textContent = k===_sort5wi.key ? (_sort5wi.dir===1?'▲':'▼') : '';
+  });
   renderStats5wiTable(_data5wi);
 }
 

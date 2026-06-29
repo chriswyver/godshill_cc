@@ -502,6 +502,7 @@
       <button onclick="showPage('league',this)">League Tables</button>
       <button onclick="showPage('records',this)">Records</button>
       <button id="nav-profile" style="display:none;" onclick="showPage('profile',this)">&#9654; Profile</button>
+      <button class="edit-only" onclick="showPage('caps',this)">Caps</button>
     </nav>
   </div>
 </header>
@@ -1811,6 +1812,26 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
 <!-- ═══════════════════════════════════════════════════════
      RECORDS PAGE
 ══════════════════════════════════════════════════════════ -->
+<div id="page-caps" class="page">
+  <div class="card" style="margin-bottom:16px;">
+    <div class="card-title">Player Caps</div>
+    <p class="muted" style="font-size:12px;margin-bottom:16px;">Each player's cap number, assigned by first match date. Where two players debuted in the same match, sorted alphabetically by surname.</p>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead><tr>
+          <th class="num">Cap</th>
+          <th>Player</th>
+          <th>HCL Debut</th>
+          <th>Opponent</th>
+          <th class="num">HCL Matches</th>
+          <th>Years Active (HCL)</th>
+        </tr></thead>
+        <tbody id="tbody-caps"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <div id="page-records" class="page">
   <h2>Records</h2>
   <p class="muted" style="margin-bottom:16px;">Club records and landmarks.</p>
@@ -1840,6 +1861,11 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
           <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
+      </div>
+      <div>
+        <label>Opposition</label>
+        <input type="text" id="rec-filter-opp" oninput="renderRecords()" placeholder="All opponents" list="rec-opp-list" autocomplete="off" style="width:160px;margin-top:4px;">
+        <datalist id="rec-opp-list"></datalist>
       </div>
       <div style="align-self:flex-end;">
         <button class="btn btn-secondary btn-sm" onclick="clearRecFilters()">&#10005; Clear</button>
@@ -2146,6 +2172,7 @@ function showPage(name, btn, fromPopState) {
   if (name === 'players') renderPlayers();
   if (name === 'league')  renderLeagueTables();
   if (name === 'records') renderRecords();
+  if (name === 'caps')    renderCaps();
   // Push browser history (unless triggered by popstate or profile — profile pushes its own)
   if (!fromPopState && name !== 'profile') {
     history.pushState({ page: name }, '', '#' + name);
@@ -4609,7 +4636,7 @@ document.getElementById('m-date').value = new Date().toISOString().split('T')[0]
   updateStorageIndicator();
   // Set initial history state
   const _initHash = window.location.hash.replace('#','');
-  const _validPages = ['home','matches','stats','players','league','records'];
+  const _validPages = ['home','matches','stats','players','league','records','caps'];
   const _startPage = _validPages.includes(_initHash) ? _initHash : 'home';
   history.replaceState({ page: _startPage }, '', '#' + _startPage);
   if (_startPage !== 'home') showPage(_startPage, null, true);
@@ -7052,7 +7079,7 @@ function showH2HDetail(opponent, oppIdx) {
   if (link) link.classList.add('open');
 
   const matches = db.matches
-    .filter(m => m.opponent === opponent)
+    .filter(m => m.opponent === opponent && m.result !== 'Upcoming')
     .sort((a,b) => b.date.localeCompare(a.date));
 
   const getScore = (m, inn, team) => {
@@ -7954,6 +7981,80 @@ function toggleRecInlineSc(idx, el) {
   _recOpenSc[idx] = true;
 }
 
+// ── Player Caps ──────────────────────────────────────────────────────────────
+function _compressYears(years) {
+  if (!years.length) return '—';
+  const nums = years.map(Number).sort((a,b)=>a-b);
+  const ranges = [];
+  let start = nums[0], end = nums[0];
+  for (let i=1; i<nums.length; i++) {
+    const gap = nums[i] - nums[i-1];
+    // Treat 2019→2021 as continuous (COVID gap)
+    if (gap===1 || (nums[i-1]===2019 && nums[i]===2021)) { end=nums[i]; }
+    else { ranges.push(start===end?String(start):`${start}–${end}`); start=end=nums[i]; }
+  }
+  ranges.push(start===end?String(start):`${start}–${end}`);
+  return ranges.join(', ');
+}
+
+function renderCaps() {
+  const el = document.getElementById('tbody-caps');
+  if (!el) return;
+
+  // For each registered player, find their first match
+  const players = db.players.map(p => p.name);
+  const debuts = [];
+  players.forEach(name => {
+    const mids = new Set([
+      ...db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+      ...db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+      ...db.fielding.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+    ]);
+    if (!mids.size) return;
+    const matches = [...mids]
+      .map(id=>db.matches.find(m=>m.id===id))
+      .filter(m=>m&&m.result!=='Upcoming'&&!m.cancelled&&!['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)&&isHCL(m.format));
+    const first = matches.sort((a,b)=>a.date.localeCompare(b.date))[0];
+    if (!first) return;
+    // Count all HCL matches and years active
+    const hclMids = new Set([
+      ...db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+      ...db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+      ...db.fielding.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+    ]);
+    const hclMatches = [...hclMids]
+      .map(id=>db.matches.find(m=>m.id===id))
+      .filter(m=>m&&isHCL(m.format)&&m.result!=='Upcoming'&&!m.cancelled&&!['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result));
+    const hclYears = [...new Set(hclMatches.map(m=>(m.date||'').slice(0,4)).filter(Boolean))].sort();
+    const yearsStr = _compressYears(hclYears);
+    debuts.push({ name, date: first.date, opponent: first.opponent||'', hclCount: hclMatches.length, years: yearsStr });
+  });
+
+  // Sort: by debut date, then by surname alphabetically, then by first name
+  const surname = n => {
+    const parts = n.trim().split(/\s+/);
+    return parts.length > 1 ? parts[parts.length-1].toLowerCase() : parts[0].toLowerCase();
+  };
+  debuts.sort((a,b) => {
+    const dc = a.date.localeCompare(b.date);
+    if (dc !== 0) return dc;
+    const sc = surname(a.name).localeCompare(surname(b.name));
+    if (sc !== 0) return sc;
+    return a.name.toLowerCase().localeCompare(b.name.toLowerCase());
+  });
+
+  el.innerHTML = debuts.length
+    ? debuts.map((d,i) => `<tr class="${i%2===0?'row-odd':'row-even'}">
+        <td class="num" style="font-weight:700;color:var(--gold);">${i+1}</td>
+        <td><a href="#" onclick="openPlayerByName('${esc(d.name)}');return false;">${esc(d.name)}</a></td>
+        <td style="color:var(--ink-muted);font-size:12px;">${d.date}</td>
+        <td style="font-size:12px;">${esc(d.opponent)}</td>
+        <td class="num">${d.hclCount}</td>
+        <td style="font-size:12px;color:var(--ink-muted);">${d.years}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="6" class="empty-state">No player data yet.</td></tr>';
+}
+
 // ── Biggest wins/losses ───────────────────────────────────────────────────────
 function showMarginTab(card, which) {
   ['runs','wkts'].forEach(t => {
@@ -8175,7 +8276,7 @@ function _recSeasonGo(elId, dir) {
 
 // ── Main render ───────────────────────────────────────────────────────────────
 function clearRecFilters() {
-  ['rec-filter-season','rec-filter-type','rec-filter-from','rec-filter-to'].forEach(id=>{
+  ['rec-filter-season','rec-filter-type','rec-filter-from','rec-filter-to','rec-filter-opp'].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -8189,6 +8290,13 @@ function renderRecords() {
 
   const seasons = [...new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(Boolean))].sort();
 
+  // Populate opposition datalist
+  const recOppList = document.getElementById('rec-opp-list');
+  if (recOppList) {
+    const opps = [...new Set(db.matches.map(m=>m.opponent).filter(Boolean))].sort();
+    recOppList.innerHTML = opps.map(o=>`<option value="${esc(o)}">`).join('');
+  }
+
   // Populate season selector
   const recSelEl = document.getElementById('rec-filter-season');
   if (recSelEl) {
@@ -8201,14 +8309,16 @@ function renderRecords() {
   // Apply filters
   const recSeason = document.getElementById('rec-filter-season')?.value || '';
   const recType   = document.getElementById('rec-filter-type')?.value   || '';
-  const recFrom = document.getElementById('rec-filter-from')?.value || '';
-  const recTo   = document.getElementById('rec-filter-to')?.value   || '';
+  const recFrom   = document.getElementById('rec-filter-from')?.value   || '';
+  const recTo     = document.getElementById('rec-filter-to')?.value     || '';
+  const recOpp    = (document.getElementById('rec-filter-opp')?.value   || '').toLowerCase().trim();
   const filteredMatches = db.matches.filter(m =>
     m.result !== 'Upcoming' &&
     (!recSeason || (m.date||'').startsWith(recSeason)) &&
     (!recFrom   || m.date >= recFrom) &&
     (!recTo     || m.date <= recTo) &&
-    (!recType   || matchesTypeFilter(m.format, recType))
+    (!recType   || matchesTypeFilter(m.format, recType)) &&
+    (!recOpp    || (m.opponent||'').toLowerCase().includes(recOpp))
   );
   const filteredMids = new Set(filteredMatches.map(m=>m.id));
 

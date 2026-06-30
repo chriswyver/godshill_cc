@@ -3617,7 +3617,7 @@ function calcResultString(match, allBat) {
   }
   function inningsWickets(inn) {
     return allBat.filter(r=>r.innings===inn &&
-      !['not out','did not bat','retired hurt','absent hurt'].includes(r.how_out)).length;
+      !['not out','did not bat','retired hurt','retired not out','absent hurt'].includes(r.how_out)).length;
   }
 
   const i1Total = inningsTotal(1);

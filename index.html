@@ -634,7 +634,7 @@
           <select id="m-result">
             <option value="Upcoming">Upcoming</option>
             <option>Won</option><option>Lost</option><option>Draw</option>
-            <option>Tie</option><option>No Result</option><option>Abandoned</option><option>Cancelled</option><option>Godshill Conceded</option><option>Opposition Conceded</option>
+            <option>Tie</option><option>No Result</option><option>Abandoned</option><option>Cancelled</option><option>Godshill Conceded</option><option>Opposition Conceded</option><option>Bye</option>
           </select>
         </div>
         <div><label>Batted First</label>
@@ -805,7 +805,7 @@
           <option>Won</option><option>Lost</option><option>Draw</option>
           <option>Tie</option><option>No Result</option>
           <option>Abandoned</option><option>Cancelled</option>
-          <option>Godshill Conceded</option><option>Opposition Conceded</option>
+          <option>Godshill Conceded</option><option>Opposition Conceded</option><option>Bye</option>
         </select>
       </div>
       <div style="display:flex;align-items:flex-end;">
@@ -1225,7 +1225,7 @@
           <option>Won</option><option>Lost</option><option>Draw</option>
           <option>Tie</option><option>No Result</option>
           <option>Abandoned</option><option>Cancelled</option>
-          <option>Godshill Conceded</option><option>Opposition Conceded</option>
+          <option>Godshill Conceded</option><option>Opposition Conceded</option><option>Bye</option>
         </select>
       </div>
     </div>
@@ -1587,7 +1587,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
           <option>Won</option><option>Lost</option><option>Draw</option>
           <option>Tie</option><option>No Result</option>
           <option>Abandoned</option><option>Cancelled</option>
-          <option>Godshill Conceded</option><option>Opposition Conceded</option>
+          <option>Godshill Conceded</option><option>Opposition Conceded</option><option>Bye</option>
         </select>
       </div>
     </div>
@@ -2240,17 +2240,17 @@ function toggleRainFields() {
 }
 
 function step1Next() {
-  const opp    = document.getElementById('m-opp').value.trim();
-  const result = document.getElementById('m-result').value;
-  if (!opp) { alert('Please enter the opponent name.'); return; }
-  document.getElementById('m-toss-us').textContent = OUR_TEAM;
-  document.getElementById('m-bf-us').textContent   = OUR_TEAM;
-  if (['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming'].includes(result)) {
-    // Save immediately — no teams or scorecard needed
+  const result = (document.getElementById('m-result')?.value || '').trim();
+  const opp    = (document.getElementById('m-opp')?.value || '').trim();
+  const skipScorecard = ['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye'];
+  if (skipScorecard.includes(result)) {
     saveCancelledMatch();
-  } else {
-    goStep(2);
+    return;
   }
+  if (!opp) { alert('Please enter the opponent name.'); return; }
+  const bfUs = document.getElementById('m-bf-us');
+  if (bfUs) bfUs.textContent = OUR_TEAM;
+  goStep(2);
 }
 
 function saveCancelledMatch() {
@@ -2266,7 +2266,7 @@ function saveCancelledMatch() {
   db.matches.push({
     id:        mid,
     date:      document.getElementById('m-date').value,
-    opponent:  opp,
+    opponent:  opp || (document.getElementById('m-result').value === 'Bye' ? '(Bye)' : ''),
     venue:     document.getElementById('m-venue').value.trim(),
     format:    document.getElementById('m-format').value,
     overs:     0,
@@ -3034,13 +3034,13 @@ function renderUpcoming() {
 function renderHomeRecent() {
   const year      = _homeYear;
   const filter    = _homeFilter;
-  let matches = [...db.matches].filter(m=>m.result!=='Upcoming').sort((a,b)=>b.date.localeCompare(a.date));
+  let matches = [...db.matches].filter(m=>m.result!=='Upcoming'&&m.result!=='Bye').sort((a,b)=>b.date.localeCompare(a.date));
   if (year)            matches = matches.filter(m=>(m.date||'').startsWith(year));
   if (filter !== 'all') matches = matches.filter(m=>matchesTypeFilter(m.format, filter));
   const sorted = matches.slice(0,8);
   document.getElementById('tbody-recent').innerHTML = sorted.length
     ? sorted.map((m,idx) => {
-        const canView = !m.cancelled && !['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+        const canView = !m.cancelled && !['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result);
         const oppCell = canView
           ? `<a class="sc-toggle-link" id="home-sc-link-${idx}"
                 onclick="toggleHomeInlineSc(${idx},'${m.id}')"
@@ -3136,7 +3136,7 @@ function renderHomeFiltered() {
   // Build filtered match set
   const year   = _homeYear;
   const filter = _homeFilter;
-  let filtMatches = db.matches;
+  let filtMatches = db.matches.filter(m=>m.result!=='Bye'&&m.result!=='Upcoming');
   if (year)            filtMatches = filtMatches.filter(m=>(m.date||'').startsWith(year));
   if (filter !== 'all') filtMatches = filtMatches.filter(m=>matchesTypeFilter(m.format, filter));
   const filtMids = new Set(filtMatches.map(m=>m.id));
@@ -3256,7 +3256,7 @@ function toggleHomeInlineSc(idx, mid) {
   });
   if (isOpen) return;
   const m = db.matches.find(m=>m.id===mid);
-  if (!m || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return;
+  if (!m || ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result)) return;
   const i1bat  = buildInningsBatHtml(mid, 1);
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
@@ -3348,7 +3348,7 @@ function renderMatchesYearChart() {
 
   const counts = {};
   years.forEach(y => counts[y] = {hcl:0, nvk:0, friendly:0});
-  db.matches.filter(m => !m.cancelled && !['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result) &&
+  db.matches.filter(m => !m.cancelled && !['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result) &&
     (m.result !== 'Abandoned' && m.result !== 'No Result' || db.batting.some(b=>b.match_id===m.id))).forEach(m => {
     const y = parseInt((m.date||'').slice(0,4));
     if (!counts[y]) return;
@@ -3497,7 +3497,7 @@ function _renderMatchesPage() {
   const offset = psF>=sorted.length?0:(cur-1)*psF;
   document.getElementById('tbody-matches').innerHTML = slice.length
     ? slice.map((m,i) => { const idx = offset+i; 
-        const cancelled = m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+        const cancelled = m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result);
         const rowStyle  = cancelled ? 'opacity:0.55;' : '';
         const stripeClass = idx % 2 === 0 ? 'row-odd' : 'row-even';
         const oppCell   = cancelled
@@ -3559,7 +3559,7 @@ function toggleMatchInlineSc(idx, mid) {
   });
   if (isOpen) return;
   const m = db.matches.find(m=>m.id===mid);
-  if (!m || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return;
+  if (!m || ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result)) return;
   const i1bat  = buildInningsBatHtml(mid, 1);
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
@@ -3670,11 +3670,12 @@ function resultColour(result) {
 }
 
 function resultCell(m, allBat) {
-  const cancelResult = ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+  const cancelResult = ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result);
   const isCancelled  = cancelResult || (m.cancelled && !['Won','Lost','Draw','Tie','Abandoned','No Result'].includes(m.result));
   if (isCancelled) {
     const label = m.result==='Godshill Conceded' ? 'Godshill conceded'
                 : m.result==='Opposition Conceded' ? esc(m.opponent)+' conceded'
+                : m.result==='Bye' ? 'Bye'
                 : 'Cancelled';
     return '<span style="color:var(--ink-muted);font-size:12px;">'+label+'</span>';
   }
@@ -5246,7 +5247,7 @@ function drawWktChart(spells, svgId) {
 
 function viewMatchFromProfile(mid) {
   const m = db.matches.find(m=>m.id===mid);
-  if (!m || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return;
+  if (!m || ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result)) return;
   showPage('matches', document.querySelector('nav button:nth-child(3)'));
   setTimeout(() => {
     const idx = [...document.querySelectorAll('.match-chk')].findIndex(c=>c.value===mid);
@@ -5409,7 +5410,7 @@ function toggleInlineSc(pfx, idx, mid, innings, focus) {
   if (isOpen) return;
 
   const m = db.matches.find(m=>m.id===mid);
-  if (!m || m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return;
+  if (!m || m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result)) return;
 
   const i1bat  = buildInningsBatHtml(mid, 1);
   const i1bowl = buildInningsBowlHtml(mid, 1);
@@ -5463,7 +5464,7 @@ const NOT_DISM_E          = ['not out','retired hurt','retired out','retired not
 function checkMatchErrors(mid) {
   // Returns array of {type, msg} objects. Types: maths, wickets, unsure
   const m = db.matches.find(m=>m.id===mid);
-  if (!m || m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return [];
+  if (!m || m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result)) return [];
   const issues = [];
 
   for (let inn = 1; inn <= 2; inn++) {
@@ -5571,7 +5572,7 @@ let _errOpenSc = {};
 function renderIssues() {
   _errOpenSc = {};
   const matchesWithData = db.matches.filter(m=>
-    !m.cancelled && !['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result) &&
+    !m.cancelled && !['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result) &&
     db.batting.some(r=>r.match_id===m.id)
   );
 
@@ -5837,7 +5838,7 @@ function toggleStatsInlineSc(pfx, idx, mid) {
   });
   if (isOpen) return;
   const m = db.matches.find(m=>m.id===mid);
-  if (!m || m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)) return;
+  if (!m || m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result)) return;
   const i1bat  = buildInningsBatHtml(mid, 1);
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
@@ -6974,7 +6975,7 @@ function renderH2H() {
     if (type && !matchesTypeFilter(m.format, type)) return false;
     if (oppF && !(m.opponent||'').toLowerCase().includes(oppF)) return false;
     if (venueF && m.venue !== venueF) return false;
-    if (m.result === 'Upcoming') return false;
+    if (m.result === 'Upcoming' || m.result === 'Bye') return false;
     return true;
   });
 
@@ -6984,12 +6985,12 @@ function renderH2H() {
     const opp = m.opponent || 'Unknown';
     if (!oppMap[opp]) oppMap[opp] = { opponent:opp, played:0, won:0, lost:0, draw:0, tied:0, abandoned:0, cancelled:0, last:'', first:'9999-99-99', matches:[] };
     const r = oppMap[opp];
-    const isCancelled = m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+    const isCancelled = m.cancelled || ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result) || m.result==='Bye';
     if (!isCancelled) r.played++;
     r.matches.push(m);
     if (m.date > r.last)  r.last  = m.date;
     if (m.date < r.first) r.first = m.date;
-    if (isCancelled)                    r.cancelled++;
+    if (isCancelled && m.result!=='Bye') r.cancelled++;
     else if (m.result==='Won')          r.won++;
     else if (m.result==='Lost')         r.lost++;
     else if (m.result==='Tie')          r.tied++;
@@ -7079,7 +7080,7 @@ function showH2HDetail(opponent, oppIdx) {
   if (link) link.classList.add('open');
 
   const matches = db.matches
-    .filter(m => m.opponent === opponent && m.result !== 'Upcoming')
+    .filter(m => m.opponent === opponent && m.result !== 'Upcoming' && m.result !== 'Bye')
     .sort((a,b) => b.date.localeCompare(a.date));
 
   const getScore = (m, inn, team) => {
@@ -7093,7 +7094,7 @@ function showH2HDetail(opponent, oppIdx) {
   };
 
   const rows = matches.map((m, idx) => {
-    const cancelled = ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+    const cancelled = ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result);
     const hasSc = !cancelled && db.batting.some(r=>r.match_id===m.id);
     const stripe = idx%2===0?'row-odd':'row-even';
     const dateCell = hasSc
@@ -7800,7 +7801,7 @@ function renderProfileMatches() {
   document.getElementById('tbody-profile-matches').innerHTML = slice.length
     ? slice.map((row, si) => {
         const {m, batCell, bowlCell, fieldCell} = row;
-        const cancelled = ['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result);
+        const cancelled = ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result);
         const hasSc = !cancelled && db.batting.some(r=>r.match_id===m.id);
         const stripe = si%2===0?'row-odd':'row-even';
         const oppCell = hasSc
@@ -8313,7 +8314,7 @@ function renderRecords() {
   const recTo     = document.getElementById('rec-filter-to')?.value     || '';
   const recOpp    = (document.getElementById('rec-filter-opp')?.value   || '').toLowerCase().trim();
   const filteredMatches = db.matches.filter(m =>
-    m.result !== 'Upcoming' &&
+    m.result !== 'Upcoming' && m.result !== 'Bye' &&
     (!recSeason || (m.date||'').startsWith(recSeason)) &&
     (!recFrom   || m.date >= recFrom) &&
     (!recTo     || m.date <= recTo) &&

@@ -922,20 +922,14 @@
       <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;"><span class="icon">&#128190;</span> Data Export &amp; Import</div>
       <span style="font-size:11px;" id="storage-usage"></span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:4px;">
-      <div class="edit-only card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
-        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#8593; Import</div>
-        <p class="muted" style="font-size:11px;margin-bottom:8px;">Restore from a previously exported file</p>
-        <label class="btn btn-secondary btn-sm" style="cursor:pointer;">
-          Import Data
+    <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px;align-items:center;">
+      <div class="edit-only" style="display:flex;">
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer;background:var(--green-deep);color:var(--gold);border-color:var(--green-deep);text-transform:none;letter-spacing:normal;display:flex;align-items:center;margin:0;">
+          &#8593; Import Data
           <input type="file" id="import-file-input" accept=".json" style="display:none;" onchange="importData(this)">
         </label>
       </div>
-      <div class="card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
-        <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#127760; Publish</div>
-        <p class="muted" style="font-size:11px;margin-bottom:8px;">Update the public GitHub Pages site</p>
-        <button class="btn btn-secondary btn-sm" onclick="showPublishGuide()" style="background:var(--green-deep);color:var(--gold);border-color:var(--green-deep);">Publish to GitHub</button>
-      </div>
+      <button class="btn btn-secondary btn-sm" onclick="showPublishGuide()" style="background:var(--green-deep);color:var(--gold);border-color:var(--green-deep);text-transform:none;letter-spacing:normal;">Publish to GitHub</button>
     </div>
     <div id="import-msg" style="margin-top:6px;font-size:12px;"></div>
     <!-- Publish guide -->
@@ -1057,8 +1051,11 @@
 
   <!-- VIEW mode -->
   <div id="league-view">
-    <div style="margin-bottom:12px;" class="edit-only">
-      <button class="btn btn-primary btn-sm" onclick="leagueWizardStart()">&#43; New Table</button>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+      <select id="league-year-jump" onchange="jumpToLeagueYear(this.value)" style="width:120px;">
+        <option value="">Select Season</option>
+      </select>
+      <button class="btn btn-primary btn-sm edit-only" onclick="leagueWizardStart()">&#43; New Table</button>
     </div>
     <!-- Season-by-season summary with inline expandable tables -->
     <div id="league-summary-card" class="card" style="display:none;margin-bottom:20px;">
@@ -2339,7 +2336,7 @@ function buildTeamSheets() {
   document.getElementById('ts-our-heading').textContent = OUR_TEAM;
   document.getElementById('ts-opp-heading').textContent = opp;
 
-  const pnames = db.players.map(p => p.name).sort();
+  const pnames = _sortPlayerNames(db.players.map(p => p.name));
 
   // Our club - datalist for autocomplete + free type
   let ourHtml = `<datalist id="player-list">${pnames.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
@@ -3683,6 +3680,9 @@ function resultColour(result) {
 }
 
 function resultCell(m, allBat) {
+  if (m.result === 'Upcoming') {
+    return '<span style="color:var(--ink-muted);font-size:12px;font-style:italic;">Upcoming</span>';
+  }
   const cancelResult = ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result);
   const isCancelled  = cancelResult || (m.cancelled && !['Won','Lost','Draw','Tie','Abandoned','No Result'].includes(m.result));
   if (isCancelled) {
@@ -3860,7 +3860,7 @@ function populateStatFilters() {
   const fp = document.getElementById('filter-player');
   const ff = document.getElementById('filter-format');
   const fo = document.getElementById('filter-other-player');
-  const pnames = db.players.map(p=>p.name).sort();
+  const pnames = _sortPlayerNames(db.players.map(p=>p.name));
   if (fp) fp.innerHTML = '<option value="">All Players</option>' +
     pnames.map(n=>`<option>${esc(n)}</option>`).join('');
   if (ff) {
@@ -3881,7 +3881,7 @@ function populateStatFilters() {
 }
 
 function populatePlayerManageSelects() {
-  const pnames = db.players.map(p=>p.name).sort();
+  const pnames = _sortPlayerNames(db.players.map(p=>p.name));
   const opts   = '<option value="">-- choose --</option>' +
                  pnames.map(n=>`<option value="${esc(n)}">${esc(n)}</option>`).join('');
   ['edit-player-select','merge-keep','merge-remove'].forEach(id=>{
@@ -4583,6 +4583,16 @@ function exportPlayersCSV() {
 // ════════════════════════════════════════════════════════════
 // UTILITIES
 // ════════════════════════════════════════════════════════════
+function _sortPlayerNames(names) {
+  // Names flagged as incomplete (surname only, initials only) go to the bottom
+  return [...names].sort((a,b) => {
+    const ai = !!_isIncomplete(a), bi = !!_isIncomplete(b);
+    if (ai && !bi) return 1;
+    if (!ai && bi) return -1;
+    return a.localeCompare(b);
+  });
+}
+
 function esc(s) {
   if (!s) return '';
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
@@ -4674,7 +4684,7 @@ let profileMatchDates = [];
 function filterProfileSwitchList() {
   const dl = document.getElementById('profile-switch-list');
   if (!dl) return;
-  dl.innerHTML = db.players.map(p=>p.name).sort()
+  dl.innerHTML = _sortPlayerNames(db.players.map(p=>p.name))
     .map(n=>'<option value="'+n.replace(/"/g,'&quot;')+'">').join('');
 }
 
@@ -7544,6 +7554,27 @@ function deleteLeagueTable(id) {
 
 let _leagueOpenTable = null; // id of currently expanded table in summary
 
+function jumpToLeagueYear(year) {
+  if (!year) return;
+  // Find the row index for this year in summaryRows
+  const rows = document.querySelectorAll('#tbody-league-summary tr');
+  let found = false;
+  rows.forEach((tr, i) => {
+    const yearCell = tr.querySelector('td');
+    if (yearCell && yearCell.textContent.trim() === year) {
+      // Click to expand if not already open
+      const link = yearCell.querySelector('a');
+      if (link && !link.classList.contains('open')) link.click();
+      // Scroll to it
+      setTimeout(() => tr.scrollIntoView({behavior:'smooth', block:'start'}), 100);
+      found = true;
+    }
+  });
+  // Reset dropdown
+  const sel = document.getElementById('league-year-jump');
+  if (sel) sel.value = '';
+}
+
 function renderLeagueTables() {
   const emptyMsg   = document.getElementById('league-empty');
   const summaryCard = document.getElementById('league-summary-card');
@@ -7586,6 +7617,14 @@ function renderLeagueTables() {
       avec:  get('avec','avg','average','avcc'),
     };
   });
+
+  // Populate year jump dropdown
+  const jumpSel = document.getElementById('league-year-jump');
+  if (jumpSel) {
+    const years = [...new Set(allTables.map(t=>t.season).filter(Boolean))].sort((a,b)=>b.localeCompare(a));
+    jumpSel.innerHTML = '<option value="">Select Season</option>' +
+      years.map(y=>`<option value="${esc(y)}">${y}</option>`).join('');
+  }
 
   document.getElementById('tbody-league-summary').innerHTML = summaryRows.map((r,i) => {
     const tblId = r.tbl.id;

@@ -922,6 +922,16 @@
       <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;"><span class="icon">&#128190;</span> Data Export &amp; Import</div>
       <span style="font-size:11px;" id="storage-usage"></span>
     </div>
+    <div class="card edit-only" style="padding:14px 16px;margin-bottom:12px;">
+      <div style="font-weight:600;font-size:13px;margin-bottom:8px;">&#127758; Published Seasons <span style="font-size:11px;font-weight:400;color:var(--ink-muted);">— tick which seasons are visible on the public site</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="document.querySelectorAll('#published-seasons-picker input').forEach(c=>c.checked=true)">Select All</button>
+        <button class="btn btn-secondary btn-sm" onclick="document.querySelectorAll('#published-seasons-picker input').forEach(c=>c.checked=false)">Deselect All</button>
+      </div>
+      <div id="published-seasons-picker" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;"></div>
+      <button class="btn btn-primary btn-sm" onclick="savePublishedSeasons()">Save &amp; Export</button>
+      <span id="published-seasons-msg" style="font-size:12px;color:var(--green-mid);margin-left:10px;"></span>
+    </div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:4px;">
       <div class="edit-only card" style="padding:12px;background:var(--cream);border:1px solid var(--green-pale);box-shadow:none;">
         <div style="font-weight:600;font-size:13px;margin-bottom:4px;">&#8593; Import</div>
@@ -3438,6 +3448,7 @@ function _chartClickYear(year) {
 function renderMatches() {
   _matchPage.matches=1;
   populateSeasonDropdowns();
+  renderPublishedSeasonsPicker();
   selectedMatchId = null;
   document.getElementById('match-del-msg').innerHTML = '';
   renderMatchesYearChart();
@@ -3451,7 +3462,7 @@ function renderMatches() {
 
   const sorted = [...db.matches]
     .filter(m=>{
-      if (m.result==='Upcoming' && resF!=='Upcoming') return false;
+      if (m.result==='Upcoming' && resF && resF!=='Upcoming') return false;
       if (!matchesTypeFilter(m.format, ft)) return false;
       if (from && m.date < from) return false;
       if (to   && m.date > to)   return false;
@@ -4626,6 +4637,15 @@ document.getElementById('m-date').value = new Date().toISOString().split('T')[0]
             fielding:      data.fielding      || [],
             leagueTables:  data.leagueTables  || [],
           };
+          // Apply published seasons filter if set
+          if (data.publishedSeasons && data.publishedSeasons.length) {
+            const ps = new Set(data.publishedSeasons);
+            const okMids = new Set(db.matches.filter(m=>ps.has((m.date||'').slice(0,4))).map(m=>m.id));
+            db.matches  = db.matches.filter(m=>okMids.has(m.id));
+            db.batting  = db.batting.filter(r=>okMids.has(r.match_id));
+            db.bowling  = db.bowling.filter(r=>okMids.has(r.match_id));
+            db.fielding = db.fielding.filter(r=>okMids.has(r.match_id));
+          }
           setReadOnlyMode(true);
         }
       }
@@ -6659,15 +6679,45 @@ ${filterHtml}
 // EXPORT / IMPORT
 // ════════════════════════════════════════════════════════════
 
-function exportData() {
+function renderPublishedSeasonsPicker() {
+  const el = document.getElementById('published-seasons-picker');
+  if (!el) return;
+  const seasons = [...new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(s=>s.length===4))].sort();
+  const published = JSON.parse(localStorage.getItem('publishedSeasons')||'[]');
+  el.innerHTML = seasons.map(s => {
+    const checked = published.includes(s) ? 'checked' : '';
+    return `<label style="display:flex;align-items:center;gap:4px;font-size:13px;cursor:pointer;">
+      <input type="checkbox" value="${s}" ${checked} style="cursor:pointer;"> ${s}
+    </label>`;
+  }).join('');
+}
+
+function savePublishedSeasons() {
+  const checks = document.querySelectorAll('#published-seasons-picker input[type=checkbox]');
+  const selected = [...checks].filter(c=>c.checked).map(c=>c.value);
+  localStorage.setItem('publishedSeasons', JSON.stringify(selected));
+  // Export filtered data
+  exportData(selected);
+  const msg = document.getElementById('published-seasons-msg');
+  if (msg) { msg.textContent = '✓ Exported with '+selected.length+' season'+(selected.length===1?'':'s'); setTimeout(()=>msg.textContent='', 3000); }
+}
+
+function exportData(publishedSeasons) {
+  const pubSeasons = publishedSeasons || JSON.parse(localStorage.getItem('publishedSeasons')||'null');
+  const okMids = pubSeasons && pubSeasons.length
+    ? new Set(db.matches.filter(m=>pubSeasons.includes((m.date||'').slice(0,4))).map(m=>m.id))
+    : null;
+  const filterRows = arr => okMids ? arr.filter(r=>okMids.has(r.match_id)) : arr;
+
   const payload = {
     exported: new Date().toISOString(),
     version: 1,
+    publishedSeasons: pubSeasons || [],
     players:       db.players,
-    matches:       db.matches,
-    batting:       db.batting,
-    bowling:       db.bowling,
-    fielding:      db.fielding,
+    matches:       okMids ? db.matches.filter(m=>okMids.has(m.id)) : db.matches,
+    batting:       filterRows(db.batting),
+    bowling:       filterRows(db.bowling),
+    fielding:      filterRows(db.fielding),
     leagueTables:  db.leagueTables || [],
   };
   const json = JSON.stringify(payload, null, 2);

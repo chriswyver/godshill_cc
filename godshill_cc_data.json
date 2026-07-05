@@ -1,5 +1,5 @@
 {
-  "exported": "2026-07-05T18:41:19.835Z",
+  "exported": "2026-07-05T18:45:33.705Z",
   "version": 1,
   "publishedSeasons": [
     "2008",
@@ -9030,23 +9030,6 @@
         "nb": 6,
         "p": 0
       }
-    },
-    {
-      "id": "M1782385118395715",
-      "date": "2026-07-04",
-      "opponent": "Wellow & Plaitford Knights II",
-      "venue": "Away",
-      "format": "Hampshire Cricket League Division 6C",
-      "overs": 0,
-      "result": "Upcoming",
-      "toss": "",
-      "choice": "",
-      "bat_first": "",
-      "notes": "",
-      "cancelled": true,
-      "rain_affected": false,
-      "dls_target": null,
-      "dls_overs": null
     },
     {
       "id": "M1782385151315377",

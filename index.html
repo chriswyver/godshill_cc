@@ -7718,12 +7718,57 @@ function _renderLeagueExpanded(idx, tbl) {
       (hasSc?`<tr id="lt-sc-row-${tblIdSafe}-${mi}" class="inline-sc-row" style="display:none;"><td colspan="4"><div class="inline-sc-wrap" id="lt-sc-content-${tblIdSafe}-${mi}"></div></td></tr>`:'');
   }).join('')||'<tr><td colspan="4" class="empty-state">No HCL matches.</td></tr>';
 
+  // ── Notes: teams not played + match count check ───────────────────────────
+  const godRow = tbl.rows.find(r => cols.some(c=>String(r[c.key]||'').toLowerCase().includes('godshill')));
+  const teamCol = cols.find(c => ['team','club','name','side'].includes(c.label.toLowerCase()) || c.key.toLowerCase()==='team')?.key || cols[0]?.key;
+  const allTeams = tbl.rows.map(r=>String(r[teamCol]||'').trim()).filter(t=>t&&!t.toLowerCase().includes('godshill'));
+
+  // Teams Godshill didn't play (no scorecard, cancelled, or no match at all)
+  const playedOpps = new Set(seasonMatches
+    .filter(m=>!['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye'].includes(m.result)&&db.batting.some(r=>r.match_id===m.id))
+    .map(m=>(m.opponent||'').toLowerCase().trim()));
+  const notPlayed = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim()));
+  const cancelledVs = notPlayed.filter(t=>seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)));
+  const noMatchVs   = notPlayed.filter(t=>!seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()));
+
+  let notesHtml = '';
+  if (!isRO && notPlayed.length > 0) {
+    const parts = [];
+    if (cancelledVs.length) parts.push(`<span style="color:#856404;">&#9888; Cancelled vs: <strong>${cancelledVs.map(esc).join(', ')}</strong></span>`);
+    if (noMatchVs.length)   parts.push(`<span style="color:var(--ink-muted);">No match recorded vs: <strong>${noMatchVs.map(esc).join(', ')}</strong></span>`);
+    notesHtml = `<div style="margin-top:10px;padding:10px 12px;background:#fff9e6;border:1px solid #ffe082;border-radius:4px;font-size:12px;display:flex;flex-direction:column;gap:4px;">
+      <strong style="font-size:12px;margin-bottom:2px;">&#128221; Notes</strong>
+      ${parts.join('')}
+    </div>`;
+  }
+
+  // ── Match count check (edit-only) ────────────────────────────────────────
+  let checkHtml = '';
+  if (!isRO && godRow) {
+    const pCol = cols.find(c=>c.label==='P'||c.key==='p');
+    const tableP = pCol ? parseInt(godRow[pCol.key]||0) : null;
+    const scorecardCount = seasonMatches.filter(m=>
+      !['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye','Abandoned','No Result'].includes(m.result)&&
+      db.batting.some(r=>r.match_id===m.id)).length;
+    if (tableP !== null && scorecardCount !== tableP) {
+      checkHtml = `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border:1px solid #f5c6c2;border-radius:4px;font-size:12px;color:#8b1a1a;">
+        &#9888; League table shows <strong>${tableP}</strong> games played but only <strong>${scorecardCount}</strong> HCL scorecard${scorecardCount===1?'':'s'} found for ${esc(tbl.season)}.
+      </div>`;
+    } else if (tableP !== null) {
+      checkHtml = `<div style="margin-top:8px;padding:6px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;font-size:12px;color:#166534;">
+        &#10003; ${scorecardCount} scorecards match league table (${tableP}P).
+      </div>`;
+    }
+  }
+
   content.innerHTML = `
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;flex-wrap:wrap;gap:8px;">
       <strong style="color:var(--green-deep);">&#127942; ${esc(tbl.division)} &mdash; ${esc(tbl.season)}</strong>
       <div style="display:flex;gap:6px;">${editBtns}</div>
     </div>
     <div class="table-wrap"><table class="data-table no-hover-table" style="font-size:12px;"><thead><tr>${colHeaders}</tr></thead><tbody>${dataRows}</tbody></table></div>
+    ${checkHtml}
+    ${notesHtml}
     <div style="margin-top:12px;border-top:1px solid var(--green-pale);padding-top:12px;">
       <strong style="font-size:12px;color:var(--green-deep);">&#127959; ${esc(tbl.season)} Results</strong>
       <div class="table-wrap" style="margin-top:8px;">

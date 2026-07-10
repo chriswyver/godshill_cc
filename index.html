@@ -2120,8 +2120,9 @@ function saveDB(data) {
       let total = 0;
       for (let k in localStorage) { if (localStorage.hasOwnProperty(k)) total += (localStorage[k].length + k.length) * 2; }
       const kb = (total/1024).toFixed(0);
-      const pct = (total/(5*1024*1024)*100).toFixed(0);
-      el.textContent = kb + ' KB used (' + pct + '%)';
+      const limitMB = 10; // Chrome/Firefox typical limit
+      const pct = (total/(limitMB*1024*1024)*100).toFixed(0);
+      el.textContent = kb + ' KB used of ~' + limitMB + 'MB (' + pct + '%)';
       el.style.color = pct > 80 ? 'var(--red)' : pct > 60 ? '#c8922a' : 'var(--ink-muted)';
     }
   } catch(e) {
@@ -2133,8 +2134,9 @@ function updateStorageIndicator() {
   try {
     var st=0; for(var k in localStorage){if(localStorage.hasOwnProperty(k)) st+=(localStorage[k].length+k.length)*2;}
     var el=document.getElementById('storage-usage');
-    if(el){var kb=(st/1024).toFixed(0),pct=(st/(5*1024*1024)*100).toFixed(0);
-      el.textContent=kb+' KB used ('+pct+'%)';
+    var limitMB=10;
+    if(el){var kb=(st/1024).toFixed(0),pct=(st/(limitMB*1024*1024)*100).toFixed(0);
+      el.textContent=kb+' KB used of ~'+limitMB+'MB ('+pct+'%)';
       el.style.color=pct>80?'var(--red)':pct>60?'#c8922a':'var(--ink-muted)';}
   } catch(e){}
 }
@@ -7727,16 +7729,17 @@ function _renderLeagueExpanded(idx, tbl) {
   const playedOpps = new Set(seasonMatches
     .filter(m=>!['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye'].includes(m.result)&&db.batting.some(r=>r.match_id===m.id))
     .map(m=>(m.opponent||'').toLowerCase().trim()));
-  const notPlayed = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim()));
-  const cancelledVs = notPlayed.filter(t=>seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)));
-  const noMatchVs   = notPlayed.filter(t=>!seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()));
+  const cancelledVs  = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)));
+  const abandonedVs  = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Abandoned','No Result'].includes(m.result)));
+  const noMatchVs    = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&!seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()));
 
   let notesHtml = '';
-  if (!isRO && notPlayed.length > 0) {
+  if (cancelledVs.length || abandonedVs.length || noMatchVs.length) {
     const parts = [];
-    if (cancelledVs.length) parts.push(`<span style="color:#856404;">&#9888; Cancelled vs: <strong>${cancelledVs.map(esc).join(', ')}</strong></span>`);
-    if (noMatchVs.length)   parts.push(`<span style="color:var(--ink-muted);">No match recorded vs: <strong>${noMatchVs.map(esc).join(', ')}</strong></span>`);
-    notesHtml = `<div style="margin-top:10px;padding:10px 12px;background:#fff9e6;border:1px solid #ffe082;border-radius:4px;font-size:12px;display:flex;flex-direction:column;gap:4px;">
+    if (cancelledVs.length) parts.push(`<span>&#10005; Cancelled vs: <strong>${cancelledVs.map(esc).join(', ')}</strong></span>`);
+    if (abandonedVs.length) parts.push(`<span>&#9928; Abandoned vs: <strong>${abandonedVs.map(esc).join(', ')}</strong></span>`);
+    if (noMatchVs.length && !isRO)   parts.push(`<span style="color:var(--ink-muted);">No match recorded vs: <strong>${noMatchVs.map(esc).join(', ')}</strong></span>`);
+    if (parts.length) notesHtml = `<div style="margin-top:10px;padding:10px 12px;background:#fff9e6;border:1px solid #ffe082;border-radius:4px;font-size:12px;display:flex;flex-direction:column;gap:4px;">
       <strong style="font-size:12px;margin-bottom:2px;">&#128221; Notes</strong>
       ${parts.join('')}
     </div>`;

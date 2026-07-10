@@ -7727,7 +7727,7 @@ function _renderLeagueExpanded(idx, tbl) {
 
   // Teams Godshill didn't play (no scorecard, cancelled, or no match at all)
   const playedOpps = new Set(seasonMatches
-    .filter(m=>!['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye'].includes(m.result)&&db.batting.some(r=>r.match_id===m.id))
+    .filter(m=>!['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye','Abandoned','No Result'].includes(m.result)&&db.batting.some(r=>r.match_id===m.id))
     .map(m=>(m.opponent||'').toLowerCase().trim()));
   const cancelledVs  = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)));
   const abandonedVs  = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Abandoned','No Result'].includes(m.result)));
@@ -7771,7 +7771,6 @@ function _renderLeagueExpanded(idx, tbl) {
     </div>
     <div class="table-wrap"><table class="data-table no-hover-table" style="font-size:12px;"><thead><tr>${colHeaders}</tr></thead><tbody>${dataRows}</tbody></table></div>
     ${checkHtml}
-    ${notesHtml}
     <div style="margin-top:12px;border-top:1px solid var(--green-pale);padding-top:12px;">
       <strong style="font-size:12px;color:var(--green-deep);">&#127959; ${esc(tbl.season)} Results</strong>
       <div class="table-wrap" style="margin-top:8px;">
@@ -7780,7 +7779,8 @@ function _renderLeagueExpanded(idx, tbl) {
           <tbody>${matchRows}</tbody>
         </table>
       </div>
-    </div>`;
+    </div>
+    ${notesHtml}`;
 }
 
 function toggleLeagueTableInline(idx, tblId) {

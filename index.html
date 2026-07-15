@@ -589,6 +589,12 @@
     </table></div>
   </div>
 
+  <!-- Latest league table -->
+  <div class="card" id="home-league-card" style="display:none;">
+    <div class="card-title" id="home-league-title">&#127942; League Table</div>
+    <div id="home-league-table"></div>
+  </div>
+
   <!-- Row 4: recently added scorecards -->
   <div class="card">
     <div class="card-title"><span class="icon">&#128221;</span> Recently Added Scorecards<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
@@ -619,6 +625,13 @@
         <div><label>Date</label><input type="date" id="m-date"></div>
         <div><label>Opponent</label><input type="text" id="m-opp" placeholder="e.g. Riverside CC"></div>
         <div><label>Venue</label><input type="text" id="m-venue" placeholder="e.g. Home Ground"></div>
+        <div><label>Squad Size <span style="font-size:11px;color:var(--ink-muted);">(default 11)</span></label>
+          <select id="m-squad-size">
+            <option value="11">11</option>
+            <option value="12">12</option>
+            <option value="13">13</option>
+          </select>
+        </div>
         <div><label>Format</label>
           <input type="text" id="m-format" list="format-list" placeholder="e.g. T20 League">
           <datalist id="format-list">
@@ -1132,6 +1145,10 @@
             <div><label style="font-size:12px;">Pen</label><input type="number" id="lwiz-s-pen" min="0" style="width:100%;"></div>
             <div><label style="font-size:12px;">Pts</label><input type="number" id="lwiz-s-pts" min="0" style="width:100%;"></div>
           </div>
+        </div>
+        <div style="margin-bottom:12px;">
+          <label>Notes <span style="font-size:11px;color:var(--ink-muted);">(optional — shown below the fixture list)</span></label>
+          <textarea id="lwiz-notes" rows="3" placeholder="e.g. Deducted 2 points for slow over rate..." style="width:100%;margin-top:4px;"></textarea>
         </div>
         <div id="lwiz-step1-err" style="color:var(--red);font-size:13px;margin-bottom:10px;display:none;"></div>
         <button id="lwiz-next-btn" class="btn btn-primary btn-lg" onclick="leagueWizardStep2()">Next: Enter Rows &rarr;</button>
@@ -2260,6 +2277,7 @@ function step1Next() {
     return;
   }
   if (!opp) { alert('Please enter the opponent name.'); return; }
+  wiz.squadSize = parseInt(document.getElementById('m-squad-size')?.value||'11')||11;
   const bfUs = document.getElementById('m-bf-us');
   if (bfUs) bfUs.textContent = OUR_TEAM;
   goStep(2);
@@ -2301,7 +2319,8 @@ function step2Next() {
   // collect team sheets
   wiz.team1 = [];
   wiz.team2 = [];
-  for (let i = 1; i <= 11; i++) {
+  const _sz2 = wiz.squadSize || 11;
+  for (let i = 1; i <= _sz2; i++) {
     const v1 = (document.getElementById('ts1-'+i)?.value || '').trim();
     const v2 = (document.getElementById('ts2-'+i)?.value || '').trim();
     if (v1) wiz.team1.push(v1);
@@ -2335,6 +2354,7 @@ function step2Next() {
 // ════════════════════════════════════════════════════════════
 function buildTeamSheets() {
   const opp = document.getElementById('m-opp').value.trim() || 'Opponent';
+  const sz  = wiz.squadSize || parseInt(document.getElementById('m-squad-size')?.value||'11') || 11;
   document.getElementById('ts-our-heading').textContent = OUR_TEAM;
   document.getElementById('ts-opp-heading').textContent = opp;
 
@@ -2342,7 +2362,7 @@ function buildTeamSheets() {
 
   // Our club - datalist for autocomplete + free type
   let ourHtml = `<datalist id="player-list">${pnames.map(n=>`<option value="${esc(n)}">`).join('')}</datalist>`;
-  for (let i = 1; i <= 11; i++) {
+  for (let i = 1; i <= sz; i++) {
     const cur = wiz.team1[i-1] || '';
     ourHtml += `<div class="ts-row">
       <span class="ts-num">${i}.</span>
@@ -2354,7 +2374,7 @@ function buildTeamSheets() {
 
   // Opponent - plain text
   let oppHtml = '';
-  for (let i = 1; i <= 11; i++) {
+  for (let i = 1; i <= sz; i++) {
     const cur = wiz.team2[i-1] || '';
     oppHtml += `<div class="ts-row">
       <span class="ts-num">${i}.</span>
@@ -2763,6 +2783,7 @@ function saveScorecard() {
     choice:     document.getElementById('m-choice').value,
     bat_first:  batFirst,
     notes:      document.getElementById('m-notes').value.trim(),
+    squad_size:    wiz.squadSize || 11,
     rain_affected: !!(document.getElementById('m-rain')?.checked),
     dls_target:   parseInt(document.getElementById('m-dls-target')?.value)||null,
     dls_overs:    parseFloat(document.getElementById('m-dls-overs')?.value)||null,
@@ -2875,6 +2896,8 @@ function resetWizard() {
   document.getElementById('m-opp').value    = '';
   document.getElementById('m-venue').value  = '';
   document.getElementById('m-notes').value  = '';
+  const _sqR = document.getElementById('m-squad-size'); if(_sqR) _sqR.value='11';
+  wiz.squadSize = 11;
   const _rainCb = document.getElementById('m-rain'); if(_rainCb) _rainCb.checked = false;
   const _dlsT = document.getElementById('m-dls-target'); if(_dlsT) _dlsT.value = '';
   const _dlsO = document.getElementById('m-dls-overs');  if(_dlsO) _dlsO.value = '';
@@ -2997,6 +3020,7 @@ function setHomeTypeFilter(which, filter) { setHomeGlobalType(filter); }
 
 function renderHome() {
   renderUpcoming();
+  renderHomeLeagueTable();
   renderHomeRecent();
   populateSeasonDropdowns();
   // Year range subtitle
@@ -3015,6 +3039,146 @@ let _homeBatFilter  = 'all';
 let _homeBowlFilter = 'all';
 
 let _homeRecentlyAddedOpenSc = {};
+
+function renderHomeLeagueTable() {
+  const card  = document.getElementById('home-league-card');
+  const title = document.getElementById('home-league-title');
+  const el    = document.getElementById('home-league-table');
+  if (!card || !el) return;
+
+  const tables = (db.leagueTables || []).filter(t=>t.season&&t.cols&&t.rows&&t.rows.length);
+  if (!tables.length) { card.style.display='none'; return; }
+
+  const tbl = [...tables].sort((a,b)=>b.season.localeCompare(a.season))[0];
+  card.style.display = '';
+  if (title) title.innerHTML = '🏆 ' + esc(tbl.season) + ' — ' + esc(tbl.division) + '<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click a team to see fixtures</span>';
+
+  const cols = tbl.cols;
+  const teamCol = cols.find(c=>['team','club','name','side'].includes(c.label.toLowerCase())||c.key.toLowerCase()==='team')?.key || cols[0]?.key;
+  const headers = cols.map(c=>`<th style="white-space:nowrap;">${esc(c.label)}</th>`).join('');
+
+  const rows = tbl.rows.map((r,i) => {
+    const isUs = cols.some(c=>String(r[c.key]||'').toLowerCase().includes('godshill'));
+    const teamName = String(r[teamCol]||'').trim();
+    const cells = cols.map((c,ci) => {
+      const val = esc(String(r[c.key]??''));
+      const cellStyle = isUs ? 'background:var(--green-pale);font-weight:600;' : '';
+      if (ci === cols.indexOf(cols.find(c=>c.key===teamCol)) && !isUs && teamName) {
+        return `<td style="${cellStyle}"><a class="sc-toggle-link" onclick="_homeLtTeamClick('${esc(teamName)}','${esc(tbl.season)}')" style="cursor:pointer;">${val}</a></td>`;
+      }
+      return `<td style="${cellStyle}">${val}</td>`;
+    }).join('');
+    return `<tr class="${i%2===0?'row-odd':'row-even'}">${cells}</tr>`;
+  }).join('');
+
+  el.innerHTML = `<div class="table-wrap"><table class="data-table no-hover-table" style="font-size:12px;">
+    <thead><tr>${headers}</tr></thead>
+    <tbody>${rows}</tbody>
+  </table></div>
+  <div id="home-lt-detail" style="margin-top:12px;"></div>`;
+}
+
+let _homeLtOpenTeam = null;
+let _homeLtOpenSc = {};
+
+function _homeLtTeamClick(team, season) {
+  const detail = document.getElementById('home-lt-detail');
+  if (!detail) return;
+
+  // Toggle off if same team clicked again
+  if (_homeLtOpenTeam === team) {
+    _homeLtOpenTeam = null;
+    _homeLtOpenSc = {};
+    detail.innerHTML = '';
+    // Remove open class from all links
+    document.querySelectorAll('#home-league-table .sc-toggle-link').forEach(a=>a.classList.remove('open'));
+    return;
+  }
+  _homeLtOpenTeam = team;
+  _homeLtOpenSc = {};
+
+  // Mark the clicked link
+  document.querySelectorAll('#home-league-table .sc-toggle-link').forEach(a=>{
+    a.classList.toggle('open', a.textContent.trim()===team);
+  });
+
+  // Find matches vs this team in this season
+  const matches = db.matches.filter(m=>
+    (m.date||'').startsWith(season) &&
+    (m.opponent||'').toLowerCase().trim()===team.toLowerCase().trim() &&
+    isHCL(m.format)
+  ).sort((a,b)=>a.date.localeCompare(b.date));
+
+  if (!matches.length) {
+    detail.innerHTML = `<div class="empty-state">No HCL matches vs ${esc(team)} in ${esc(season)}.</div>`;
+    return;
+  }
+
+  const rows = matches.map((m,idx) => {
+    const isUpcoming = m.result === 'Upcoming';
+    const hasSc = !isUpcoming && db.batting.some(r=>r.match_id===m.id);
+    const venue = m.venue && m.venue.toLowerCase()==='away' ? 'Away' : 'Home';
+    const oppCell = hasSc
+      ? `<a class="sc-toggle-link" id="home-lt-sc-link-${idx}" onclick="_homeLtScClick(${idx},'${m.id}')" style="cursor:pointer;">${esc(m.opponent)}</a>`
+      : esc(m.opponent);
+    const resultTd = isUpcoming
+      ? `<td><span style="color:var(--ink-muted);font-size:12px;font-style:italic;">Upcoming</span></td>`
+      : `<td>${resultCell(m, db.batting.filter(r=>r.match_id===m.id))}</td>`;
+    return `<tr class="${idx%2===0?'row-odd':'row-even'}" style="${isUpcoming?'opacity:0.7;':''}">
+      <td style="color:var(--ink-muted);font-size:12px;">${m.date}</td>
+      <td>${oppCell}</td>
+      <td style="font-size:12px;color:var(--ink-muted);">${venue}</td>
+      ${resultTd}
+    </tr>
+    ${hasSc?`<tr id="home-lt-sc-row-${idx}" class="inline-sc-row" style="display:none;">
+      <td colspan="4"><div class="inline-sc-wrap" id="home-lt-sc-content-${idx}"></div></td>
+    </tr>`:''}`;
+  }).join('');
+
+  detail.innerHTML = `<div style="border-top:2px solid var(--green-pale);padding-top:12px;">
+    <strong style="font-size:12px;color:var(--green-deep);">Matches vs ${esc(team)} (${esc(season)})</strong>
+    <div class="table-wrap" style="margin-top:8px;">
+      <table class="data-table" style="font-size:12px;">
+        <thead><tr><th>Date</th><th>Opponent</th><th>Venue</th><th>Result</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
+
+function _homeLtScClick(idx, mid) {
+  const row     = document.getElementById('home-lt-sc-row-'+idx);
+  const content = document.getElementById('home-lt-sc-content-'+idx);
+  const link    = document.getElementById('home-lt-sc-link-'+idx);
+  if (!row) return;
+  const isOpen  = _homeLtOpenSc[idx];
+  // Close any open
+  Object.keys(_homeLtOpenSc).forEach(k => {
+    document.getElementById('home-lt-sc-row-'+k)?.setAttribute('style','display:none;');
+    document.getElementById('home-lt-sc-link-'+k)?.classList.remove('open');
+  });
+  _homeLtOpenSc = {};
+  if (isOpen) return;
+  _homeLtOpenSc[idx] = true;
+  row.style.display = '';
+  if (link) link.classList.add('open');
+  const m = db.matches.find(m=>m.id===mid);
+  if (!m || !content) return;
+  const allBat = db.batting.filter(r=>r.match_id===mid);
+  const i1bat  = buildInningsBatHtml(mid, 1);
+  const i1bowl = buildInningsBowlHtml(mid, 1);
+  const i2bat  = buildInningsBatHtml(mid, 2);
+  const i2bowl = buildInningsBowlHtml(mid, 2);
+  const col2 = i2bat.html ? `<div>${i2bat.html}${i2bowl}</div>` : '';
+  const rc = resultColour(m.result);
+  const resultStr = calcResultString(m, allBat) || m.result;
+  content.innerHTML = `<div style="padding:10px;background:var(--cream-dark);font-size:13px;font-weight:600;color:var(--green-deep);">
+    ${esc(m.opponent)} &bull; ${m.date} &bull; <span style="color:${rc};">${esc(resultStr)}</span>
+  </div>
+  <div class="sc-two-col">
+    <div>${i1bat.html}${i1bowl}</div>${col2}
+  </div>`;
+}
 
 function renderUpcoming() {
   const today = new Date().toISOString().slice(0,10);
@@ -3741,6 +3905,8 @@ function editMatch(mid) {
   document.getElementById('m-result').value     = m.result     || 'Won';
   document.getElementById('m-bat-first').value  = m.bat_first  || OUR_TEAM;
   document.getElementById('m-notes').value      = m.notes      || '';
+  const _sqEl = document.getElementById('m-squad-size'); if(_sqEl) _sqEl.value=String(m.squad_size||11);
+  wiz.squadSize = m.squad_size || 11;
   const rainCb = document.getElementById('m-rain');
   if (rainCb) { rainCb.checked = !!(m.rain_affected); toggleRainFields(); }
   if (m.dls_target) { const t = document.getElementById('m-dls-target'); if(t) t.value = m.dls_target; }
@@ -4424,7 +4590,9 @@ function renderPlayers() {
     : null;
 
   // Build data rows with stats — only count appearances in filtered matches
-  let data = db.players.filter(p => !search || p.name.toLowerCase().includes(search)).map((p, origIdx) => {
+  let data = db.players.map((p, origIdx) => ({ p, origIdx }))
+    .filter(({p}) => !search || p.name.toLowerCase().includes(search))
+    .map(({p, origIdx}) => {
     const bat = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
     const bowl = db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
     const runs  = bat.reduce((s,r)=>s+r.runs,0);
@@ -7323,7 +7491,8 @@ function leagueWizardSaveSummary() {
     {key:'batp',label:'BatP'},{key:'bowlp',label:'BowlP'},{key:'pen',label:'Pen'},{key:'pts',label:'Pts'}
   ].filter(c => c.key==='team' || row[c.key] !== undefined);
 
-  const tbl = { season, division, cols, rows: [row], summaryOnly: true };
+  const notes = (document.getElementById('lwiz-notes')?.value||'').trim();
+  const tbl = { season, division, cols, rows: [row], summaryOnly: true, notes };
   if (_lwizEditId) {
     const idx = db.leagueTables.findIndex(t=>t.id===_lwizEditId);
     if (idx>=0) { tbl.id = _lwizEditId; db.leagueTables[idx] = tbl; }
@@ -7366,7 +7535,12 @@ function leagueWizardStart(editId) {
   } else {
     document.getElementById('lwiz-season').value   = '';
     document.getElementById('lwiz-division').value = '';
+    const _nEl = document.getElementById('lwiz-notes'); if(_nEl) _nEl.value='';
   }
+
+  // Restore notes
+  const _notesEl = document.getElementById('lwiz-notes');
+  if (_notesEl && _lwizEditId) _notesEl.value = (db.leagueTables.find(t=>t.id===_lwizEditId)||{}).notes||'';
 
   renderLwizColEditor();
 
@@ -7530,11 +7704,12 @@ function leagueWizardSave() {
   const division = document.getElementById('lwiz-division')?.value.trim();
   // Store cols as {key,label} pairs
   const colsToSave = _lwizCols.map(c => typeof c==='object' ? c : {key:c, label:c});
+  const notes = (document.getElementById('lwiz-notes')?.value||'').trim();
   if (_lwizEditId) {
     const tbl = _leagueDB().find(t=>t.id===_lwizEditId);
-    if (tbl) { tbl.season=season; tbl.division=division; tbl.cols=colsToSave; tbl.rows=_lwizRows; }
+    if (tbl) { tbl.season=season; tbl.division=division; tbl.cols=colsToSave; tbl.rows=_lwizRows; tbl.notes=notes; }
   } else {
-    _leagueDB().push({ id:genId(), season, division, cols:colsToSave, rows:_lwizRows });
+    _leagueDB().push({ id:genId(), season, division, cols:colsToSave, rows:_lwizRows, notes });
   }
   saveDB();
   document.getElementById('league-view').style.display   = '';
@@ -7544,6 +7719,14 @@ function leagueWizardSave() {
   if (sel) sel.value = season;
   renderLeagueTables();
   window.scrollTo({top:0, behavior:'smooth'});
+}
+
+function _saveLtNotes(tblId, inputId) {
+  const tbl = _leagueDB().find(t=>t.id===tblId);
+  if (!tbl) return;
+  tbl.notes = (document.getElementById(inputId)?.value||'').trim();
+  saveDB();
+  renderLeagueTables();
 }
 
 function deleteLeagueTable(id) {
@@ -7723,25 +7906,37 @@ function _renderLeagueExpanded(idx, tbl) {
   // ── Notes: teams not played + match count check ───────────────────────────
   const godRow = tbl.rows.find(r => cols.some(c=>String(r[c.key]||'').toLowerCase().includes('godshill')));
   const teamCol = cols.find(c => ['team','club','name','side'].includes(c.label.toLowerCase()) || c.key.toLowerCase()==='team')?.key || cols[0]?.key;
-  const allTeams = tbl.rows.map(r=>String(r[teamCol]||'').trim()).filter(t=>t&&!t.toLowerCase().includes('godshill'));
+  // All teams except Godshill
+  const allTeamsRaw = tbl.rows.map(r=>({
+    name: String(r[teamCol]||'').trim(),
+    pos:  String(r[cols.find(c=>c.label.toLowerCase()==='pos'||c.key.toLowerCase()==='pos')?.key]||'').trim()
+  })).filter(({name}) => name && !name.toLowerCase().includes('godshill'));
+  const withdrawnTeams = allTeamsRaw.filter(({pos}) => pos === '-').map(({name}) => name);
+  const allTeams = allTeamsRaw.filter(({pos}) => pos !== '-').map(({name}) => name);
+
+  const withdrawnSet = new Set(withdrawnTeams.map(t=>t.toLowerCase().trim()));
 
   // Teams Godshill didn't play (no scorecard, cancelled, or no match at all)
   const playedOpps = new Set(seasonMatches
-    .filter(m=>!['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye','Abandoned','No Result'].includes(m.result)&&db.batting.some(r=>r.match_id===m.id))
+    .filter(m=>!['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye','Abandoned','No Result'].includes(m.result)&&db.batting.some(r=>r.match_id===m.id)&&!withdrawnSet.has((m.opponent||'').toLowerCase().trim()))
     .map(m=>(m.opponent||'').toLowerCase().trim()));
   const cancelledVs  = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)));
   const abandonedVs  = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Abandoned','No Result'].includes(m.result)));
   const noMatchVs    = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&!seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()));
 
+  // User-entered notes for this table
+  const userNotes = tbl.notes ? `<div style="margin-bottom:8px;font-size:12px;color:var(--ink-muted);">${esc(tbl.notes).replace(/\n/g,'<br>')}</div>` : '';
+
   let notesHtml = '';
-  if (cancelledVs.length || abandonedVs.length || noMatchVs.length) {
+  if (userNotes || cancelledVs.length || abandonedVs.length || withdrawnTeams.length || noMatchVs.length) {
     const parts = [];
-    if (cancelledVs.length) parts.push(`<span>&#10005; Cancelled vs: <strong>${cancelledVs.map(esc).join(', ')}</strong></span>`);
-    if (abandonedVs.length) parts.push(`<span>&#9928; Abandoned vs: <strong>${abandonedVs.map(esc).join(', ')}</strong></span>`);
-    if (noMatchVs.length && !isRO)   parts.push(`<span style="color:var(--ink-muted);">No match recorded vs: <strong>${noMatchVs.map(esc).join(', ')}</strong></span>`);
-    if (parts.length) notesHtml = `<div style="margin-top:10px;padding:10px 12px;background:#fff9e6;border:1px solid #ffe082;border-radius:4px;font-size:12px;display:flex;flex-direction:column;gap:4px;">
+    if (cancelledVs.length)   parts.push(`<span>&#10005; Cancelled vs: <strong>${cancelledVs.map(esc).join(', ')}</strong></span>`);
+    if (abandonedVs.length)   parts.push(`<span>&#9928; Abandoned vs: <strong>${abandonedVs.map(esc).join(', ')}</strong></span>`);
+    if (withdrawnTeams.length) parts.push(`<span>&#128683; Withdrew: <strong>${withdrawnTeams.map(esc).join(', ')}</strong></span>`);
+    if (noMatchVs.length && !isRO) parts.push(`<span style="color:var(--ink-muted);">No match recorded vs: <strong>${noMatchVs.map(esc).join(', ')}</strong></span>`);
+    if (userNotes||parts.length) notesHtml = `<div style="margin-top:10px;padding:10px 12px;background:#fff9e6;border:1px solid #ffe082;border-radius:4px;font-size:12px;display:flex;flex-direction:column;gap:4px;">
       <strong style="font-size:12px;margin-bottom:2px;">&#128221; Notes</strong>
-      ${parts.join('')}
+      ${userNotes}${parts.join('')}
     </div>`;
   }
 
@@ -7752,6 +7947,7 @@ function _renderLeagueExpanded(idx, tbl) {
     const tableP = pCol ? parseInt(godRow[pCol.key]||0) : null;
     const scorecardCount = seasonMatches.filter(m=>
       !['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye','Abandoned','No Result'].includes(m.result)&&
+      !withdrawnSet.has((m.opponent||'').toLowerCase().trim())&&
       db.batting.some(r=>r.match_id===m.id)).length;
     if (tableP !== null && scorecardCount !== tableP) {
       checkHtml = `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border:1px solid #f5c6c2;border-radius:4px;font-size:12px;color:#8b1a1a;">
@@ -7780,7 +7976,16 @@ function _renderLeagueExpanded(idx, tbl) {
         </table>
       </div>
     </div>
-    ${notesHtml}`;
+    ${notesHtml}
+    ${isRO ? '' : `<div class="edit-only" style="margin-top:10px;">
+      <details>
+        <summary style="cursor:pointer;font-size:12px;color:var(--green-mid);">&#9998; Edit notes</summary>
+        <div style="margin-top:8px;display:flex;gap:8px;align-items:flex-start;">
+          <textarea id="lt-inline-notes-${tbl.id}" rows="3" style="flex:1;font-size:12px;">${esc(tbl.notes||'')}</textarea>
+          <button class="btn btn-primary btn-sm" onclick="_saveLtNotes('${tbl.id}','lt-inline-notes-${tbl.id}')">Save</button>
+        </div>
+      </details>
+    </div>`}`;
 }
 
 function toggleLeagueTableInline(idx, tblId) {

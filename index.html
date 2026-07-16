@@ -2328,9 +2328,10 @@ function step2Next() {
   }
   if (!wiz.team1.length) { alert('Please add at least one player for ' + OUR_TEAM + '.'); return; }
 
-  // Register any new Godshill players
+  // Register any new Godshill players (skip unsure/unknown names)
   const added = [];
   wiz.team1.forEach(nm => {
+    if (isUnsure(nm)) return;
     if (!db.players.find(p => p.name === nm)) {
       db.players.push({ id: 'P'+Date.now()+Math.random(), name: nm, role: 'Unknown' });
       added.push(nm);
@@ -6866,6 +6867,7 @@ function exportData(publishedSeasons) {
   const okMids = pubSeasons && pubSeasons.length
     ? new Set(db.matches.filter(m=>pubSeasons.includes((m.date||'').slice(0,4))).map(m=>m.id))
     : null;
+  const NON_PLAYED = ['Cancelled','Godshill Conceded','Opposition Conceded','Abandoned','No Result','Bye','Upcoming'];
   const filterRows = arr => okMids ? arr.filter(r=>okMids.has(r.match_id)) : arr;
 
   const payload = {
@@ -6873,7 +6875,9 @@ function exportData(publishedSeasons) {
     version: 1,
     publishedSeasons: pubSeasons || [],
     players:       db.players,
-    matches:       okMids ? db.matches.filter(m=>okMids.has(m.id)) : db.matches,
+    matches:       okMids
+      ? db.matches.filter(m=>okMids.has(m.id) || NON_PLAYED.includes(m.result) || m.cancelled)
+      : db.matches,
     batting:       filterRows(db.batting),
     bowling:       filterRows(db.bowling),
     fielding:      filterRows(db.fielding),

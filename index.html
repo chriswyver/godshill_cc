@@ -224,6 +224,8 @@
   body.read-only-mode .match-chk { display: none; }
   body.read-only-mode td:first-child input[type=checkbox] { display: none; }
   body.read-only-mode .player-chk { display: none; }
+  body.read-only-mode .edit-only  { display: none !important; }
+  body.read-only-mode .nav-edit-only { display: none !important; }
   .scorebook { width: 100%; border-collapse: collapse; font-size: 13px; }
   .scorebook th {
     background: var(--green-deep); color: var(--cream);
@@ -1907,7 +1909,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
     <button class="tab-btn"        id="rtab-margins-btn" onclick="showRecordsTab('margins')">Result Margins</button>
     <button class="tab-btn"        id="rtab-wicket-btn"    onclick="showRecordsTab('wicket')">Record by Position</button>
     <button class="tab-btn"        id="rtab-innings-btn"  onclick="showRecordsTab('innings')">Individual Records</button>
-    <button class="tab-btn"        id="rtab-milestones-btn" onclick="showRecordsTab('milestones')">Upcoming Milestones</button>
+    <button class="tab-btn"        id="rtab-milestones-btn" onclick="showRecordsTab('milestones')">Milestones</button>
   </div>
 
   <!-- Career records tab -->
@@ -2012,6 +2014,46 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
 
   <!-- Milestones tab -->
   <div id="rtab-milestones" style="display:none;">
+
+    <!-- Recently passed milestones -->
+    <div class="card">
+      <div class="card-title">Recently Passed Milestones</div>
+      <p class="muted" style="margin-bottom:12px;font-size:12px;">Milestones reached this season (every 500 runs, 50 wickets, 50 catches, 100 games), most recent first. Click the opponent to expand the scorecard.</p>
+      <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
+        <button class="tab-btn active" id="rec-ms-passed-all-btn" onclick="showRecentMsTab('all')" style="font-size:12px;padding:5px 12px;">All Matches</button>
+        <button class="tab-btn"        id="rec-ms-passed-hcl-btn" onclick="showRecentMsTab('hcl')" style="font-size:12px;padding:5px 12px;">League</button>
+      </div>
+      <div id="rec-ms-passed-all">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>Date</th>
+              <th>Player</th>
+              <th>Milestone</th>
+              <th>Opponent</th>
+              <th>Competition</th>
+            </tr></thead>
+            <tbody id="tbody-rec-milestones-passed-all"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="rec-ms-passed-hcl" style="display:none;">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr>
+              <th>Date</th>
+              <th>Player</th>
+              <th>Milestone</th>
+              <th>Opponent</th>
+              <th>Competition</th>
+            </tr></thead>
+            <tbody id="tbody-rec-milestones-passed-hcl"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="card-title" style="margin-top:24px;">Upcoming Milestones</div>
     <p class="muted" style="font-size:12px;margin-bottom:16px;">Players active in the most recent season. Next milestone thresholds: every 500 runs, 50 wickets, 50 catches. Sorted by distance to milestone.</p>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col-grid">
 
@@ -2022,10 +2064,12 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
           <button class="tab-btn active" id="ms-all-bat-btn"   onclick="showMilestoneTab('all','bat')"   style="font-size:12px;padding:5px 12px;">Batting</button>
           <button class="tab-btn"        id="ms-all-bowl-btn"  onclick="showMilestoneTab('all','bowl')"  style="font-size:12px;padding:5px 12px;">Bowling</button>
           <button class="tab-btn"        id="ms-all-field-btn" onclick="showMilestoneTab('all','field')" style="font-size:12px;padding:5px 12px;">Fielding</button>
+          <button class="tab-btn"        id="ms-all-games-btn" onclick="showMilestoneTab('all','games')" style="font-size:12px;padding:5px 12px;">Games</button>
         </div>
         <div id="ms-all-bat"></div>
         <div id="ms-all-bowl"  style="display:none;"></div>
         <div id="ms-all-field" style="display:none;"></div>
+        <div id="ms-all-games" style="display:none;"></div>
       </div>
 
       <!-- HCL card -->
@@ -2035,10 +2079,12 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
           <button class="tab-btn active" id="ms-hcl-bat-btn"   onclick="showMilestoneTab('hcl','bat')"   style="font-size:12px;padding:5px 12px;">Batting</button>
           <button class="tab-btn"        id="ms-hcl-bowl-btn"  onclick="showMilestoneTab('hcl','bowl')"  style="font-size:12px;padding:5px 12px;">Bowling</button>
           <button class="tab-btn"        id="ms-hcl-field-btn" onclick="showMilestoneTab('hcl','field')" style="font-size:12px;padding:5px 12px;">Fielding</button>
+          <button class="tab-btn"        id="ms-hcl-games-btn" onclick="showMilestoneTab('hcl','games')" style="font-size:12px;padding:5px 12px;">Games</button>
         </div>
         <div id="ms-hcl-bat"></div>
         <div id="ms-hcl-bowl"  style="display:none;"></div>
         <div id="ms-hcl-field" style="display:none;"></div>
+        <div id="ms-hcl-games" style="display:none;"></div>
       </div>
 
     </div>
@@ -2083,6 +2129,36 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
             </tr></thead>
             <tbody id="tbody-rec-best-bowl"></tbody>
           </table>
+        </div>
+      </div>
+
+      <!-- Most runs / best batting average side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col-grid">
+        <div class="card">
+          <div class="card-title">Most Runs in a Season</div>
+          <p class="muted" style="margin-bottom:12px;font-size:12px;">Top 10 individual player-seasons by runs scored.</p>
+          <div id="rec-most-runs-season"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Best Batting Average in a Season</div>
+          <p class="muted" style="margin-bottom:12px;font-size:12px;">Top 10 individual player-seasons by batting average (min 5 innings).</p>
+          <div id="rec-best-bat-avg-season"></div>
+        </div>
+      </div>
+
+      <!-- Most wickets / best bowling average side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;" class="two-col-grid">
+        <div class="card">
+          <div class="card-title">Most Wickets in a Season</div>
+          <p class="muted" style="margin-bottom:12px;font-size:12px;">Top 10 individual player-seasons by wickets taken.</p>
+          <div id="rec-most-wkts-season"></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Best Bowling Average in a Season</div>
+          <p class="muted" style="margin-bottom:12px;font-size:12px;">Top 10 individual player-seasons by bowling average (min 10 wickets).</p>
+          <div id="rec-best-bowl-avg-season"></div>
         </div>
       </div>
 
@@ -5324,29 +5400,34 @@ function drawDismChart(data, svgId) {
     angle+=slice;
   });
 
-  // Total + label ABOVE legend (right of pie), not in centre
-  const legendX=cx+r+22, itemH=24;
-  const legendH = entries.length*itemH;
-  // Total sits above legend, centred on same x as legend block
-  const totalY = Math.max(26, cy - legendH/2 - 22);
-  parts += '<text x="'+(legendX+60)+'" y="'+(totalY)+'" text-anchor="middle"'
-    +' font-family="Playfair Display,Georgia" font-size="26" font-weight="900"'
+  // Total ABOVE legend, legend split into two columns (right of pie)
+  const legendX=cx+r+18, colW=148, itemH=20;
+  const rows = Math.ceil(entries.length/2);
+  const legendTop = 34;
+  const legendH = rows*itemH;
+  const totalY = 20;
+  const legendRight = W - 10;
+  const totalX = (legendX + legendRight) / 2;
+  parts += '<text x="'+(totalX)+'" y="'+(totalY)+'" text-anchor="middle"'
+    +' font-family="Playfair Display,Georgia" font-size="22" font-weight="900"'
     +' fill="#1c3a22" style="pointer-events:none;">'+total+' innings</text>';
 
-  // Legend right, below total
-  let ly=cy-legendH/2+4;
+  // Legend in two columns, below total
   ci=0;
-  entries.forEach(([k,v])=>{
+  entries.forEach(([k,v],idx)=>{
     const col=colMap[k];
     const isActive=activeFilter===k;
     const textCol=isActive?'#1c3a22':'#333';
     const fw=isActive?'700':'400';
-    parts += '<rect x="'+legendX+'" y="'+ly+'" width="12" height="12" fill="'+col+'" rx="3"'
+    const colIdx = idx<rows ? 0 : 1;
+    const rowIdx = idx<rows ? idx : idx-rows;
+    const ix = legendX + colIdx*colW;
+    const iy = legendTop + rowIdx*itemH;
+    parts += '<rect x="'+ix+'" y="'+iy+'" width="10" height="10" fill="'+col+'" rx="3"'
       +' style="cursor:pointer;" data-dism="'+k+'" onclick="onDismPieClick(this)" />'
-      +'<text x="'+(legendX+17)+'" y="'+(ly+10)+'" font-family="Georgia" font-size="12"'
+      +'<text x="'+(ix+15)+'" y="'+(iy+9)+'" font-family="Georgia" font-size="10"'
       +' fill="'+textCol+'" font-weight="'+fw+'" style="cursor:pointer;"'
       +' data-dism="'+k+'" onclick="onDismPieClick(this)">'+k+' ('+v+')</text>';
-    ly+=itemH;
   });
 
   svg.innerHTML=parts;
@@ -7924,8 +8005,10 @@ function _renderLeagueExpanded(idx, tbl) {
   const playedOpps = new Set(seasonMatches
     .filter(m=>!['Cancelled','Godshill Conceded','Opposition Conceded','Upcoming','Bye','Abandoned','No Result'].includes(m.result)&&db.batting.some(r=>r.match_id===m.id)&&!withdrawnSet.has((m.opponent||'').toLowerCase().trim()))
     .map(m=>(m.opponent||'').toLowerCase().trim()));
-  const cancelledVs  = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)));
-  const abandonedVs  = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Abandoned','No Result'].includes(m.result)));
+  const seasonYear = parseInt(tbl.season, 10);
+  const doubleFixtures = seasonYear >= 2025; // 2025 onwards: teams may have 2 fixtures recorded
+  const cancelledVs  = allTeams.filter(t=>(doubleFixtures||!playedOpps.has(t.toLowerCase().trim()))&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)));
+  const abandonedVs  = allTeams.filter(t=>(doubleFixtures||!playedOpps.has(t.toLowerCase().trim()))&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Abandoned','No Result'].includes(m.result)));
   const noMatchVs    = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&!seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()));
 
   // ── League leaders (batting, bowling, fielding) for this season's HCL matches ──
@@ -8470,9 +8553,18 @@ function _renderMarginTable(elId, rows, isWin) {
 
 // ── Milestones ────────────────────────────────────────────────────────────────
 function showMilestoneTab(card, which) {
-  ['bat','bowl','field'].forEach(t => {
+  ['bat','bowl','field','games'].forEach(t => {
     const panel = document.getElementById('ms-'+card+'-'+t);
     const btn   = document.getElementById('ms-'+card+'-'+t+'-btn');
+    if (panel) panel.style.display = t===which ? '' : 'none';
+    if (btn)   btn.classList.toggle('active', t===which);
+  });
+}
+
+function showRecentMsTab(which) {
+  ['all','hcl'].forEach(t => {
+    const panel = document.getElementById('rec-ms-passed-'+t);
+    const btn   = document.getElementById('rec-ms-passed-'+t+'-btn');
     if (panel) panel.style.display = t===which ? '' : 'none';
     if (btn)   btn.classList.toggle('active', t===which);
   });
@@ -8498,6 +8590,7 @@ function _renderMilestones(players, allBat, allBowl, allField) {
   const RUNS_STEP    = 500;
   const WKTS_STEP    = 50;
   const CATCHES_STEP = 50;
+  const GAMES_STEP   = 100;
 
   function _nextMilestone(val, step) { return Math.ceil((val + 1) / step) * step; }
 
@@ -8525,6 +8618,19 @@ function _renderMilestones(players, allBat, allBowl, allField) {
       const cnb    = batRows.filter(r=>r.how_out==='caught and bowled'&&!allField.some(f=>f.match_id===r.match_id&&f.player===name)).length;
       const total  = saved + cnb;
       const next   = _nextMilestone(total, CATCHES_STEP);
+      return { name, current:total, milestone:next, needed:next-total };
+    }).filter(r=>r.current>0).sort((a,b)=>a.needed-b.needed);
+  }
+
+  function _gameRows(mids) {
+    return activePlayers.map(name => {
+      const gameMids = new Set([
+        ...allBat.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+        ...allBowl.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+        ...allField.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+      ]);
+      const total = gameMids.size;
+      const next  = _nextMilestone(total, GAMES_STEP);
       return { name, current:total, milestone:next, needed:next-total };
     }).filter(r=>r.current>0).sort((a,b)=>a.needed-b.needed);
   }
@@ -8557,9 +8663,124 @@ function _renderMilestones(players, allBat, allBowl, allField) {
   _renderMilestoneTable('ms-all-bat',   _batRows(allMids),   'Runs');
   _renderMilestoneTable('ms-all-bowl',  _bowlRows(allMids),  'Wickets');
   _renderMilestoneTable('ms-all-field', _fieldRows(allMids), 'Catches');
+  _renderMilestoneTable('ms-all-games', _gameRows(allMids),  'Games');
   _renderMilestoneTable('ms-hcl-bat',   _batRows(hclMids),   'Runs');
   _renderMilestoneTable('ms-hcl-bowl',  _bowlRows(hclMids),  'Wickets');
   _renderMilestoneTable('ms-hcl-field', _fieldRows(hclMids), 'Catches');
+  _renderMilestoneTable('ms-hcl-games', _gameRows(hclMids),  'Games');
+
+  // ── Recently passed milestones this season (chronological crossing of each threshold) ──
+  function _recentlyPassedMilestones(mids) {
+    const results = [];
+
+    // Batting: every 500 runs
+    players.forEach(name => {
+      const rows = allBat.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM&&r.how_out!=='did not bat')
+        .map(r=>({ runs:r.runs, m:db.matches.find(m=>m.id===r.match_id) }))
+        .filter(r=>r.m)
+        .sort((a,b)=>a.m.date.localeCompare(b.m.date));
+      let cum = 0;
+      rows.forEach(r => {
+        const prevStep = Math.floor(cum/RUNS_STEP);
+        cum += r.runs;
+        const curStep = Math.floor(cum/RUNS_STEP);
+        for (let s=Math.max(prevStep+1,1); s<=curStep; s++) {
+          results.push({ date:r.m.date, player:name, milestone:(s*RUNS_STEP)+' runs', m:r.m });
+        }
+      });
+    });
+
+    // Bowling: every 50 wickets
+    players.forEach(name => {
+      const rows = allBowl.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM)
+        .map(r=>({ wickets:r.wickets, m:db.matches.find(m=>m.id===r.match_id) }))
+        .filter(r=>r.m)
+        .sort((a,b)=>a.m.date.localeCompare(b.m.date));
+      let cum = 0;
+      rows.forEach(r => {
+        const prevStep = Math.floor(cum/WKTS_STEP);
+        cum += r.wickets;
+        const curStep = Math.floor(cum/WKTS_STEP);
+        for (let s=Math.max(prevStep+1,1); s<=curStep; s++) {
+          results.push({ date:r.m.date, player:name, milestone:(s*WKTS_STEP)+' wickets', m:r.m });
+        }
+      });
+    });
+
+    // Fielding: every 50 catches (including caught & bowled)
+    players.forEach(name => {
+      const batRows   = allBat.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM);
+      const fieldRows = allField.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM);
+      const fieldMids = new Set([
+        ...fieldRows.map(r=>r.match_id),
+        ...batRows.filter(r=>r.how_out==='caught and bowled').map(r=>r.match_id),
+      ]);
+      const matchList = [...fieldMids].map(mid=>db.matches.find(m=>m.id===mid)).filter(Boolean)
+        .sort((a,b)=>a.date.localeCompare(b.date));
+      let cum = 0;
+      matchList.forEach(m => {
+        const saved = fieldRows.filter(r=>r.match_id===m.id).reduce((s,r)=>s+r.catches,0);
+        const cnb   = batRows.filter(r=>r.match_id===m.id&&r.how_out==='caught and bowled'
+                        &&!allField.some(f=>f.match_id===m.id&&f.player===name)).length;
+        const total = saved + cnb;
+        const prevStep = Math.floor(cum/CATCHES_STEP);
+        cum += total;
+        const curStep = Math.floor(cum/CATCHES_STEP);
+        for (let s=Math.max(prevStep+1,1); s<=curStep; s++) {
+          results.push({ date:m.date, player:name, milestone:(s*CATCHES_STEP)+' catches', m });
+        }
+      });
+    });
+
+    // Games played: every 100 games
+    players.forEach(name => {
+      const gameMids = new Set([
+        ...allBat.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+        ...allBowl.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+        ...allField.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+      ]);
+      const matchList = [...gameMids].map(mid=>db.matches.find(m=>m.id===mid)).filter(Boolean)
+        .sort((a,b)=>a.date.localeCompare(b.date));
+      matchList.forEach((m,i) => {
+        const gameNum = i+1;
+        if (gameNum>0 && gameNum%GAMES_STEP===0) {
+          results.push({ date:m.date, player:name, milestone:gameNum+' games', m });
+        }
+      });
+    });
+
+    // Cap to milestones reached during the current (most recent) season
+    const capped = results.filter(r => (r.date||'').startsWith(latestSeason));
+    capped.sort((a,b)=>b.date.localeCompare(a.date));
+    return capped;
+  }
+
+  function _renderRecentMilestones(elId, rows) {
+    const el = document.getElementById(elId);
+    if (!el) return;
+    if (!rows.length) { el.innerHTML = '<tr><td colspan="5" class="empty-state">No milestones reached yet this season.</td></tr>'; return; }
+    el.innerHTML = rows.slice(0,15).map((r,i) => {
+      const idx = _recScIdx++;
+      const hasSc = r.m && db.batting.some(b=>b.match_id===r.m.id);
+      const oppCell = hasSc
+        ? `<a class="sc-toggle-link" id="rec-sc-link-${idx}" onclick="toggleRecInlineSc(${idx},this)"
+             data-mid="${r.m.id}" style="cursor:pointer;">${esc(r.m.opponent||'–')}</a>`
+        : esc(r.m?.opponent||'–');
+      const scRow = `<tr id="rec-sc-row-${idx}" class="inline-sc-row" style="display:none;">
+        <td colspan="5"><div class="inline-sc-wrap" id="rec-sc-content-${idx}"></div></td>
+      </tr>`;
+      return `<tr class="${i%2===0?'row-odd':'row-even'}">
+        <td style="color:var(--ink-muted);font-size:12px;white-space:nowrap;">${r.date}</td>
+        <td>${_recPlayerLink(r.player)}</td>
+        <td style="font-weight:700;color:var(--green-mid);white-space:nowrap;">${esc(r.milestone)}</td>
+        <td>${oppCell}</td>
+        <td style="font-size:11px;">${esc(r.m?.format||'')}</td>
+      </tr>${scRow}`;
+    }).join('');
+  }
+
+  _renderRecentMilestones('tbody-rec-milestones-passed-all', _recentlyPassedMilestones(allMids));
+  _renderRecentMilestones('tbody-rec-milestones-passed-hcl', _recentlyPassedMilestones(hclMids));
 }
 
 // ── Helper: render a top-10 player table ──────────────────────────────────────
@@ -8797,6 +9018,41 @@ function renderRecords() {
   _recSeasonTable('rec-season-runs',  [...seasonRuns].reverse(),  'Runs');
   _recSeasonTable('rec-season-wkts',  [...seasonWkts].reverse(),  'Wickets');
   _recSeasonTable('rec-season-field', [...seasonField].reverse(), 'Dismissals');
+
+  // ── SEASON RECORDS: best individual player-season performances (top 10 style) ──
+  const seasonMostRuns = [], seasonBestBatAvg = [], seasonMostWkts = [], seasonBestBowlAvg = [];
+  seasons.forEach(season => {
+    const mids = new Set(filteredMatches.filter(m=>(m.date||'').startsWith(season)).map(m=>m.id));
+    players.forEach(name => {
+      const bat = db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM&&mids.has(r.match_id)&&r.how_out!=='did not bat');
+      if (bat.length) {
+        const runs = bat.reduce((s,r)=>s+r.runs,0);
+        const inns = bat.length;
+        const no   = bat.filter(r=>NO_OUT_MODES.includes(r.how_out)).length;
+        if (runs>0) seasonMostRuns.push({ name, season, val: runs });
+        if (inns>=5) {
+          const denom = inns-no;
+          const avg = denom>0 ? runs/denom : runs;
+          seasonBestBatAvg.push({ name, season, val: avg.toFixed(2) });
+        }
+      }
+      const bowl = db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM&&mids.has(r.match_id));
+      if (bowl.length) {
+        const wkts   = bowl.reduce((s,r)=>s+r.wickets,0);
+        const bRuns  = bowl.reduce((s,r)=>s+r.runs,0);
+        if (wkts>0) seasonMostWkts.push({ name, season, val: wkts });
+        if (wkts>=10) seasonBestBowlAvg.push({ name, season, val: (bRuns/wkts).toFixed(2) });
+      }
+    });
+  });
+  seasonMostRuns.sort((a,b)=>b.val-a.val);
+  seasonBestBatAvg.sort((a,b)=>parseFloat(b.val)-parseFloat(a.val));
+  seasonMostWkts.sort((a,b)=>b.val-a.val);
+  seasonBestBowlAvg.sort((a,b)=>parseFloat(a.val)-parseFloat(b.val));
+  _recSeasonTable('rec-most-runs-season',     seasonMostRuns.slice(0,10),    'Runs');
+  _recSeasonTable('rec-best-bat-avg-season',  seasonBestBatAvg.slice(0,10),  'Average');
+  _recSeasonTable('rec-most-wkts-season',     seasonMostWkts.slice(0,10),    'Wickets');
+  _recSeasonTable('rec-best-bowl-avg-season', seasonBestBowlAvg.slice(0,10), 'Average');
 
   // ── RECORD SCORES ─────────────────────────────────────────────────────────
   const getTeamScore = (m, team) => {

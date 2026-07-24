@@ -1,5 +1,5 @@
 {
-  "exported": "2026-07-22T16:59:52.947Z",
+  "exported": "2026-07-24T18:46:10.181Z",
   "version": 1,
   "publishedSeasons": [
     "2004",
@@ -223358,6 +223358,294 @@
           "Pen": "0",
           "Pts": "103",
           "AveC": "7.36"
+        }
+      ],
+      "notes": ""
+    },
+    {
+      "id": "M1784911362401980",
+      "season": "2002",
+      "division": "Hampshire Cricket League West Division 3",
+      "cols": [
+        {
+          "key": "Pos",
+          "label": "Pos"
+        },
+        {
+          "key": "Team",
+          "label": "Team"
+        },
+        {
+          "key": "P",
+          "label": "P"
+        },
+        {
+          "key": "W",
+          "label": "W"
+        },
+        {
+          "key": "L",
+          "label": "L"
+        },
+        {
+          "key": "T",
+          "label": "T"
+        },
+        {
+          "key": "BatP",
+          "label": "BatP"
+        },
+        {
+          "key": "BowlP",
+          "label": "BowlP"
+        },
+        {
+          "key": "Pen",
+          "label": "Pen"
+        },
+        {
+          "key": "Pts",
+          "label": "Pts"
+        },
+        {
+          "key": "AveC",
+          "label": "Avg"
+        }
+      ],
+      "rows": [
+        {
+          "Pos": "1",
+          "Team": "Sutton Scotney I",
+          "P": "14",
+          "W": "12",
+          "L": "2",
+          "T": "0",
+          "BatP": "81",
+          "BowlP": "58",
+          "Pen": "-",
+          "Pts": "259",
+          "AveC": "18.50"
+        },
+        {
+          "Pos": "2",
+          "Team": "Draper Tools I",
+          "P": "11",
+          "W": "10",
+          "L": "1",
+          "T": "0",
+          "BatP": "52",
+          "BowlP": "49",
+          "Pen": "-",
+          "Pts": "201",
+          "AveC": "18.27"
+        },
+        {
+          "Pos": "3",
+          "Team": "Alderholt I",
+          "P": "14",
+          "W": "9",
+          "L": "5",
+          "T": "0",
+          "BatP": "77",
+          "BowlP": "52",
+          "Pen": "-",
+          "Pts": "219",
+          "AveC": "15.64"
+        },
+        {
+          "Pos": "4",
+          "Team": "Wherwell I",
+          "P": "13",
+          "W": "8",
+          "L": "5",
+          "T": "0",
+          "BatP": "67",
+          "BowlP": "54",
+          "Pen": "-",
+          "Pts": "201",
+          "AveC": "15.46"
+        },
+        {
+          "Pos": "5",
+          "Team": "Lymington III",
+          "P": "14",
+          "W": "9",
+          "L": "5",
+          "T": "0",
+          "BatP": "69",
+          "BowlP": "55",
+          "Pen": "-",
+          "Pts": "214",
+          "AveC": "15.29"
+        },
+        {
+          "Pos": "6",
+          "Team": "BAT Sports III",
+          "P": "13",
+          "W": "8",
+          "L": "5",
+          "T": "0",
+          "BatP": "65",
+          "BowlP": "49",
+          "Pen": "-",
+          "Pts": "194",
+          "AveC": "14.92"
+        },
+        {
+          "Pos": "7",
+          "Team": "Linkenholt I",
+          "P": "13",
+          "W": "8",
+          "L": "5",
+          "T": "0",
+          "BatP": "67",
+          "BowlP": "45",
+          "Pen": "-",
+          "Pts": "192",
+          "AveC": "14.77"
+        },
+        {
+          "Pos": "8",
+          "Team": "Overton I",
+          "P": "13",
+          "W": "8",
+          "L": "5",
+          "T": "0",
+          "BatP": "64",
+          "BowlP": "41",
+          "Pen": "-",
+          "Pts": "185",
+          "AveC": "14.23"
+        },
+        {
+          "Pos": "9",
+          "Team": "Upper Clatford I",
+          "P": "11",
+          "W": "6",
+          "L": "5",
+          "T": "0",
+          "BatP": "52",
+          "BowlP": "38",
+          "Pen": "-",
+          "Pts": "150",
+          "AveC": "13.64"
+        },
+        {
+          "Pos": "10",
+          "Team": "Dinton I",
+          "P": "12",
+          "W": "6",
+          "L": "6",
+          "T": "0",
+          "BatP": "56",
+          "BowlP": "42",
+          "Pen": "-",
+          "Pts": "158",
+          "AveC": "13.17"
+        },
+        {
+          "Pos": "11",
+          "Team": "Ordnance Survey I",
+          "P": "12",
+          "W": "5",
+          "L": "7",
+          "T": "0",
+          "BatP": "53",
+          "BowlP": "49",
+          "Pen": "-",
+          "Pts": "152",
+          "AveC": "12.67"
+        },
+        {
+          "Pos": "12",
+          "Team": "Tadley Hobos I",
+          "P": "13",
+          "W": "5",
+          "L": "8",
+          "T": "0",
+          "BatP": "57",
+          "BowlP": "39",
+          "Pen": "-",
+          "Pts": "146",
+          "AveC": "11.23"
+        },
+        {
+          "Pos": "13",
+          "Team": "Godshill I",
+          "P": "15",
+          "W": "5",
+          "L": "10",
+          "T": "0",
+          "BatP": "70",
+          "BowlP": "42",
+          "Pen": "-",
+          "Pts": "162",
+          "AveC": "10.80"
+        },
+        {
+          "Pos": "14",
+          "Team": "Woodgreen I",
+          "P": "13",
+          "W": "4",
+          "L": "9",
+          "T": "0",
+          "BatP": "50",
+          "BowlP": "49",
+          "Pen": "-",
+          "Pts": "139",
+          "AveC": "10.69"
+        },
+        {
+          "Pos": "15",
+          "Team": "South Wilts IV",
+          "P": "10",
+          "W": "2",
+          "L": "8",
+          "T": "0",
+          "BatP": "48",
+          "BowlP": "24",
+          "Pen": "-",
+          "Pts": "92",
+          "AveC": "9.20"
+        },
+        {
+          "Pos": "16",
+          "Team": "Old Tauntonians & Romsey III",
+          "P": "15",
+          "W": "0",
+          "L": "15",
+          "T": "0",
+          "BatP": "56",
+          "BowlP": "36",
+          "Pen": "-",
+          "Pts": "92",
+          "AveC": "6.13"
+        },
+        {
+          "Pos": "17",
+          "Team": "Calmore Sports III",
+          "P": "12",
+          "W": "3",
+          "L": "9",
+          "T": "0",
+          "BatP": "43",
+          "BowlP": "29",
+          "Pen": "-",
+          "Pts": "62",
+          "AveC": "5.17"
+        },
+        {
+          "Pos": "-",
+          "Team": "Appleshaw II",
+          "P": "-",
+          "W": "-",
+          "L": "-",
+          "T": "-",
+          "BatP": "-",
+          "BowlP": "-",
+          "Pen": "-",
+          "Pts": "-",
+          "AveC": "-"
         }
       ],
       "notes": ""

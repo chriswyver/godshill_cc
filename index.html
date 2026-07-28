@@ -1161,6 +1161,26 @@
 
     <!-- Step 2: Rows -->
     <div id="lwiz-step2" style="display:none;">
+      <div class="card" style="margin-bottom:14px;background:var(--cream);">
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
+          <div>
+            <strong style="font-size:13px;">&#128203; Paste table data</strong>
+            <p class="muted" style="font-size:11px;margin:2px 0 0;">Paste rows from a spreadsheet, a markdown table, or typed text — columns separated by tabs, "|", or 2+ spaces, in the same order as the columns below. You can still edit any cell by hand afterwards.</p>
+          </div>
+          <button class="btn btn-secondary btn-sm" onclick="toggleLwizPaste()" id="lwiz-paste-toggle-btn">Paste Data</button>
+        </div>
+        <div id="lwiz-paste-box" style="display:none;margin-top:10px;">
+          <textarea id="lwiz-paste-text" rows="8" placeholder="1  Bashley (Rydal) II   17  15  2  &#8211;  96  74  320  18.82
+2  Easton and Martyr Worthy II  17  12  5  &#8211;  93  67  280  16.47
+..." style="width:100%;font-family:monospace;font-size:12px;"></textarea>
+          <div class="btn-row mt16" style="margin-top:8px;">
+            <button class="btn btn-primary btn-sm" onclick="lwizImportPaste(false)">&#8595; Import (replace all rows)</button>
+            <button class="btn btn-secondary btn-sm" onclick="lwizImportPaste(true)">&#8595; Import (append)</button>
+            <button class="btn btn-secondary btn-sm" onclick="toggleLwizPaste()">Cancel</button>
+          </div>
+          <div id="lwiz-paste-msg" style="font-size:12px;margin-top:6px;"></div>
+        </div>
+      </div>
       <div class="card">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
           <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;">
@@ -1890,11 +1910,6 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
           <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
-      </div>
-      <div>
-        <label>Opposition</label>
-        <input type="text" id="rec-filter-opp" oninput="renderRecords()" placeholder="All opponents" list="rec-opp-list" autocomplete="off" style="width:160px;margin-top:4px;">
-        <datalist id="rec-opp-list"></datalist>
       </div>
       <div style="align-self:flex-end;">
         <button class="btn btn-secondary btn-sm" onclick="clearRecFilters()">&#10005; Clear</button>
@@ -4904,6 +4919,7 @@ document.getElementById('m-date').value = new Date().toISOString().split('T')[0]
             db.batting  = db.batting.filter(r=>okMids.has(r.match_id));
             db.bowling  = db.bowling.filter(r=>okMids.has(r.match_id));
             db.fielding = db.fielding.filter(r=>okMids.has(r.match_id));
+            // League tables are always published in full, regardless of season selection
           }
           setReadOnlyMode(true);
         }
@@ -7481,7 +7497,10 @@ function showPublishGuide() {
     // Populate the season picker with saved selection
     const picker = document.getElementById('publish-seasons-picker');
     if (picker) {
-      const seasons = [...new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(s=>s.length===4))].sort();
+      const seasons = [...new Set([
+        ...db.matches.map(m=>(m.date||'').slice(0,4)).filter(s=>s.length===4),
+        ...(db.leagueTables||[]).map(t=>String(t.season||'')).filter(s=>s.length===4),
+      ])].sort();
       const saved = JSON.parse(localStorage.getItem('publishedSeasons')||'[]');
       picker.innerHTML = seasons.map(s => {
         const checked = saved.includes(s) ? 'checked' : '';
@@ -7746,6 +7765,72 @@ function leagueUpdateRow(idx, key, value) {
   _lwizRows[idx][key] = value;
 }
 
+function toggleLwizPaste() {
+  const box = document.getElementById('lwiz-paste-box');
+  if (!box) return;
+  box.style.display = box.style.display === 'none' ? '' : 'none';
+  const msg = document.getElementById('lwiz-paste-msg');
+  if (msg) msg.textContent = '';
+}
+
+function _lwizSplitLine(line) {
+  let t = line.trim();
+  if (!t) return null;
+  // Markdown table row, e.g. "| 1 | Team | 17 | ... |"
+  if (t.includes('|')) {
+    const cells = t.split('|').map(c=>c.trim()).filter((c,i,arr)=> !(c===''&&(i===0||i===arr.length-1)));
+    // Skip markdown separator rows like |---|---|
+    if (cells.every(c=>/^:?-{2,}:?$/.test(c))) return null;
+    if (cells.length) return cells;
+  }
+  // Tab-separated (typical spreadsheet paste)
+  if (t.includes('\t')) {
+    return t.split('\t').map(c=>c.trim());
+  }
+  // 2+ spaces = column boundary (keeps single spaces inside team names)
+  if (/\s{2,}/.test(t)) {
+    return t.split(/\s{2,}/).map(c=>c.trim());
+  }
+  // Fallback: single spaces
+  return t.split(/\s+/).map(c=>c.trim());
+}
+
+function lwizImportPaste(append) {
+  const ta = document.getElementById('lwiz-paste-text');
+  const msg = document.getElementById('lwiz-paste-msg');
+  if (!ta) return;
+  const lines = ta.value.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  if (!lines.length) { if (msg) { msg.style.color = 'var(--red)'; msg.textContent = 'Paste some rows first.'; } return; }
+
+  const parsedLines = lines.map(_lwizSplitLine).filter(Boolean);
+
+  // Skip a leading header row (e.g. "Pos Team P W L T Bat Bowl Pts Aver") — has no digits at all
+  if (parsedLines.length && !/\d/.test(parsedLines[0].join(' '))) {
+    parsedLines.shift();
+  }
+
+  if (!parsedLines.length) { if (msg) { msg.style.color = 'var(--red)'; msg.textContent = 'Could not find any data rows in that paste.'; } return; }
+
+  const newRows = parsedLines.map(cells => {
+    const row = {};
+    _lwizCols.forEach((c, i) => { row[c.key] = cells[i] !== undefined ? cells[i] : ''; });
+    return row;
+  });
+
+  const mismatched = parsedLines.filter(cells => cells.length !== _lwizCols.length).length;
+
+  _lwizRows = append ? [..._lwizRows, ...newRows] : newRows;
+  renderLwizRows();
+
+  if (msg) {
+    msg.style.color = 'var(--green-mid)';
+    msg.textContent = `\u2713 Imported ${newRows.length} row${newRows.length!==1?'s':''}.` +
+      (mismatched ? ` ${mismatched} row${mismatched!==1?'s':''} had a different number of columns than expected (${_lwizCols.length}) — check them below.` : '') +
+      ' You can edit any cell directly in the table.';
+  }
+  document.getElementById('lwiz-paste-box').style.display = 'none';
+}
+
 function renderLwizRows() {
   const thead = document.getElementById('lwiz-thead');
   const tbody = document.getElementById('lwiz-rows');
@@ -7871,7 +7956,13 @@ function renderLeagueTables() {
       }
       return '–';
     };
-    const teamCount = tbl.rows.filter(r=>cols.some(c=>String(r[c.key]||'').trim()!=='')).length;
+    const posCol = cols.find(c=>['pos','position'].includes(c.key.toLowerCase())||['pos','position'].includes(c.label.toLowerCase()));
+    const teamCount = tbl.rows.filter(r=>{
+      const hasData = cols.some(c=>String(r[c.key]||'').trim()!=='');
+      if (!hasData) return false;
+      if (posCol && String(r[posCol.key]||'').trim()==='-') return false; // exclude resigned/withdrawn teams
+      return true;
+    }).length;
     return {
       tbl, godRow,
       teamCount,
@@ -7923,6 +8014,21 @@ function renderLeagueTables() {
 
     return `<tr class="no-hover" style="font-weight:600;">${dataRow}</tr>${expandRow}`;
   }).join('') || '<tr><td colspan="12" class="empty-state">No tables yet.</td></tr>';
+
+  // Totals row (P/W/L/T) across all seasons with a Godshill row
+  const godRows = summaryRows.filter(r=>r.godRow);
+  if (godRows.length) {
+    const sumNum = key => godRows.reduce((s,r)=>s+(parseInt(r[key],10)||0),0);
+    const totalsRow = `<tr class="no-hover" style="font-weight:700;background:var(--green-pale);border-top:2px solid var(--green-mid);">
+      <td colspan="3" style="text-align:right;">Total</td>
+      <td class="num">${sumNum('p')}</td>
+      <td class="num">${sumNum('w')}</td>
+      <td class="num">${sumNum('l')}</td>
+      <td class="num">${sumNum('t')}</td>
+      <td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td>
+    </tr>`;
+    document.getElementById('tbody-league-summary').innerHTML += totalsRow;
+  }
 
   // Edit/delete buttons for each table rendered inside expanded content
   // (handled in toggleLeagueTableInline)
@@ -8873,7 +8979,7 @@ function _recSeasonGo(elId, dir) {
 
 // ── Main render ───────────────────────────────────────────────────────────────
 function clearRecFilters() {
-  ['rec-filter-season','rec-filter-type','rec-filter-from','rec-filter-to','rec-filter-opp'].forEach(id=>{
+  ['rec-filter-season','rec-filter-type','rec-filter-from','rec-filter-to'].forEach(id=>{
     const el = document.getElementById(id);
     if (el) el.value = '';
   });
@@ -8886,13 +8992,6 @@ function renderRecords() {
   Object.keys(_recSeasonPages).forEach(k => { _recSeasonPages[k] = 1; });
 
   const seasons = [...new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(Boolean))].sort();
-
-  // Populate opposition datalist
-  const recOppList = document.getElementById('rec-opp-list');
-  if (recOppList) {
-    const opps = [...new Set(db.matches.map(m=>m.opponent).filter(Boolean))].sort();
-    recOppList.innerHTML = opps.map(o=>`<option value="${esc(o)}">`).join('');
-  }
 
   // Populate season selector
   const recSelEl = document.getElementById('rec-filter-season');
@@ -8908,14 +9007,12 @@ function renderRecords() {
   const recType   = document.getElementById('rec-filter-type')?.value   || '';
   const recFrom   = document.getElementById('rec-filter-from')?.value   || '';
   const recTo     = document.getElementById('rec-filter-to')?.value     || '';
-  const recOpp    = (document.getElementById('rec-filter-opp')?.value   || '').toLowerCase().trim();
   const filteredMatches = db.matches.filter(m =>
     m.result !== 'Upcoming' && m.result !== 'Bye' &&
     (!recSeason || (m.date||'').startsWith(recSeason)) &&
     (!recFrom   || m.date >= recFrom) &&
     (!recTo     || m.date <= recTo) &&
-    (!recType   || matchesTypeFilter(m.format, recType)) &&
-    (!recOpp    || (m.opponent||'').toLowerCase().includes(recOpp))
+    (!recType   || matchesTypeFilter(m.format, recType))
   );
   const filteredMids = new Set(filteredMatches.map(m=>m.id));
 

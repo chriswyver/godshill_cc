@@ -652,6 +652,9 @@
             <option>Tie</option><option>No Result</option><option>Abandoned</option><option>Cancelled</option><option>Godshill Conceded</option><option>Opposition Conceded</option><option>Bye</option>
           </select>
         </div>
+        <div><label>Result Text Override <span style="font-size:11px;color:var(--ink-muted);">(optional)</span></label>
+          <input type="text" id="m-result-override" placeholder="e.g. Godshill won on faster scoring rate">
+        </div>
         <div><label>Batted First</label>
           <select id="m-bat-first"><option id="m-bf-us">Godshill</option><option>Opponent</option></select>
         </div>
@@ -2392,6 +2395,7 @@ function saveCancelledMatch() {
     format:    document.getElementById('m-format').value,
     overs:     0,
     result:    document.getElementById('m-result').value || 'Cancelled',
+    result_override: (document.getElementById('m-result-override')?.value || '').trim(),
     toss:      '', choice: '', bat_first: '',
     notes:     document.getElementById('m-notes').value.trim(),
     cancelled: true,
@@ -2871,6 +2875,7 @@ function saveScorecard() {
     format:     document.getElementById('m-format').value,
     overs:      parseInt(document.getElementById('m-overs').value)||0,
     result:     document.getElementById('m-result').value,
+    result_override: (document.getElementById('m-result-override')?.value || '').trim(),
     toss:       document.getElementById('m-toss').value,
     choice:     document.getElementById('m-choice').value,
     bat_first:  batFirst,
@@ -2988,6 +2993,7 @@ function resetWizard() {
   document.getElementById('m-opp').value    = '';
   document.getElementById('m-venue').value  = '';
   document.getElementById('m-notes').value  = '';
+  const _roR = document.getElementById('m-result-override'); if(_roR) _roR.value = '';
   const _sqR = document.getElementById('m-squad-size'); if(_sqR) _sqR.value='11';
   wiz.squadSize = 11;
   const _rainCb = document.getElementById('m-rain'); if(_rainCb) _rainCb.checked = false;
@@ -3026,7 +3032,7 @@ function currentSeason() {
 function populateSeasonDropdowns() {
   const years = getSeasons();
   const opts = '<option value="">All Time</option>' + years.map(y=>`<option value="${y}">${y}</option>`).join('');
-  ['profile-filter-season','stats-filter-season','match-filter-season'].forEach(id=>{
+  ['stats-filter-season','match-filter-season'].forEach(id=>{
     const el = document.getElementById(id);
     if (!el) return;
     const cur = el.value;
@@ -3868,6 +3874,8 @@ function toggleMatchInlineSc(idx, mid) {
 
 
 function calcResultString(match, allBat) {
+  // Manual override always takes priority over the auto-computed text
+  if (match && match.result_override && match.result_override.trim()) return match.result_override.trim();
   // Compute a "won by X runs / X wickets" string from match data
   if (!match || !allBat.length) return match ? match.result : '';
   const result = match.result;
@@ -3941,6 +3949,10 @@ function resultCell(m, allBat) {
   if (m.result === 'Upcoming') {
     return '<span style="color:var(--ink-muted);font-size:12px;font-style:italic;">Upcoming</span>';
   }
+  if (m.result_override && m.result_override.trim()) {
+    const rc = resultColour(m.result);
+    return '<span style="color:'+rc+';font-weight:600;font-size:12px;">'+esc(m.result_override.trim())+'</span>';
+  }
   const cancelResult = ['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result);
   const isCancelled  = cancelResult || (m.cancelled && !['Won','Lost','Draw','Tie','Abandoned','No Result'].includes(m.result));
   if (isCancelled) {
@@ -3995,6 +4007,7 @@ function editMatch(mid) {
   document.getElementById('m-venue').value      = m.venue      || '';
   document.getElementById('m-format').value     = m.format     || '';
   document.getElementById('m-result').value     = m.result     || 'Won';
+  const _roEl = document.getElementById('m-result-override'); if(_roEl) _roEl.value = m.result_override || '';
   document.getElementById('m-bat-first').value  = m.bat_first  || OUR_TEAM;
   document.getElementById('m-notes').value      = m.notes      || '';
   const _sqEl = document.getElementById('m-squad-size'); if(_sqEl) _sqEl.value=String(m.squad_size||11);
@@ -4799,9 +4812,12 @@ function editPlayerName() {
   // Update register
   const p = db.players.find(p=>p.name===oldName);
   if (p) p.name = newName;
-  // Update all scorecard data
-  const rename = arr => arr.forEach(r=>{ if(r.player===oldName) r.player=newName; });
+  // Update all scorecard data — only Godshill's own rows should be affected
+  const rename = arr => arr.forEach(r=>{ if(r.player===oldName && r.team===OUR_TEAM) r.player=newName; });
   const renameBowlerFielder = arr => arr.forEach(r=>{
+    // bowler/fielder on a batting row refer to whoever dismissed the batter —
+    // only rename these when the row belongs to the OPPOSITION (i.e. Godshill was bowling/fielding)
+    if (r.team === OUR_TEAM) return;
     if(r.bowler===oldName)  r.bowler=newName;
     if(r.fielder===oldName) r.fielder=newName;
   });
@@ -4821,9 +4837,10 @@ function mergePlayers() {
   if (!keepName || !removeName) { msg.innerHTML='<div class="alert alert-warn">Select both players.</div>'; return; }
   if (keepName === removeName)  { msg.innerHTML='<div class="alert alert-warn">Select two different players.</div>'; return; }
   if (!confirm(`Merge all data from "${removeName}" into "${keepName}"? "${removeName}" will be removed.`)) return;
-  // Remap all data from removeName to keepName
-  const remap = arr => arr.forEach(r=>{ if(r.player===removeName) r.player=keepName; });
+  // Remap all data from removeName to keepName — only Godshill's own rows should be affected
+  const remap = arr => arr.forEach(r=>{ if(r.player===removeName && r.team===OUR_TEAM) r.player=keepName; });
   const remapBF = arr => arr.forEach(r=>{
+    if (r.team === OUR_TEAM) return;
     if(r.bowler===removeName)  r.bowler=keepName;
     if(r.fielder===removeName) r.fielder=keepName;
   });
@@ -4976,6 +4993,14 @@ function openPlayerProfile(idx, fromPopState) {
     const m = db.matches.find(m=>m.id===mid);
     return { mid, date: m ? m.date : '0000-00-00' };
   }).sort((a,b)=>a.date.localeCompare(b.date));
+
+  // Season dropdown: only years this player actually played in
+  const playerSeasons = [...new Set(profileMatchDates.map(d=>(d.date||'').slice(0,4)).filter(Boolean))].sort();
+  const seasonSel = document.getElementById('profile-filter-season');
+  if (seasonSel) {
+    seasonSel.innerHTML = '<option value="">All Time</option>' +
+      playerSeasons.map(y=>`<option value="${y}">${y}</option>`).join('');
+  }
 
   // Set slider range
   const n = profileMatchDates.length;

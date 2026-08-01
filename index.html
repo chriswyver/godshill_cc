@@ -3557,7 +3557,15 @@ function renderHomeTopBowl(filter) {
     avg:  s.wkts>0         ? (s.runs/s.wkts).toFixed(1)   : '-',
     sr:   s.wkts>0         ? (s.balls/s.wkts).toFixed(1)  : '-',
     econ: s.balls>0        ? (s.runs/(s.balls/6)).toFixed(2) : '-',
-  })).sort((a,b)=>b.wkts-a.wkts).slice(0,5);
+  })).sort((a,b)=>{
+    if (b.wkts !== a.wkts) return b.wkts - a.wkts;
+    const avgA = a.avg==='-' ? Infinity : parseFloat(a.avg);
+    const avgB = b.avg==='-' ? Infinity : parseFloat(b.avg);
+    if (avgA !== avgB) return avgA - avgB;
+    const srA = a.sr==='-' ? Infinity : parseFloat(a.sr);
+    const srB = b.sr==='-' ? Infinity : parseFloat(b.sr);
+    return srA - srB;
+  }).slice(0,5);
   document.getElementById('tbody-top-bowl').innerHTML = topBowl.length
     ? topBowl.map(r=>`<tr><td>${playerLink(r.p)}</td><td class="num">${r.ov}</td><td class="num">${r.wkts}</td><td class="num">${r.avg}</td><td class="num">${r.sr}</td><td class="num">${r.econ}</td></tr>`).join('')
     : '<tr><td colspan="6" class="muted" style="padding:8px;">No data</td></tr>';

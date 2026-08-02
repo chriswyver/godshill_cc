@@ -1,5 +1,5 @@
 {
-  "exported": "2026-08-01T21:52:43.730Z",
+  "exported": "2026-08-02T09:28:14.910Z",
   "version": 1,
   "publishedSeasons": [
     "2003",
@@ -773,11 +773,6 @@
       "role": "Unknown"
     },
     {
-      "id": "P17815358119080.43545009768959475",
-      "name": "Sean Biggins",
-      "role": "Unknown"
-    },
-    {
       "id": "P17815368409200.3322502579585772",
       "name": "Andy Lowe",
       "role": "Unknown"
@@ -1383,13 +1378,8 @@
       "role": "Unknown"
     },
     {
-      "id": "P17852715898120.665833890343571",
-      "name": "G Lewis",
-      "role": "Unknown"
-    },
-    {
       "id": "P17854184045900.44804504671124123",
-      "name": "Charlie Rodgers",
+      "name": "Charlie Rogers",
       "role": "Unknown"
     },
     {
@@ -1404,7 +1394,7 @@
     },
     {
       "id": "P17854184045900.1042203042796056",
-      "name": "Ollie Rodgers",
+      "name": "Ollie Rogers",
       "role": "Unknown"
     },
     {
@@ -54645,7 +54635,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 8,
-      "player": "Sean Biggins",
+      "player": "Shaun Biggins",
       "how_out": "bowled",
       "bowler": "T Marlow",
       "fielder": "",
@@ -139763,7 +139753,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 11,
-      "player": "G Lewis",
+      "player": "Graham Lewis",
       "how_out": "not out",
       "bowler": "",
       "fielder": "",
@@ -140425,7 +140415,7 @@
       "position": 5,
       "player": "J Goodridge",
       "how_out": "bowled",
-      "bowler": "G Lewis",
+      "bowler": "Graham Lewis",
       "fielder": "",
       "runs": 5
     },
@@ -140599,7 +140589,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 10,
-      "player": "G Lewis",
+      "player": "Graham Lewis",
       "how_out": "not out",
       "bowler": "",
       "fielder": "",
@@ -142372,7 +142362,7 @@
       "position": 6,
       "player": "A Syrett",
       "how_out": "bowled",
-      "bowler": "Ollie Rodgers",
+      "bowler": "Ollie Rogers",
       "fielder": "",
       "runs": 2
     },
@@ -142469,7 +142459,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 4,
-      "player": "Charlie Rodgers",
+      "player": "Charlie Rogers",
       "how_out": "caught",
       "bowler": "A Syrett",
       "fielder": "M Hiscock",
@@ -142535,7 +142525,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 10,
-      "player": "Ollie Rodgers",
+      "player": "Ollie Rogers",
       "how_out": "did not bat",
       "bowler": "",
       "fielder": "",
@@ -142636,7 +142626,7 @@
       "position": 8,
       "player": "Andrew Holding",
       "how_out": "caught",
-      "bowler": "Charlie Rodgers",
+      "bowler": "Charlie Rogers",
       "fielder": "Shaun Marlow",
       "runs": 1
     },
@@ -142733,7 +142723,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 6,
-      "player": "Charlie Rodgers",
+      "player": "Charlie Rogers",
       "how_out": "did not bat",
       "bowler": "",
       "fielder": "",
@@ -162270,7 +162260,7 @@
       "match_id": "M1781536161947564",
       "innings": 1,
       "team": "Godshill",
-      "player": "Sean Biggins",
+      "player": "Shaun Biggins",
       "bowl_order": 6,
       "overs": 3,
       "maidens": 0,
@@ -209405,7 +209395,7 @@
       "match_id": "M1785400098053350",
       "innings": 1,
       "team": "Godshill",
-      "player": "G Lewis",
+      "player": "Graham Lewis",
       "bowl_order": 4,
       "overs": 7,
       "maidens": 1,
@@ -210373,7 +210363,7 @@
       "match_id": "M1782385189466114",
       "innings": 1,
       "team": "Godshill",
-      "player": "Ollie Rodgers",
+      "player": "Ollie Rogers",
       "bowl_order": 1,
       "overs": 7,
       "maidens": 1,
@@ -210439,7 +210429,7 @@
       "match_id": "M1782385189466114",
       "innings": 1,
       "team": "Godshill",
-      "player": "Charlie Rodgers",
+      "player": "Charlie Rogers",
       "bowl_order": 7,
       "overs": 3,
       "maidens": 0,
@@ -210571,7 +210561,7 @@
       "match_id": "M1782387286209136",
       "innings": 1,
       "team": "Godshill",
-      "player": "Charlie Rodgers",
+      "player": "Charlie Rogers",
       "bowl_order": 6,
       "overs": 4,
       "maidens": 0,
@@ -237050,71 +237040,58 @@
         {
           "Pos": "2",
           "Team": "Ampfield & North Baddesley II",
-          "P": "10",
+          "P": "11",
           "W": "8",
-          "L": "2",
+          "L": "3",
           "T": "0",
-          "BatP": "61",
+          "BatP": "65",
           "BowlP": "43",
           "Pen": "0",
-          "Pts": "200",
-          "col_1781451415407": "20.00"
+          "Pts": "204",
+          "col_1781451415407": "18.55"
         },
         {
           "Pos": "3",
           "Team": "Breamore Dravidian III",
-          "P": "10",
-          "W": "7",
+          "P": "11",
+          "W": "8",
           "L": "3",
           "T": "0",
-          "BatP": "53",
-          "BowlP": "38",
+          "BatP": "60",
+          "BowlP": "42",
           "Pen": "0",
-          "Pts": "175",
-          "col_1781451415407": "17.50"
+          "Pts": "198",
+          "col_1781451415407": "18.00"
         },
         {
           "Pos": "4",
-          "Team": "Bramshaw III",
-          "P": "10",
-          "W": "5",
+          "Team": "Godshill I",
+          "P": "11",
+          "W": "6",
           "L": "5",
           "T": "0",
-          "BatP": "58",
-          "BowlP": "38",
+          "BatP": "70",
+          "BowlP": "35",
           "Pen": "0",
-          "Pts": "156",
-          "col_1781451415407": "15.60"
+          "Pts": "177",
+          "col_1781451415407": "16.09"
         },
         {
           "Pos": "5",
-          "Team": "Wellow & Plaitford Knights II",
-          "P": "10",
+          "Team": "Bramshaw III",
+          "P": "11",
           "W": "5",
-          "L": "5",
+          "L": "6",
           "T": "0",
-          "BatP": "61",
-          "BowlP": "34",
+          "BatP": "63",
+          "BowlP": "39",
           "Pen": "0",
-          "Pts": "155",
-          "col_1781451415407": "15.50"
+          "Pts": "162",
+          "col_1781451415407": "14.73"
         },
         {
           "Pos": "6",
-          "Team": "Godshill I",
-          "P": "10",
-          "W": "5",
-          "L": "5",
-          "T": "0",
-          "BatP": "63",
-          "BowlP": "31",
-          "Pen": "0",
-          "Pts": "154",
-          "col_1781451415407": "15.40"
-        },
-        {
-          "Pos": "7",
-          "Team": "Whiteparish I",
+          "Team": "Whiteparish III",
           "P": "10",
           "W": "5",
           "L": "5",
@@ -237126,43 +237103,56 @@
           "col_1781451415407": "14.50"
         },
         {
-          "Pos": "8",
+          "Pos": "7",
           "Team": "Redlynch & Hale III",
-          "P": "10",
+          "P": "11",
           "W": "4",
-          "L": "6",
+          "L": "7",
           "T": "0",
-          "BatP": "50",
-          "BowlP": "31",
+          "BatP": "56",
+          "BowlP": "35",
           "Pen": "0",
-          "Pts": "129",
-          "col_1781451415407": "12.90"
+          "Pts": "139",
+          "col_1781451415407": "12.64"
+        },
+        {
+          "Pos": "8",
+          "Team": "Wellow & Plaitford Knights II",
+          "P": "10",
+          "W": "5",
+          "L": "5",
+          "T": "0",
+          "BatP": "61",
+          "BowlP": "34",
+          "Pen": "-20",
+          "Pts": "135",
+          "col_1781451415407": "12.27"
         },
         {
           "Pos": "9",
+          "Team": "Michelmersh & Timsbury II",
+          "P": "11",
+          "W": "2",
+          "L": "9",
+          "T": "0",
+          "BatP": "41",
+          "BowlP": "24",
+          "Pen": "0",
+          "Pts": "89",
+          "col_1781451415407": "8.09"
+        },
+        {
+          "Pos": "10",
           "Team": "Old Tauntonians & Romsey IV",
           "P": "10",
           "W": "0",
           "L": "10",
           "T": "0",
-          "BatP": "79",
+          "BatP": "49",
           "BowlP": "28",
-          "Pen": "0",
-          "Pts": "77",
-          "col_1781451415407": "7.70"
-        },
-        {
-          "Pos": "10",
-          "Team": "Michelmersh & Timsbury II",
-          "P": "10",
-          "W": "1",
-          "L": "9",
-          "T": "0",
-          "BatP": "34",
-          "BowlP": "19",
-          "Pen": "0",
-          "Pts": "65",
-          "col_1781451415407": "6.50"
+          "Pen": "-20",
+          "Pts": "57",
+          "col_1781451415407": "5.18"
         }
       ],
       "notes": ""

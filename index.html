@@ -8517,6 +8517,8 @@ function _emptyFilteredCols(rows, cols) {
 // Apply a saved manual column order (if any) — works for everyone, including
 // read-only visitors, since it's just a local display preference.
 function _applyColOrder(storageKey, cols) {
+  const isRO = typeof _isReadOnly !== 'undefined' && _isReadOnly;
+  if (isRO) return cols; // read-only view always shows the canonical column order
   let order;
   try { order = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch(e) { order = null; }
   if (!Array.isArray(order)) return cols;
@@ -8527,6 +8529,8 @@ function _applyColOrder(storageKey, cols) {
 }
 
 function _colReorderArrows(storageKey, cols, colKey, ci, onMoved) {
+  const isRO = typeof _isReadOnly !== 'undefined' && _isReadOnly;
+  if (isRO) return { leftBtn: '', rightBtn: '' };
   const canLeft  = ci > 0;
   const canRight = ci < cols.length - 1;
   const move = dir => {

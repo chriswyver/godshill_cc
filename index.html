@@ -578,7 +578,7 @@
         <label style="font-size:11px;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;">Type</label>
         <div style="display:flex;gap:4px;margin-top:4px;">
           <button id="home-type-all-btn" class="btn btn-primary  btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setHomeGlobalType('all')">All</button>
-          <button id="home-type-hcl-btn" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setHomeGlobalType('hcl')">HCL</button>
+          <button id="home-type-hcl-btn" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setHomeGlobalType('saturday')">Saturday League</button>
         </div>
       </div>
     </div>
@@ -804,7 +804,7 @@
       <p class="muted" style="font-size:11px;margin-bottom:12px;">Click a bar to filter the match list to that season. Click again to clear.</p>
       <div id="matches-year-chart" style="overflow-x:auto;"></div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px;">
-        <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#2e5c38;display:inline-block;"></span>HCL</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#2e5c38;display:inline-block;"></span>Saturday League</span>
         <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#c8922a;display:inline-block;"></span>NVKO</span>
         <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#5a9a6a;display:inline-block;"></span>Friendly</span>
       </div>
@@ -848,14 +848,17 @@
         <label>Type</label>
         <select id="match-filter-type" onchange="renderMatches();_reRenderH2HIfActive();" style="width:100%;">
           <option value="">All Matches</option>
-          <option value="hcl">Hampshire Cricket League</option>
+          <option value="hcl_only">Hampshire Cricket League</option>
+          <option value="sdcl_only">Salisbury &amp; District Cricket League</option>
+          <option value="saturday">Saturday League (Combined)</option>
+          <option value="midweek">Midweek League</option>
           <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
       </div>
       <div>
         <label>Opposition</label>
-        <input type="text" id="match-filter-opp" oninput="renderMatches();_reRenderH2HIfActive();" placeholder="Any opponent..." style="width:100%;">
+        <input type="text" id="match-filter-opp" oninput="_matchExactOpponent=null;renderMatches();_reRenderH2HIfActive();" placeholder="Any opponent..." style="width:100%;">
       </div>
       <div>
         <label>Venue</label>
@@ -1083,7 +1086,10 @@
           <label style="font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:var(--ink-muted);">Type</label>
           <select id="h2h-type-filter" onchange="renderH2H()" style="width:100%;margin-top:4px;">
             <option value="">All Matches</option>
-            <option value="hcl">Hampshire Cricket League</option>
+            <option value="hcl_only">Hampshire Cricket League</option>
+          <option value="sdcl_only">Salisbury &amp; District Cricket League</option>
+          <option value="saturday">Saturday League (Combined)</option>
+          <option value="midweek">Midweek League</option>
             <option value="friendly">Friendlies Only</option>
           </select>
         </div>
@@ -1116,7 +1122,7 @@
 ══════════════════════════════════════════════════════════ -->
 <div id="page-league" class="page">
   <h2>League Tables</h2>
-  <p class="muted" style="margin-bottom:20px;">Hampshire Cricket League standings.</p>
+  <p class="muted" style="margin-bottom:20px;">Godshill's league standings, by season.</p>
 
   <!-- VIEW mode -->
   <div id="league-view">
@@ -1126,18 +1132,14 @@
       </select>
       <button class="btn btn-primary btn-sm edit-only" onclick="leagueWizardStart()">&#43; New Table</button>
     </div>
+    <div id="league-division-tabs" style="display:flex;gap:0;flex-wrap:wrap;border-bottom:2px solid var(--green-pale);margin-bottom:16px;"></div>
     <!-- Season-by-season summary with inline expandable tables -->
     <div id="league-summary-card" class="card" style="display:none;margin-bottom:20px;">
       <div class="card-title">&#127942; Godshill — Season by Season</div>
       <p class="muted" style="margin-bottom:12px;font-size:12px;">Click a year to expand the full league table and results. Click an opponent in the results to expand the scorecard.</p>
       <div class="table-wrap">
         <table class="data-table" style="font-size:12px;" id="league-summary-table">
-          <thead><tr>
-            <th>Year</th><th class="num">Pos</th><th>Division</th>
-            <th class="num">P</th><th class="num">W</th><th class="num">L</th>
-            <th class="num">T</th><th class="num">BatP</th><th class="num">BowlP</th>
-            <th class="num">Pen</th><th class="num">Pts</th><th class="num">Avg</th>
-          </tr></thead>
+          <thead id="league-summary-thead"></thead>
           <tbody id="tbody-league-summary"></tbody>
         </table>
       </div>
@@ -1172,6 +1174,11 @@
           <button id="lwiz-mode-summary" class="min-pill" onclick="setLeagueWizMode('summary')" style="font-size:13px;padding:5px 14px;">Godshill Only</button>
         </div>
         <div class="form-grid cols-2" style="margin-bottom:16px;">
+          <div>
+            <label>League <span style="font-size:11px;color:var(--ink-muted);font-weight:400;">(optional — auto-detected from Division if blank. Use the specific league, e.g. "Hampshire Cricket League" — "Saturday League" is an automatic combined view, not something to set here.)</span></label>
+            <input type="text" id="lwiz-league" list="lwiz-league-list" placeholder="e.g. Hampshire Cricket League" style="width:100%;">
+            <datalist id="lwiz-league-list"></datalist>
+          </div>
           <div>
             <label>Season <span style="color:var(--red);">*</span></label>
             <input type="text" id="lwiz-season" placeholder="e.g. 2026" style="width:100%;">
@@ -1300,7 +1307,10 @@
         <label>Type</label>
         <select id="filter-type" onchange="renderStats()" style="width:100%;">
           <option value="">All Matches</option>
-          <option value="hcl">Hampshire Cricket League</option>
+          <option value="hcl_only">Hampshire Cricket League</option>
+          <option value="sdcl_only">Salisbury &amp; District Cricket League</option>
+          <option value="saturday">Saturday League (Combined)</option>
+          <option value="midweek">Midweek League</option>
           <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
@@ -1521,7 +1531,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
     <span style="width:1px;height:20px;background:var(--green-pale);margin:0 4px;"></span>
     <span style="font-size:12px;color:var(--ink-muted);margin-right:2px;">Type:</span>
     <button id="preg-type-all-btn" class="btn btn-primary  btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setPlayerRegType('all')">All</button>
-    <button id="preg-type-hcl-btn" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setPlayerRegType('hcl')">HCL</button>
+    <button id="preg-type-hcl-btn" class="btn btn-secondary btn-sm" style="padding:3px 10px;font-size:12px;" onclick="setPlayerRegType('saturday')">Saturday League</button>
   </div>
   <div id="player-del-msg" class="mb16"></div>
 
@@ -1665,7 +1675,10 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
         <label>Type</label>
         <select id="profile-filter-type" onchange="renderProfile()" style="width:100%;">
           <option value="">All Matches</option>
-          <option value="hcl">Hampshire Cricket League</option>
+          <option value="hcl_only">Hampshire Cricket League</option>
+          <option value="sdcl_only">Salisbury &amp; District Cricket League</option>
+          <option value="saturday">Saturday League (Combined)</option>
+          <option value="midweek">Midweek League</option>
           <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
@@ -1924,10 +1937,10 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
         <thead><tr>
           <th class="num">Cap</th>
           <th>Player</th>
-          <th>HCL Debut</th>
+          <th>Saturday League Debut</th>
           <th>Opponent</th>
-          <th class="num">HCL Matches</th>
-          <th>Years Active (HCL)</th>
+          <th class="num">Saturday League Matches</th>
+          <th>Years Active (Saturday League)</th>
         </tr></thead>
         <tbody id="tbody-caps"></tbody>
       </table>
@@ -1960,7 +1973,10 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
         <label>Type</label>
         <select id="rec-filter-type" onchange="renderRecords()" style="width:160px;margin-top:4px;">
           <option value="">All Matches</option>
-          <option value="hcl">Hampshire Cricket League</option>
+          <option value="hcl_only">Hampshire Cricket League</option>
+          <option value="sdcl_only">Salisbury &amp; District Cricket League</option>
+          <option value="saturday">Saturday League (Combined)</option>
+          <option value="midweek">Midweek League</option>
           <option value="nvk">National Village Knockout Cup</option>
           <option value="friendly">Friendlies Only</option>
         </select>
@@ -2141,9 +2157,9 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
         <div id="ms-all-games" style="display:none;"></div>
       </div>
 
-      <!-- HCL card -->
+      <!-- Saturday League card -->
       <div class="card">
-        <div class="card-title">Hampshire Cricket League</div>
+        <div class="card-title">Saturday League</div>
         <div style="display:flex;gap:0;border-bottom:2px solid var(--green-pale);margin-bottom:12px;">
           <button class="tab-btn active" id="ms-hcl-bat-btn"   onclick="showMilestoneTab('hcl','bat')"   style="font-size:12px;padding:5px 12px;">Batting</button>
           <button class="tab-btn"        id="ms-hcl-bowl-btn"  onclick="showMilestoneTab('hcl','bowl')"  style="font-size:12px;padding:5px 12px;">Bowling</button>
@@ -3124,7 +3140,7 @@ function clearSeasonSel(selId) {
 
 // ── Home global filter state ──────────────────────────────────────────────────
 let _homeYear   = null;  // null = all time, 'YYYY' = specific year
-let _homeFilter = 'all'; // 'all' | 'hcl'
+let _homeFilter = 'all'; // 'all' | 'saturday'
 
 function setHomeGlobalSeason(mode, year) {
   const seasonBtn = document.getElementById('home-season-btn');
@@ -3157,7 +3173,7 @@ function setHomeGlobalType(type) {
   const allBtn = document.getElementById('home-type-all-btn');
   const hclBtn = document.getElementById('home-type-hcl-btn');
   if (allBtn) allBtn.className = 'btn btn-sm ' + (type==='all' ? 'btn-primary' : 'btn-secondary');
-  if (hclBtn) hclBtn.className = 'btn btn-sm ' + (type==='hcl' ? 'btn-primary' : 'btn-secondary');
+  if (hclBtn) hclBtn.className = 'btn btn-sm ' + (type==='saturday' ? 'btn-primary' : 'btn-secondary');
   renderHomeFiltered();
 }
 
@@ -3255,11 +3271,11 @@ function _homeLtTeamClick(team, season) {
   const matches = db.matches.filter(m=>
     (m.date||'').startsWith(season) &&
     (m.opponent||'').toLowerCase().trim()===team.toLowerCase().trim() &&
-    isHCL(m.format)
+    isSaturdayLeague(m.format)
   ).sort((a,b)=>a.date.localeCompare(b.date));
 
   if (!matches.length) {
-    detail.innerHTML = `<div class="empty-state">No HCL matches vs ${esc(team)} in ${esc(season)}.</div>`;
+    detail.innerHTML = `<div class="empty-state">No Saturday League matches vs ${esc(team)} in ${esc(season)}.</div>`;
     return;
   }
 
@@ -3633,6 +3649,7 @@ function toggleHomeInlineSc(idx, mid) {
 let selectedMatchId = null;
 
 function clearMatchFilters() {
+  _matchExactOpponent = null;
   ['match-filter-season','match-filter-type','match-filter-from','match-filter-to',
    'match-filter-opp','match-filter-venue','match-filter-result'].forEach(id=>{
     const el = document.getElementById(id);
@@ -3685,7 +3702,7 @@ function renderMatchesYearChart() {
     (m.result !== 'Abandoned' && m.result !== 'No Result' || db.batting.some(b=>b.match_id===m.id))).forEach(m => {
     const y = parseInt((m.date||'').slice(0,4));
     if (!counts[y]) return;
-    if (isHCL(m.format)) counts[y].hcl++;
+    if (isSaturdayLeague(m.format)) counts[y].hcl++;
     else if (isNVK(m.format)) counts[y].nvk++;
     else counts[y].friendly++;
   });
@@ -3740,7 +3757,7 @@ function renderMatchesYearChart() {
         ? `M${rx+r},${ry} H${rx+rw-r} Q${rx+rw},${ry} ${rx+rw},${ry+r} V${ry+rh} H${rx} V${ry+r} Q${rx},${ry} ${rx+r},${ry}`
         : `M${rx},${ry} H${rx+rw} V${ry+rh} H${rx} Z`;
       const opacity = selYear && !isSelected ? '0.45' : '1';
-      svg += `<path d="${path}" fill="${s.col}" opacity="${opacity}" onclick="${fn}" style="cursor:pointer;"><title>${y}: ${d.hcl} HCL, ${d.nvk} NVKO, ${d.friendly} Friendly</title></path>`;
+      svg += `<path d="${path}" fill="${s.col}" opacity="${opacity}" onclick="${fn}" style="cursor:pointer;"><title>${y}: ${d.hcl} Saturday League, ${d.nvk} NVKO, ${d.friendly} Friendly</title></path>`;
     });
 
     if (total > 0) {
@@ -3813,7 +3830,11 @@ function renderMatches() {
       if (!matchesTypeFilter(m.format, ft)) return false;
       if (from && m.date < from) return false;
       if (to   && m.date > to)   return false;
-      if (oppF   && !m.opponent.toLowerCase().includes(oppF)) return false;
+      if (oppF) {
+        if (_matchExactOpponent) {
+          if (m.opponent.toLowerCase().trim() !== _matchExactOpponent.toLowerCase().trim()) return false;
+        } else if (!m.opponent.toLowerCase().includes(oppF)) return false;
+      }
       if (venueF && (m.venue||'').toLowerCase() !== venueF.toLowerCase()) return false;
       if (resF   && m.result !== resF) return false;
       return true;
@@ -4194,6 +4215,17 @@ function rowToCSV(arr) { return arr.map(csvEsc).join(','); }
 // ════════════════════════════════════════════════════════════
 // STATS
 // ════════════════════════════════════════════════════════════
+function _leagueMatchesFormat(format, leagueName) {
+  const f = (format || '').toLowerCase();
+  const l = (leagueName || '').toLowerCase();
+  if (l.includes('midweek') || (l.includes('salisbury') && l.includes('wednesday'))) return isMidweekLeague(format);
+  if (l === 'saturday league' || l.includes('(combined)')) return isSaturdayLeague(format);
+  if (l.includes('hampshire')) return isHCL(format);
+  if (l.includes('salisbury')) return isSDCL(format);
+  // Generic fallback for any other league: match on shared wording between format and league name
+  return !!l && (f.includes(l) || l.includes(f));
+}
+
 function isLeague(format) {
   return (format||'').toLowerCase().includes('league');
 }
@@ -4201,15 +4233,33 @@ function isHCL(format) {
   return (format||'').toLowerCase().includes('hampshire cricket league') ||
          (format||'').toLowerCase().includes('hampshire cricket leag');
 }
+// Salisbury & District Cricket League (Saturday fixtures — NOT the Wednesday Evening one)
+function isSDCL(format) {
+  const f = (format||'').toLowerCase();
+  return f.includes('salisbury') && !f.includes('wednesday');
+}
+// "Saturday League" = Hampshire Cricket League + Salisbury & District Cricket League
+function isSaturdayLeague(format) {
+  return isHCL(format) || isSDCL(format);
+}
+// "Midweek League" = Salisbury & District Wednesday Evening Cricket League
+function isMidweekLeague(format) {
+  const f = (format||'').toLowerCase();
+  return f.includes('salisbury') && f.includes('wednesday');
+}
 function isNVK(format) {
   return (format||'').toLowerCase().includes('national village knockout');
 }
 function matchesTypeFilter(format, ft) {
   if (!ft) return true;
-  if (ft === 'league')   return isLeague(format);
-  if (ft === 'hcl')      return isHCL(format);
-  if (ft === 'friendly') return !isLeague(format) && !isNVK(format);
-  if (ft === 'nvk')      return isNVK(format);
+  if (ft === 'hcl_only')  return isHCL(format);
+  if (ft === 'sdcl_only') return isSDCL(format);
+  if (ft === 'saturday')  return isSaturdayLeague(format);
+  if (ft === 'midweek')   return isMidweekLeague(format);
+  if (ft === 'league')    return isLeague(format);
+  if (ft === 'hcl')       return isHCL(format);
+  if (ft === 'friendly')  return !isLeague(format) && !isNVK(format);
+  if (ft === 'nvk')       return isNVK(format);
   return true;
 }
 
@@ -4279,6 +4329,8 @@ function statsPlayerLink(name) {
 // ── Pagination state ─────────────────────────────────────────────────────────
 const _statsPage    = { bat:1, bowl:1, field:1 };
 const _matchPage    = { matches:1, players:1, '100s':1, '5wi':1 };
+let _matchExactOpponent = null; // when set (by global search), opponent filter uses exact match instead of substring
+let _leagueDivisionFilter = ''; // '' = All divisions, else exact division name
 const _profilePage  = { bat:1, bowl:1, wickets:1, field:1 };
 const _PAGE_SIZE    = 50; // default for non-stats tables
 
@@ -4685,14 +4737,14 @@ let selectedPlayerIdx = null;
 let _playerSortKey = 'name';
 let _playerSortDir = 1;
 let _playerRegYear = null; // null=all, 'YYYY'=specific year
-let _playerRegType = 'all'; // 'all' | 'hcl'
+let _playerRegType = 'all'; // 'all' | 'saturday'
 
 function setPlayerRegType(type) {
   _playerRegType = type;
   const allBtn = document.getElementById('preg-type-all-btn');
   const hclBtn = document.getElementById('preg-type-hcl-btn');
   if (allBtn) allBtn.className = 'btn btn-sm ' + (type==='all' ? 'btn-primary' : 'btn-secondary');
-  if (hclBtn) hclBtn.className = 'btn btn-sm ' + (type==='hcl' ? 'btn-primary' : 'btn-secondary');
+  if (hclBtn) hclBtn.className = 'btn btn-sm ' + (type==='saturday' ? 'btn-primary' : 'btn-secondary');
   _matchPage.players = 1;
   renderPlayers();
 }
@@ -5200,8 +5252,14 @@ function globalSearchSelect(i) {
     openPlayerByName(r.data);
   } else if (r.type === 'opponent') {
     showPage('matches', document.querySelector('nav button[onclick*="matches"]'));
+    ['match-filter-season','match-filter-type','match-filter-from','match-filter-to',
+     'match-filter-venue','match-filter-result'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
     const oppEl = document.getElementById('match-filter-opp');
     if (oppEl) oppEl.value = r.data;
+    _matchExactOpponent = r.data;
     renderMatches(); _reRenderH2HIfActive();
   }
 }
@@ -6522,8 +6580,7 @@ function renderProfileBatTable(data) {
           <td colspan="6"><div class="inline-sc-wrap" id="pbat-sc-content-${idx}"></div></td>
         </tr>`;}).join('')
     : '<tr><td colspan="6" class="empty-state">No batting data in range</td></tr>';
-  const _posData = _profPosFilter ? _profBatData.filter(r=>String(r.position||r.pos||'?')===_profPosFilter) : _profBatData;
-  _mkPager('profile-bat-pager', cur, data.length, _ppProfF, p=>{_profilePage.bat=p;renderProfileBatTable(_posData);});
+  _mkPager('profile-bat-pager', cur, data.length, _ppProfF, p=>{_profilePage.bat=p;renderProfileBatTable(_profPosFilter ? _profBatData.filter(r=>String(r.position||r.pos||'?')===_profPosFilter) : _profBatData);});
 }
 
 function renderProfileBowlTable(data) {
@@ -7110,7 +7167,11 @@ function _statsFilterSummary() {
   if (otherP)  parts.push('Opponent Player: ' + otherP);
   if (season)  parts.push('Season: ' + season);
   else if (from || to) parts.push('Date: ' + (from||'') + (from&&to?' – ':'') + (to||''));
-  if (type === 'hcl')      parts.push('Type: Hampshire Cricket League');
+  if (type === 'hcl_only') parts.push('Type: Hampshire Cricket League');
+  if (type === 'sdcl_only') parts.push('Type: Salisbury & District Cricket League');
+  if (type === 'saturday') parts.push('Type: Saturday League');
+  if (type === 'midweek')  parts.push('Type: Midweek League');
+  if (type === 'hcl')      parts.push('Type: Saturday League');
   if (type === 'friendly') parts.push('Type: Friendlies');
   if (opp)     parts.push('Opposition: ' + opp);
   if (venue)   parts.push('Venue: ' + venue);
@@ -7539,7 +7600,11 @@ function renderH2H() {
     if (from && m.date < from) return false;
     if (to   && m.date > to)   return false;
     if (type && !matchesTypeFilter(m.format, type)) return false;
-    if (oppF && !(m.opponent||'').toLowerCase().includes(oppF)) return false;
+    if (oppF) {
+      if (_matchExactOpponent && !document.getElementById('h2h-search')?.value) {
+        if ((m.opponent||'').toLowerCase().trim() !== _matchExactOpponent.toLowerCase().trim()) return false;
+      } else if (!(m.opponent||'').toLowerCase().includes(oppF)) return false;
+    }
     if (venueF && m.venue !== venueF) return false;
     if (m.result === 'Upcoming' || m.result === 'Bye') return false;
     return true;
@@ -7820,6 +7885,7 @@ function setLeagueWizMode(mode) {
 }
 
 function leagueWizardSaveSummary() {
+  const league   = document.getElementById('lwiz-league')?.value.trim();
   const season   = document.getElementById('lwiz-season').value.trim();
   const division = document.getElementById('lwiz-division').value.trim();
   if (!season || !division) {
@@ -7852,7 +7918,7 @@ function leagueWizardSaveSummary() {
   ].filter(c => c.key==='team' || row[c.key] !== undefined);
 
   const notes = (document.getElementById('lwiz-notes')?.value||'').trim();
-  const tbl = { season, division, cols, rows: [row], summaryOnly: true, notes };
+  const tbl = { league, season, division, cols, rows: [row], summaryOnly: true, notes };
   if (_lwizEditId) {
     const idx = db.leagueTables.findIndex(t=>t.id===_lwizEditId);
     if (idx>=0) { tbl.id = _lwizEditId; db.leagueTables[idx] = tbl; }
@@ -7885,14 +7951,23 @@ function leagueWizardStart(editId) {
   document.getElementById('lwiz-step2').style.display = 'none';
   document.getElementById('lwiz-step1-err').style.display = 'none';
 
+  // Populate League datalist with previously-used league names
+  const _leagueListEl = document.getElementById('lwiz-league-list');
+  if (_leagueListEl) {
+    const leagues = [...new Set(_leagueDB().map(t=>(t.league||'').trim()).filter(Boolean))].sort();
+    _leagueListEl.innerHTML = leagues.map(l=>`<option value="${esc(l)}">`).join('');
+  }
+
   if (editId) {
     const tbl = _leagueDB().find(t=>t.id===editId);
     if (tbl) {
+      document.getElementById('lwiz-league').value   = tbl.league || '';
       document.getElementById('lwiz-season').value   = tbl.season;
       document.getElementById('lwiz-division').value = tbl.division;
       _lwizRows = tbl.rows.map(r=>({...r}));
     }
   } else {
+    document.getElementById('lwiz-league').value   = '';
     document.getElementById('lwiz-season').value   = '';
     document.getElementById('lwiz-division').value = '';
     const _nEl = document.getElementById('lwiz-notes'); if(_nEl) _nEl.value='';
@@ -7944,8 +8019,32 @@ function renderLwizColEditor() {
 }
 
 function lwizUpdateCol(i, val) {
-  // Only update the label — key stays the same so row data is preserved
-  _lwizCols[i] = { key: _lwizCols[i].key, label: val.trim() || _lwizCols[i].key };
+  const oldKey = _lwizCols[i].key;
+  const newLabel = val.trim() || _lwizCols[i].key;
+
+  // Derive a new key from the label so a genuine rename actually changes the
+  // column's identity (not just its display text) — otherwise alias-matching
+  // elsewhere in the app (summary table, notes, etc.) keeps treating it as
+  // the OLD column even after it's been relabelled to mean something else.
+  let newKey = newLabel.toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'') || oldKey;
+  // Avoid colliding with another column's existing key
+  if (newKey !== oldKey && _lwizCols.some((c,ci)=>ci!==i && c.key===newKey)) {
+    let n = 2;
+    while (_lwizCols.some((c,ci)=>ci!==i && c.key===(newKey+'_'+n))) n++;
+    newKey = newKey + '_' + n;
+  }
+
+  if (newKey !== oldKey) {
+    // Migrate this column's data in every row from the old key to the new one
+    _lwizRows.forEach(r => {
+      if (Object.prototype.hasOwnProperty.call(r, oldKey)) {
+        if (!(newKey in r)) r[newKey] = r[oldKey];
+        delete r[oldKey];
+      }
+    });
+  }
+
+  _lwizCols[i] = { key: newKey, label: newLabel };
   // Update header in step 2 if visible
   if (document.getElementById('lwiz-step2').style.display !== 'none') renderLwizRows();
 }
@@ -7971,6 +8070,7 @@ function leagueWizardCancel() {
 }
 
 function leagueWizardStep2() {
+  const league   = document.getElementById('lwiz-league')?.value.trim();
   const season   = document.getElementById('lwiz-season')?.value.trim();
   const division = document.getElementById('lwiz-division')?.value.trim();
   const errEl    = document.getElementById('lwiz-step1-err');
@@ -8126,6 +8226,7 @@ function leagueWizardSave() {
       leagueUpdateRow(i, inp.dataset.key, inp.value);
     });
   });
+  const league   = document.getElementById('lwiz-league')?.value.trim();
   const season   = document.getElementById('lwiz-season')?.value.trim();
   const division = document.getElementById('lwiz-division')?.value.trim();
   // Store cols as {key,label} pairs
@@ -8133,9 +8234,9 @@ function leagueWizardSave() {
   const notes = (document.getElementById('lwiz-notes')?.value||'').trim();
   if (_lwizEditId) {
     const tbl = _leagueDB().find(t=>t.id===_lwizEditId);
-    if (tbl) { tbl.season=season; tbl.division=division; tbl.cols=colsToSave; tbl.rows=_lwizRows; tbl.notes=notes; }
+    if (tbl) { tbl.league=league; tbl.season=season; tbl.division=division; tbl.cols=colsToSave; tbl.rows=_lwizRows; tbl.notes=notes; }
   } else {
-    _leagueDB().push({ id:genId(), season, division, cols:colsToSave, rows:_lwizRows, notes });
+    _leagueDB().push({ id:genId(), league, season, division, cols:colsToSave, rows:_lwizRows, notes });
   }
   saveDB();
   document.getElementById('league-view').style.display   = '';
@@ -8186,11 +8287,67 @@ function jumpToLeagueYear(year) {
   if (sel) sel.value = '';
 }
 
+function setLeagueDivisionFilter(division) {
+  _leagueDivisionFilter = division || '';
+  renderLeagueTables();
+}
+
+// Derive the SPECIFIC league (competition) name from a division string, e.g.
+// "Hampshire Cricket League Division 6C" -> "Hampshire Cricket League".
+// Falls back to the League field on the table if this can't be matched,
+// and finally to Hampshire Cricket League as the most common default.
+function _autoDetectLeague(division) {
+  const d = (division || '').toLowerCase();
+  if (d.includes('salisbury') && d.includes('wednesday')) return 'Midweek League';
+  if (d.includes('salisbury')) return 'Salisbury & District Cricket League';
+  return 'Hampshire Cricket League';
+}
+
+// Does a table's specific league belong under the given tab? "Saturday League"
+// is a combined virtual tab covering both Hampshire Cricket League and
+// Salisbury & District Cricket League; the other tabs are exact matches.
+function _tableInLeagueTab(specificLeague, tabName) {
+  if (tabName === 'Saturday League') {
+    return specificLeague === 'Hampshire Cricket League' || specificLeague === 'Salisbury & District Cricket League';
+  }
+  return specificLeague === tabName;
+}
+
 function renderLeagueTables() {
   const emptyMsg   = document.getElementById('league-empty');
   const summaryCard = document.getElementById('league-summary-card');
   const isRO = typeof _isReadOnly !== 'undefined' && _isReadOnly;
-  const allTables = [..._leagueDB()].sort((a,b)=>b.season.localeCompare(a.season)||a.division.localeCompare(b.division));
+  const allTablesUnfiltered = [..._leagueDB()].sort((a,b)=>b.season.localeCompare(a.season)||a.division.localeCompare(b.division));
+
+  // ── League tabs ──────────────────────────────────────────────────────
+  const tabsEl = document.getElementById('league-division-tabs');
+  const FIXED_TABS = ['Saturday League', 'Hampshire Cricket League', 'Salisbury & District Cricket League', 'Midweek League'];
+  if (tabsEl) {
+    const leagueOf = t => (t.league||'').trim() || _autoDetectLeague(t.division);
+    const specificLeagues = new Set(allTablesUnfiltered.map(leagueOf));
+    const leagues = FIXED_TABS.filter(tab => {
+      if (tab === 'Saturday League') {
+        return specificLeagues.has('Hampshire Cricket League') || specificLeagues.has('Salisbury & District Cricket League');
+      }
+      return specificLeagues.has(tab);
+    });
+    if (!_leagueDivisionFilter || !leagues.includes(_leagueDivisionFilter)) _leagueDivisionFilter = leagues[0] || '';
+    if (leagues.length <= 1) {
+      tabsEl.innerHTML = '';
+      tabsEl.style.display = 'none';
+    } else {
+      tabsEl.style.display = 'flex';
+      const tabBtn = (label, val) => {
+        const active = _leagueDivisionFilter === val;
+        return `<button class="tab-btn${active?' active':''}" onclick="setLeagueDivisionFilter('${esc(val).replace(/'/g,"\\'")}')"
+          style="font-size:13px;padding:8px 14px;">${esc(label)}</button>`;
+      };
+      tabsEl.innerHTML = leagues.map(l=>tabBtn(l, l)).join('');
+    }
+  }
+  const allTables = _leagueDivisionFilter
+    ? allTablesUnfiltered.filter(t=>_tableInLeagueTab((t.league||'').trim() || _autoDetectLeague(t.division), _leagueDivisionFilter))
+    : allTablesUnfiltered;
 
   if (!allTables.length) {
     if (summaryCard) summaryCard.style.display = 'none';
@@ -8200,7 +8357,34 @@ function renderLeagueTables() {
   if (emptyMsg) emptyMsg.style.display = 'none';
   if (summaryCard) summaryCard.style.display = '';
 
-  // Build Godshill summary rows
+  // Build the union of columns actually used across this league's tables (excluding
+  // structural Team/Pos columns, since Pos is always shown separately). Columns are
+  // matched by their real label — so a table using "D" (Drawn) stays a distinct
+  // column from one using "T" (Tied), rather than being folded together.
+  const PREFERRED_ORDER = ['P','W','L','T','D','BatP','BowlP','Pen','Pts','Avg'];
+  const structuralLabels = ['team','pos','position'];
+  const otherColsAll = []; // ordered list of {key, label, normLabel}
+  allTables.forEach(tbl => {
+    const cols = (tbl.cols||[]).map(c=>typeof c==='object'?c:{key:c,label:c});
+    cols.forEach(c => {
+      const norm = (c.label||c.key||'').trim().toLowerCase();
+      if (!norm || structuralLabels.includes(norm)) return;
+      if (!otherColsAll.some(oc=>oc.normLabel===norm)) {
+        otherColsAll.push({ key:c.key, label:c.label, normLabel:norm });
+      }
+    });
+  });
+  otherColsAll.sort((a,b) => {
+    const ia = PREFERRED_ORDER.findIndex(l=>l.toLowerCase()===a.normLabel);
+    const ib = PREFERRED_ORDER.findIndex(l=>l.toLowerCase()===b.normLabel);
+    if (ia!==-1 && ib!==-1) return ia-ib;
+    if (ia!==-1) return -1;
+    if (ib!==-1) return 1;
+    return 0; // keep first-seen order for anything unrecognised
+  });
+
+  // Build Godshill summary rows (against the FULL union first, so we can tell
+  // afterwards which columns turned out to be entirely empty)
   const summaryRows = allTables.map(tbl => {
     const cols = (tbl.cols||[]).map(c=>typeof c==='object'?c:{key:c,label:c});
     const godRow = tbl.rows.find(r=>cols.some(c=>String(r[c.key]||'').toLowerCase().includes('godshill')));
@@ -8213,27 +8397,54 @@ function renderLeagueTables() {
       return '–';
     };
     const posCol = cols.find(c=>['pos','position'].includes(c.key.toLowerCase())||['pos','position'].includes(c.label.toLowerCase()));
-    const teamCount = tbl.rows.filter(r=>{
-      const hasData = cols.some(c=>String(r[c.key]||'').trim()!=='');
-      if (!hasData) return false;
-      if (posCol && String(r[posCol.key]||'').trim()==='-') return false; // exclude resigned/withdrawn teams
-      return true;
-    }).length;
+    let teamCount;
+    if (tbl.summaryOnly) {
+      // Summary-only tables have just Godshill's row — team count comes from the "Teams" field itself
+      const teamsCol = cols.find(c=>['teams','numteams','num_teams'].includes(c.key.toLowerCase())||['teams'].includes(c.label.toLowerCase()));
+      teamCount = teamsCol && godRow[teamsCol.key]!==undefined && String(godRow[teamsCol.key])!=='' ? parseInt(godRow[teamsCol.key],10) : null;
+    } else {
+      teamCount = tbl.rows.filter(r=>{
+        const hasData = cols.some(c=>String(r[c.key]||'').trim()!=='');
+        if (!hasData) return false;
+        if (posCol && String(r[posCol.key]||'').trim()==='-') return false; // exclude resigned/withdrawn teams
+        return true;
+      }).length;
+    }
+    // Look up this table's value for each union column, matched by label — '–' if this
+    // table doesn't have that particular column at all.
+    const vals = {};
+    otherColsAll.forEach(oc => {
+      const col = cols.find(c=>(c.label||c.key||'').trim().toLowerCase()===oc.normLabel);
+      vals[oc.normLabel] = (col && godRow[col.key]!==undefined && String(godRow[col.key])!=='') ? godRow[col.key] : '–';
+    });
     return {
       tbl, godRow,
       teamCount,
-      pos:   get('pos','position'),
-      p:     get('p','played'),
-      w:     get('w','won'),
-      l:     get('l','lost'),
-      t:     get('t','tied','tie'),
-      batp:  get('batp','bat_p','batbonus','bat'),
-      bowlp: get('bowlp','bowl_p','bowlbonus','bowl'),
-      pen:   get('pen','penalty'),
-      pts:   get('pts','points'),
-      avec:  get('avec','avg','average','avcc'),
+      pos: get('pos','position'),
+      vals,
     };
   });
+
+  // Drop any union column that's blank across every season with a Godshill row
+  const godRowsForFilter = summaryRows.filter(r=>r.godRow);
+  let otherCols = otherColsAll.filter(oc => godRowsForFilter.some(r => r.vals[oc.normLabel] !== '–'));
+
+  // Apply any saved manual reorder for this league tab
+  const summaryColOrderKey = 'lgSummaryColOrder_' + (_leagueDivisionFilter || 'default');
+  otherCols = _applyColOrder(summaryColOrderKey, otherCols.map(oc=>({key:oc.normLabel, label:oc.label, normLabel:oc.normLabel})));
+
+  const totalCols = 3 + otherCols.length; // Year, Pos, Division + dynamic fields
+
+  const theadEl = document.getElementById('league-summary-thead');
+  if (theadEl) {
+    theadEl.innerHTML = `<tr>
+      <th>Year</th><th class="num">Pos</th><th>Division</th>
+      ${otherCols.map((f,ci)=>{
+        const { leftBtn, rightBtn } = _colReorderArrows(summaryColOrderKey, otherCols, f.key, ci, renderLeagueTables);
+        return `<th class="num">${leftBtn}${esc(f.label)}${rightBtn}</th>`;
+      }).join('')}
+    </tr>`;
+  }
 
   // Populate year jump dropdown
   const jumpSel = document.getElementById('league-year-jump');
@@ -8253,35 +8464,28 @@ function renderLeagueTables() {
       ? `<td>${yearCell}</td>
          <td class="num"><strong>${esc(String(r.pos))}</strong><span style="color:var(--ink-muted);font-weight:400;">/${r.teamCount||'?'}</span></td>
          <td style="font-size:11px;">${esc(r.tbl.division)}</td>
-         <td class="num">${esc(String(r.p))}</td><td class="num">${esc(String(r.w))}</td>
-         <td class="num">${esc(String(r.l))}</td><td class="num">${esc(String(r.t))}</td>
-         <td class="num">${esc(String(r.batp))}</td><td class="num">${esc(String(r.bowlp))}</td>
-         <td class="num">${esc(String(r.pen))}</td><td class="num">${esc(String(r.pts))}</td>
-         <td class="num">${esc(String(r.avec))}</td>`
+         ${otherCols.map(oc=>`<td class="num">${esc(String(r.vals[oc.normLabel]))}</td>`).join('')}`
       : `<td>${yearCell}</td>
-         <td colspan="11" style="color:var(--ink-muted);font-size:12px;">${esc(r.tbl.division)} — no Godshill row</td>`;
+         <td colspan="${totalCols-1}" style="color:var(--ink-muted);font-size:12px;">${esc(r.tbl.division)} — no Godshill row</td>`;
 
     // Inline expanded table
     const expandRow = `<tr id="league-expand-row-${i}" style="display:none;">
-      <td colspan="12" style="padding:0;">
+      <td colspan="${totalCols}" style="padding:0;">
         <div id="league-expand-content-${i}" style="padding:12px 16px;background:var(--cream-dark);border-top:2px solid var(--green-pale);"></div>
       </td>
     </tr>`;
 
     return `<tr class="no-hover" style="font-weight:600;">${dataRow}</tr>${expandRow}`;
-  }).join('') || '<tr><td colspan="12" class="empty-state">No tables yet.</td></tr>';
+  }).join('') || `<tr><td colspan="${totalCols}" class="empty-state">No tables yet.</td></tr>`;
 
-  // Totals row (P/W/L/T) across all seasons with a Godshill row
+  // Totals row (P/W/L/T-style columns only) across all seasons with a Godshill row
   const godRows = summaryRows.filter(r=>r.godRow);
   if (godRows.length) {
-    const sumNum = key => godRows.reduce((s,r)=>s+(parseInt(r[key],10)||0),0);
+    const SUMMABLE = ['p','w','l','t','d'];
+    const sumFor = normLabel => godRows.reduce((s,r)=>s+(parseInt(r.vals[normLabel],10)||0),0);
     const totalsRow = `<tr class="no-hover" style="font-weight:700;background:var(--green-pale);border-top:2px solid var(--green-mid);">
       <td colspan="3" style="text-align:right;">Total</td>
-      <td class="num">${sumNum('p')}</td>
-      <td class="num">${sumNum('w')}</td>
-      <td class="num">${sumNum('l')}</td>
-      <td class="num">${sumNum('t')}</td>
-      <td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td><td class="num"></td>
+      ${otherCols.map(oc=>`<td class="num">${SUMMABLE.includes(oc.normLabel) ? sumFor(oc.normLabel) : ''}</td>`).join('')}
     </tr>`;
     document.getElementById('tbody-league-summary').innerHTML += totalsRow;
   }
@@ -8299,6 +8503,50 @@ function renderLeagueTables() {
 
 }
 
+function _leagueColOrderKey(tblId) { return 'lgColOrder_' + tblId; }
+
+// Drop any column where every row is blank/dash — decluttering columns that
+// were defined on the table but never actually used.
+function _emptyFilteredCols(rows, cols) {
+  return cols.filter(c => (rows||[]).some(r => {
+    const v = String(r[c.key] ?? '').trim();
+    return v !== '' && v !== '-' && v !== '–';
+  }));
+}
+
+// Apply a saved manual column order (if any) — works for everyone, including
+// read-only visitors, since it's just a local display preference.
+function _applyColOrder(storageKey, cols) {
+  let order;
+  try { order = JSON.parse(localStorage.getItem(storageKey) || 'null'); } catch(e) { order = null; }
+  if (!Array.isArray(order)) return cols;
+  const byKey = {}; cols.forEach(c=>byKey[c.key]=c);
+  const ordered = order.map(k=>byKey[k]).filter(Boolean);
+  cols.forEach(c=>{ if(!ordered.includes(c)) ordered.push(c); }); // any new column not yet in saved order goes last
+  return ordered;
+}
+
+function _colReorderArrows(storageKey, cols, colKey, ci, onMoved) {
+  const canLeft  = ci > 0;
+  const canRight = ci < cols.length - 1;
+  const move = dir => {
+    const order = cols.map(c=>c.key);
+    const i = ci, j = ci + dir;
+    if (j < 0 || j >= order.length) return;
+    [order[i], order[j]] = [order[j], order[i]];
+    localStorage.setItem(storageKey, JSON.stringify(order));
+    onMoved();
+  };
+  window._colReorderHandlers = window._colReorderHandlers || {};
+  const leftId  = 'cra_' + Math.random().toString(36).slice(2);
+  const rightId = 'cra_' + Math.random().toString(36).slice(2);
+  window._colReorderHandlers[leftId]  = () => move(-1);
+  window._colReorderHandlers[rightId] = () => move(1);
+  const leftBtn  = canLeft  ? `<span onclick="window._colReorderHandlers['${leftId}']()" style="cursor:pointer;padding:0 3px;opacity:0.55;" title="Move left">&#8249;</span>`  : `<span style="padding:0 3px;opacity:0.12;">&#8249;</span>`;
+  const rightBtn = canRight ? `<span onclick="window._colReorderHandlers['${rightId}']()" style="cursor:pointer;padding:0 3px;opacity:0.55;" title="Move right">&#8250;</span>` : `<span style="padding:0 3px;opacity:0.12;">&#8250;</span>`;
+  return { leftBtn, rightBtn };
+}
+
 function _renderLeagueExpanded(idx, tbl) {
   const content = document.getElementById('league-expand-content-'+idx);
   if (!content) return;
@@ -8312,13 +8560,19 @@ function _renderLeagueExpanded(idx, tbl) {
     tbl.cols = keys.map(k=>({key:k,label:k}));
   }
 
-  const colHeaders = cols.map(c=>`<th style="padding:6px 4px;white-space:nowrap;text-align:center;">${esc(c.label)}</th>`).join('');
+  const colOrderKey = _leagueColOrderKey(tbl.id);
+  const displayCols = _applyColOrder(colOrderKey, _emptyFilteredCols(tbl.rows, cols));
+
+  const colHeaders = displayCols.map((c,ci)=>{
+    const { leftBtn, rightBtn } = _colReorderArrows(colOrderKey, displayCols, c.key, ci, () => _renderLeagueExpanded(idx, tbl));
+    return `<th style="padding:6px 4px;white-space:nowrap;text-align:center;">${leftBtn}${esc(c.label)}${rightBtn}</th>`;
+  }).join('');
   const dataRows = tbl.rows.map((r,ri)=>{
     const isGodshill = cols.some(c=>String(r[c.key]||'').toLowerCase().includes('godshill'));
     const bg = isGodshill ? 'var(--green-pale)' : ri%2===0 ? 'var(--white,#fff)' : 'var(--cream,#faf8f2)';
-    const cells = cols.map(c=>`<td style="padding:5px 4px;text-align:center;background:${bg};">${esc(String(r[c.key]??''))}</td>`).join('');
+    const cells = displayCols.map(c=>`<td style="padding:5px 4px;text-align:center;background:${bg};">${esc(String(r[c.key]??''))}</td>`).join('');
     return `<tr style="font-weight:${isGodshill?'600':'400'};">${cells}</tr>`;
-  }).join('') || `<tr><td colspan="${cols.length}" class="empty-state">No data.</td></tr>`;
+  }).join('') || `<tr><td colspan="${displayCols.length}" class="empty-state">No data.</td></tr>`;
 
   const editBtns = isRO ? '' :
     `<div style="display:flex;gap:6px;margin-top:8px;">
@@ -8328,7 +8582,8 @@ function _renderLeagueExpanded(idx, tbl) {
 
   // Match results + upcoming fixtures for this season
   const today = new Date().toISOString().slice(0,10);
-  const seasonMatches = db.matches.filter(m=>(m.date||'').startsWith(tbl.season)&&isHCL(m.format)).sort((a,b)=>a.date.localeCompare(b.date));
+  const tblLeague = (tbl.league||'').trim() || _autoDetectLeague(tbl.division);
+  const seasonMatches = db.matches.filter(m=>(m.date||'').startsWith(tbl.season)&&_leagueMatchesFormat(m.format, tblLeague)).sort((a,b)=>a.date.localeCompare(b.date));
   const tblIdSafe = tbl.id.replace(/[^a-z0-9]/gi,'');
   const matchRows = seasonMatches.map((m,mi)=>{
     const isUpcoming = m.result==='Upcoming';
@@ -8348,7 +8603,7 @@ function _renderLeagueExpanded(idx, tbl) {
       `<td style="font-size:12px;color:var(--ink-muted);">${venue}</td>`+
       resultTd+`</tr>`+
       (hasSc?`<tr id="lt-sc-row-${tblIdSafe}-${mi}" class="inline-sc-row" style="display:none;"><td colspan="4"><div class="inline-sc-wrap" id="lt-sc-content-${tblIdSafe}-${mi}"></div></td></tr>`:'');
-  }).join('')||'<tr><td colspan="4" class="empty-state">No HCL matches.</td></tr>';
+  }).join('')||`<tr><td colspan="4" class="empty-state">No ${esc(tblLeague)} matches.</td></tr>`;
 
   // ── Notes: teams not played + match count check ───────────────────────────
   const godRow = tbl.rows.find(r => cols.some(c=>String(r[c.key]||'').toLowerCase().includes('godshill')));
@@ -8373,7 +8628,7 @@ function _renderLeagueExpanded(idx, tbl) {
   const abandonedVs  = allTeams.filter(t=>(doubleFixtures||!playedOpps.has(t.toLowerCase().trim()))&&seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()&&['Abandoned','No Result'].includes(m.result)));
   const noMatchVs    = allTeams.filter(t=>!playedOpps.has(t.toLowerCase().trim())&&!seasonMatches.some(m=>m.opponent.toLowerCase().trim()===t.toLowerCase().trim()));
 
-  // ── League leaders (batting, bowling, fielding) for this season's HCL matches ──
+  // ── League leaders (batting, bowling, fielding) for this season's Saturday League matches ──
   const leaderMids = new Set(seasonMatches.map(m=>m.id));
   const leaderBatRows  = db.batting.filter(r=>leaderMids.has(r.match_id)&&r.team===OUR_TEAM);
   const leaderBowlRows = db.bowling.filter(r=>leaderMids.has(r.match_id)&&r.team===OUR_TEAM);
@@ -8427,7 +8682,7 @@ function _renderLeagueExpanded(idx, tbl) {
       db.batting.some(r=>r.match_id===m.id)).length;
     if (tableP !== null && scorecardCount !== tableP) {
       checkHtml = `<div style="margin-top:8px;padding:8px 12px;background:#fef2f2;border:1px solid #f5c6c2;border-radius:4px;font-size:12px;color:#8b1a1a;">
-        &#9888; League table shows <strong>${tableP}</strong> games played but only <strong>${scorecardCount}</strong> HCL scorecard${scorecardCount===1?'':'s'} found for ${esc(tbl.season)}.
+        &#9888; League table shows <strong>${tableP}</strong> games played but only <strong>${scorecardCount}</strong> scorecard${scorecardCount===1?'':'s'} found for ${esc(tbl.season)}.
       </div>`;
     } else if (tableP !== null) {
       checkHtml = `<div style="margin-top:8px;padding:6px 12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:4px;font-size:12px;color:#166534;">
@@ -8834,10 +9089,10 @@ function renderCaps() {
     if (!mids.size) return;
     const matches = [...mids]
       .map(id=>db.matches.find(m=>m.id===id))
-      .filter(m=>m&&m.result!=='Upcoming'&&!m.cancelled&&!['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)&&isHCL(m.format));
+      .filter(m=>m&&m.result!=='Upcoming'&&!m.cancelled&&!['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result)&&isSaturdayLeague(m.format));
     const first = matches.sort((a,b)=>a.date.localeCompare(b.date))[0];
     if (!first) return;
-    // Count all HCL matches and years active
+    // Count all Saturday League matches and years active
     const hclMids = new Set([
       ...db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
       ...db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
@@ -8845,7 +9100,7 @@ function renderCaps() {
     ]);
     const hclMatches = [...hclMids]
       .map(id=>db.matches.find(m=>m.id===id))
-      .filter(m=>m&&isHCL(m.format)&&m.result!=='Upcoming'&&!m.cancelled&&!['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result));
+      .filter(m=>m&&isSaturdayLeague(m.format)&&m.result!=='Upcoming'&&!m.cancelled&&!['Cancelled','Godshill Conceded','Opposition Conceded'].includes(m.result));
     const hclYears = [...new Set(hclMatches.map(m=>(m.date||'').slice(0,4)).filter(Boolean))].sort();
     const yearsStr = _compressYears(hclYears);
     debuts.push({ name, date: first.date, opponent: first.opponent||'', hclCount: hclMatches.length, years: yearsStr });
@@ -9020,7 +9275,7 @@ function _renderMilestones(players, allBat, allBowl, allField) {
   }
 
   const allMids = new Set(db.matches.map(m=>m.id));
-  const hclMids = new Set(db.matches.filter(m=>isHCL(m.format)).map(m=>m.id));
+  const hclMids = new Set(db.matches.filter(m=>isSaturdayLeague(m.format)).map(m=>m.id));
 
   _renderMilestoneTable('ms-all-bat',   _batRows(allMids),   'Runs');
   _renderMilestoneTable('ms-all-bowl',  _bowlRows(allMids),  'Wickets');

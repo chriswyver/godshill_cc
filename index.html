@@ -2445,6 +2445,7 @@ function step1Next() {
 }
 
 function saveCancelledMatch() {
+  if (typeof _recBumpCache === 'function') _recBumpCache();
   const opp = document.getElementById('m-opp').value.trim();
   const isEdit = !!(wiz.editingMatchId);
   const mid    = isEdit ? wiz.editingMatchId : genId();
@@ -2920,6 +2921,7 @@ function runValidation() {
 // SAVE SCORECARD
 // ════════════════════════════════════════════════════════════
 function saveScorecard() {
+  if (typeof _recBumpCache === 'function') _recBumpCache();
   // block on any errors
   const {i1bat, i1bowl, i2bat, i2bowl} = getInningsTeams();
   const batFirst = document.getElementById('m-bat-first').value;
@@ -4081,6 +4083,7 @@ function getCheckedMatchIds() {
 }
 
 function deleteCheckedMatches(scorecardOnly) {
+  if (typeof _recBumpCache === 'function') _recBumpCache();
   const ids = getCheckedMatchIds();
   if (!ids.length) { showDelMsg('warn','Tick at least one match first.'); return; }
   const names = ids.map(id=>{
@@ -4936,6 +4939,7 @@ function deleteCheckedPlayers() {
 function deleteSelectedPlayer() { deleteCheckedPlayers(); }
 
 function editPlayerName() {
+  if (typeof _recBumpCache === 'function') _recBumpCache();
   const oldName = document.getElementById('edit-player-select').value;
   const newName = document.getElementById('edit-player-name').value.trim();
   const msg     = document.getElementById('edit-player-msg');
@@ -4967,6 +4971,7 @@ function editPlayerName() {
 }
 
 function mergePlayers() {
+  if (typeof _recBumpCache === 'function') _recBumpCache();
   const keepName   = document.getElementById('merge-keep').value;
   const removeName = document.getElementById('merge-remove').value;
   const msg        = document.getElementById('merge-player-msg');
@@ -7328,6 +7333,7 @@ function importData(input) {
       db.bowling       = data.bowling       || [];
       db.fielding      = data.fielding      || [];
       db.leagueTables  = data.leagueTables  || [];
+      if (typeof _recBumpCache === 'function') _recBumpCache();
       saveDB();
       msg.innerHTML = '<span style="color:#27ae60;">&#10003; Imported successfully — ' + data.matches.length + ' matches, ' + data.players.length + ' players.</span>';
       renderMatches();
@@ -8998,6 +9004,7 @@ function showRecordsTab(which) {
     if (btn) btn.classList.toggle('active', t===which);
   });
   _recCurrentTab = which;
+  if (typeof _recRenderActiveTab === 'function') _recRenderActiveTab();
 }
 
 function _recPlayerLink(name) {
@@ -9501,27 +9508,36 @@ function clearRecFilters() {
   renderRecords();
 }
 
-function renderRecords() {
-  _recOpenSc = {};
-  _recScIdx  = 0;
-  Object.keys(_recSeasonPages).forEach(k => { _recSeasonPages[k] = 1; });
+// ════════════════════════════════════════════════════════════
+// RECORDS PAGE — performance layer
+// (indexed lookups + lazy per-tab rendering + cached context)
+// ════════════════════════════════════════════════════════════
+let _recCacheVersion = 0;      // bumped whenever underlying data changes
+let _recCacheSig     = null;   // last-built context's signature
+let _recCacheCtx     = null;   // cached context for that signature
+let _recTabsRendered = {};     // { [tabName]: true } for the current signature
 
-  const seasons = [...new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(Boolean))].sort();
+function _recBumpCache() { _recCacheVersion++; }
 
-  // Populate season selector
-  const recSelEl = document.getElementById('rec-filter-season');
-  if (recSelEl) {
-    const cur = recSelEl.value;
-    recSelEl.innerHTML = '<option value="">All Time</option>' +
-      [...seasons].reverse().map(y=>`<option value="${y}">${y}</option>`).join('');
-    if (cur) recSelEl.value = cur;
-  }
-
-  // Apply filters
+function _recFilterSig() {
   const recSeason = document.getElementById('rec-filter-season')?.value || '';
   const recType   = document.getElementById('rec-filter-type')?.value   || '';
   const recFrom   = document.getElementById('rec-filter-from')?.value   || '';
   const recTo     = document.getElementById('rec-filter-to')?.value     || '';
+  return [recSeason, recType, recFrom, recTo, _recCacheVersion].join('|');
+}
+
+// Build every shared, filtered, INDEXED lookup the various tabs need, once,
+// instead of each tab re-scanning the full batting/bowling/fielding arrays
+// per player (or per player per season).
+function _recBuildContext() {
+  const recSeason = document.getElementById('rec-filter-season')?.value || '';
+  const recType   = document.getElementById('rec-filter-type')?.value   || '';
+  const recFrom   = document.getElementById('rec-filter-from')?.value   || '';
+  const recTo     = document.getElementById('rec-filter-to')?.value     || '';
+
+  const seasons = [...new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(Boolean))].sort();
+
   const filteredMatches = db.matches.filter(m =>
     m.result !== 'Upcoming' && m.result !== 'Bye' &&
     (!recSeason || (m.date||'').startsWith(recSeason)) &&
@@ -9531,98 +9547,188 @@ function renderRecords() {
   );
   const filteredMids = new Set(filteredMatches.map(m=>m.id));
 
-  // ── CAREER RECORDS ────────────────────────────────────────────────────────
-  const players = db.players.map(p => p.name);
+  const players  = db.players.map(p => p.name);
   const filtBat   = db.batting.filter(r=>filteredMids.has(r.match_id));
   const filtBowl  = db.bowling.filter(r=>filteredMids.has(r.match_id));
   const filtField = db.fielding.filter(r=>filteredMids.has(r.match_id));
 
-  // Most matches — count distinct matches where player appears in batting, bowling OR fielding
+  // Index by player (Godshill rows only) — O(1) lookup instead of an O(N)
+  // .filter() per player, per stat.
+  const indexByPlayer = rows => {
+    const m = new Map();
+    rows.forEach(r => {
+      if (r.team !== OUR_TEAM) return;
+      if (!m.has(r.player)) m.set(r.player, []);
+      m.get(r.player).push(r);
+    });
+    return m;
+  };
+  const byPlayerBat   = indexByPlayer(filtBat);
+  const byPlayerBowl  = indexByPlayer(filtBowl);
+  const byPlayerField = indexByPlayer(filtField);
+
+  // Index batting rows by bowler name (any team) — used for caught-and-bowled
+  // detection in fielding totals.
+  const byBowlerBat = new Map();
+  filtBat.forEach(r => {
+    if (!byBowlerBat.has(r.bowler)) byBowlerBat.set(r.bowler, []);
+    byBowlerBat.get(r.bowler).push(r);
+  });
+
+  // Index ALL batting rows by match_id (used for team-score lookups —
+  // margins/record-scores tabs need this per match, across all matches,
+  // not just Godshill's).
+  const battingByMatch = new Map();
+  db.batting.forEach(r => {
+    if (!battingByMatch.has(r.match_id)) battingByMatch.set(r.match_id, []);
+    battingByMatch.get(r.match_id).push(r);
+  });
+
+  // Cache each season's match-id set once (used by both season-leader blocks)
+  const midsBySeason = new Map();
+  seasons.forEach(season => {
+    midsBySeason.set(season, new Set(filteredMatches.filter(m=>(m.date||'').startsWith(season)).map(m=>m.id)));
+  });
+
+  return {
+    recSeason, recType, recFrom, recTo,
+    seasons, filteredMatches, filteredMids, midsBySeason,
+    players, filtBat, filtBowl, filtField,
+    byPlayerBat, byPlayerBowl, byPlayerField, byBowlerBat, battingByMatch,
+  };
+}
+
+function _recGetContext() {
+  const sig = _recFilterSig();
+  if (sig !== _recCacheSig || !_recCacheCtx) {
+    _recCacheSig = sig;
+    _recCacheCtx = _recBuildContext();
+    _recTabsRendered = {}; // filters (or data) changed — every tab needs recomputing
+  }
+  return _recCacheCtx;
+}
+
+// Entry point — called on page load, filter change, and tab switch.
+// Only computes/renders whichever tab is currently visible; other tabs are
+// computed lazily the first time the user actually clicks them.
+function renderRecords() {
+  _recOpenSc = {};
+  _recScIdx  = 0;
+  Object.keys(_recSeasonPages).forEach(k => { _recSeasonPages[k] = 1; });
+
+  const ctx = _recGetContext();
+
+  // Populate season selector
+  const recSelEl = document.getElementById('rec-filter-season');
+  if (recSelEl) {
+    const cur = recSelEl.value;
+    recSelEl.innerHTML = '<option value="">All Time</option>' +
+      [...ctx.seasons].reverse().map(y=>`<option value="${y}">${y}</option>`).join('');
+    if (cur) recSelEl.value = cur;
+  }
+
+  _recRenderActiveTab();
+}
+
+// Called by showRecordsTab() whenever the visible tab changes.
+function _recRenderActiveTab() {
+  const which = _recCurrentTab;
+  if (_recTabsRendered[which]) return; // already computed for the current filters
+  _recTabsRendered[which] = true;
+  const ctx = _recGetContext();
+  switch (which) {
+    case 'career':     _recRenderCareer(ctx);     break;
+    case 'season':     _recRenderSeason(ctx);     break;
+    case 'scores':     _recRenderScores(ctx);     break;
+    case 'margins':    _recRenderMargins(ctx);    break;
+    case 'wicket':     _recRenderWicket(ctx);     break;
+    case 'innings':    _recRenderInnings(ctx);    break;
+    case 'milestones': _recRenderMilestonesTab(ctx); break;
+  }
+}
+
+// ── CAREER RECORDS ────────────────────────────────────────────────────────
+function _recRenderCareer(ctx) {
+  const { players, byPlayerBat, byPlayerBowl, byPlayerField, byBowlerBat } = ctx;
+  const get = (map, name) => map.get(name) || [];
+
   const careerMatches = players.map(name => {
-    const midsForPlayer = new Set([
-      ...filtBat.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
-      ...filtBowl.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
-      ...filtField.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+    const mids = new Set([
+      ...get(byPlayerBat, name).map(r=>r.match_id),
+      ...get(byPlayerBowl, name).map(r=>r.match_id),
+      ...get(byPlayerField, name).map(r=>r.match_id),
     ]);
-    return { name, val: midsForPlayer.size };
+    return { name, val: mids.size };
   }).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-matches', careerMatches, 'Matches');
 
-  // Most runs
   const careerRuns = players.map(name => ({
-    name,
-    val: filtBat.filter(r=>r.player===name&&r.team===OUR_TEAM).reduce((s,r)=>s+r.runs,0)
+    name, val: get(byPlayerBat, name).reduce((s,r)=>s+r.runs,0)
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-runs', careerRuns, 'Runs');
 
-  // Most wickets
   const careerWkts = players.map(name => ({
-    name,
-    val: filtBowl.filter(r=>r.player===name&&r.team===OUR_TEAM).reduce((s,r)=>s+r.wickets,0)
+    name, val: get(byPlayerBowl, name).reduce((s,r)=>s+r.wickets,0)
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-wkts', careerWkts, 'Wickets');
 
-  // Most 50s
   const career50s = players.map(name => ({
-    name,
-    val: filtBat.filter(r=>r.player===name&&r.team===OUR_TEAM&&r.runs>=50&&r.runs<100).length
+    name, val: get(byPlayerBat, name).filter(r=>r.runs>=50&&r.runs<100).length
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-50s', career50s, '50s');
 
-  // Most 100s
   const career100s = players.map(name => ({
-    name,
-    val: filtBat.filter(r=>r.player===name&&r.team===OUR_TEAM&&r.runs>=100).length
+    name, val: get(byPlayerBat, name).filter(r=>r.runs>=100).length
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-100s', career100s, '100s');
 
-  // Most ducks
   const careerDucks = players.map(name => ({
-    name,
-    val: filtBat.filter(r=>r.player===name&&r.team===OUR_TEAM&&r.runs===0&&!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length
+    name, val: get(byPlayerBat, name).filter(r=>r.runs===0&&!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-ducks', careerDucks, 'Ducks');
 
-  // Most 5WI
   const career5wi = players.map(name => ({
-    name,
-    val: filtBowl.filter(r=>r.player===name&&r.team===OUR_TEAM&&r.wickets>=5).length
+    name, val: get(byPlayerBowl, name).filter(r=>r.wickets>=5).length
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-5wi', career5wi, '5WI');
 
-  // Most fielding dismissals (including c&b)
   const careerField = players.filter(name=>!isUnsure(name)).map(name => {
-    const fr = filtField.filter(r=>r.player===name&&r.team===OUR_TEAM);
-    const br = filtBat.filter(r=>r.bowler===name);
+    const fr = get(byPlayerField, name);
+    const br = get(byBowlerBat, name);
     return { name, val: _fieldingTotals(name, fr, br).total };
   }).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-field', careerField, 'Dismissals');
+}
 
-  // ── MILESTONES ────────────────────────────────────────────────────────────
-  _renderMilestones(players, db.batting, db.bowling, db.fielding);
+// ── MILESTONES TAB ────────────────────────────────────────────────────────
+function _recRenderMilestonesTab(ctx) {
+  _renderMilestones(ctx.players, db.batting, db.bowling, db.fielding);
+}
 
-  // ── SEASON RECORDS ────────────────────────────────────────────────────────
+// ── SEASON LEADERS + SEASON RECORDS (Individual Records tab data) ─────────
+function _recRenderSeason(ctx) {
+  const { players, seasons, midsBySeason, byPlayerBat, byPlayerBowl, byPlayerField, byBowlerBat } = ctx;
+  const get = (map, name) => map.get(name) || [];
+
   const seasonRuns = [], seasonWkts = [], seasonField = [];
   seasons.forEach(season => {
-    const mids = new Set(filteredMatches.filter(m=>(m.date||'').startsWith(season)).map(m=>m.id));
-    // Top run scorer that season
+    const mids = midsBySeason.get(season);
+
     const sRuns = players.map(name => ({
       name, season,
-      val: db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM&&mids.has(r.match_id)).reduce((s,r)=>s+r.runs,0)
+      val: get(byPlayerBat, name).filter(r=>mids.has(r.match_id)).reduce((s,r)=>s+r.runs,0)
     })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val)[0];
     if (sRuns) seasonRuns.push(sRuns);
 
-    // Top wicket taker
     const sWkts = players.map(name => ({
       name, season,
-      val: db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM&&mids.has(r.match_id)).reduce((s,r)=>s+r.wickets,0)
+      val: get(byPlayerBowl, name).filter(r=>mids.has(r.match_id)).reduce((s,r)=>s+r.wickets,0)
     })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val)[0];
     if (sWkts) seasonWkts.push(sWkts);
 
-    // Top fielder (including c&b)
     const sField = players.filter(name=>!isUnsure(name)).map(name => {
-      const fr = db.fielding.filter(r=>r.player===name&&r.team===OUR_TEAM&&mids.has(r.match_id));
-      const br = db.batting.filter(r=>r.bowler===name&&mids.has(r.match_id));
+      const fr = get(byPlayerField, name).filter(r=>mids.has(r.match_id));
+      const br = get(byBowlerBat, name).filter(r=>mids.has(r.match_id));
       return { name, season, val: _fieldingTotals(name, fr, br).total };
     }).filter(r=>r.val>0).sort((a,b)=>b.val-a.val)[0];
     if (sField) seasonField.push(sField);
@@ -9630,13 +9736,19 @@ function renderRecords() {
   _recSeasonTable('rec-season-runs',  [...seasonRuns].reverse(),  'Runs');
   _recSeasonTable('rec-season-wkts',  [...seasonWkts].reverse(),  'Wickets');
   _recSeasonTable('rec-season-field', [...seasonField].reverse(), 'Dismissals');
+}
 
-  // ── SEASON RECORDS: best individual player-season performances (top 10 style) ──
+// ── INDIVIDUAL RECORDS TAB (best-ever seasons + best innings) ─────────────
+function _recRenderInnings(ctx) {
+  const { players, seasons, midsBySeason, byPlayerBat, byPlayerBowl, filtBat, filtBowl } = ctx;
+  const get = (map, name) => map.get(name) || [];
+
+  // Best individual player-seasons
   const seasonMostRuns = [], seasonBestBatAvg = [], seasonMostWkts = [], seasonBestBowlAvg = [];
   seasons.forEach(season => {
-    const mids = new Set(filteredMatches.filter(m=>(m.date||'').startsWith(season)).map(m=>m.id));
+    const mids = midsBySeason.get(season);
     players.forEach(name => {
-      const bat = db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM&&mids.has(r.match_id)&&r.how_out!=='did not bat');
+      const bat = get(byPlayerBat, name).filter(r=>mids.has(r.match_id)&&r.how_out!=='did not bat');
       if (bat.length) {
         const runs = bat.reduce((s,r)=>s+r.runs,0);
         const inns = bat.length;
@@ -9648,10 +9760,10 @@ function renderRecords() {
           seasonBestBatAvg.push({ name, season, val: avg.toFixed(2) });
         }
       }
-      const bowl = db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM&&mids.has(r.match_id));
+      const bowl = get(byPlayerBowl, name).filter(r=>mids.has(r.match_id));
       if (bowl.length) {
-        const wkts   = bowl.reduce((s,r)=>s+r.wickets,0);
-        const bRuns  = bowl.reduce((s,r)=>s+r.runs,0);
+        const wkts  = bowl.reduce((s,r)=>s+r.wickets,0);
+        const bRuns = bowl.reduce((s,r)=>s+r.runs,0);
         if (wkts>0) seasonMostWkts.push({ name, season, val: wkts });
         if (wkts>=10) seasonBestBowlAvg.push({ name, season, val: (bRuns/wkts).toFixed(2) });
       }
@@ -9666,123 +9778,7 @@ function renderRecords() {
   _recSeasonTable('rec-most-wkts-season',     seasonMostWkts.slice(0,10),    'Wickets');
   _recSeasonTable('rec-best-bowl-avg-season', seasonBestBowlAvg.slice(0,10), 'Average');
 
-  // ── RECORD SCORES ─────────────────────────────────────────────────────────
-  const getTeamScore = (m, team) => {
-    const godBat = m.bat_first===OUR_TEAM;
-    const inn    = team===OUR_TEAM ? (godBat?1:2) : (godBat?2:1);
-    const bat    = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===team);
-    if (!bat.length) return null;
-    const runs   = bat.reduce((s,r)=>s+r.runs,0);
-    const ex     = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
-    const ext    = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
-    // All out if: 11 batters batted, OR fewer than 11 but ≤1 genuinely not out
-    // "retired out" counts as a dismissal for all-out purposes
-    const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
-    const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
-    const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
-    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
-    const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
-    return { total: runs+ext, wkts };
-  };
-
-  const matchesWithScores = filteredMatches.filter(m =>
-    !['Cancelled','Abandoned','No Result','Godshill Conceded','Opposition Conceded'].includes(m.result) &&
-    db.batting.some(r=>r.match_id===m.id)
-  );
-
-  // Highest team score
-  const hiTeam = matchesWithScores.map(m => {
-    const s = getTeamScore(m, OUR_TEAM);
-    return s ? { m, score: s.total, wkts: s.wkts } : null;
-  }).filter(Boolean).sort((a,b)=>b.score-a.score);
-  _recScoreTable('rec-hi-team', hiTeam);
-
-  // Lowest team score (losses only)
-  const loTeam = matchesWithScores.filter(m=>m.result==='Lost').map(m => {
-    const s = getTeamScore(m, OUR_TEAM);
-    return s ? { m, score: s.total, wkts: s.wkts } : null;
-  }).filter(Boolean).sort((a,b)=>a.score-b.score);
-  _recScoreTable('rec-lo-team', loTeam);
-
-  // Highest opposition score
-  const hiOpp = matchesWithScores.map(m => {
-    const s = getTeamScore(m, m.opponent);
-    return s ? { m, score: s.total, wkts: s.wkts } : null;
-  }).filter(Boolean).sort((a,b)=>b.score-a.score);
-  _recScoreTable('rec-hi-opp', hiOpp);
-
-  // Lowest opposition score (wins only)
-  const loOpp = matchesWithScores.filter(m=>m.result==='Won').map(m => {
-    const s = getTeamScore(m, m.opponent);
-    return s ? { m, score: s.total, wkts: s.wkts } : null;
-  }).filter(Boolean).sort((a,b)=>a.score-b.score);
-  _recScoreTable('rec-lo-opp', loOpp);
-
-  // ── BIGGEST WINS / LOSSES ────────────────────────────────────────────────
-  const winsWithData   = matchesWithScores.filter(m=>m.result==='Won');
-  const lossesWithData = matchesWithScores.filter(m=>m.result==='Lost');
-
-  // Wins by runs: Godshill batted first, margin = GodTotal - OppTotal
-  const winsByRuns = winsWithData.map(m => {
-    const godBatFirst = m.bat_first===OUR_TEAM;
-    if (!godBatFirst) return null; // wicket wins are in wkts tab
-    const gs = getTeamScore(m, OUR_TEAM);
-    const os = getTeamScore(m, m.opponent);
-    if (!gs || !os) return null;
-    const margin = gs.total - os.total;
-    return margin > 0 ? { m, margin, marginStr: margin+' run'+(margin===1?'':'s') } : null;
-  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
-
-  // Wins by wickets: Godshill chased, margin = wickets remaining
-  const winsByWkts = winsWithData.map(m => {
-    if (m.bat_first===OUR_TEAM) return null;
-    const inn = 2; // Godshill bat in innings 2 when chasing
-    const bat = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===OUR_TEAM);
-    if (!bat.length) return null;
-    const wktsDown = bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length;
-    const wktsLeft = 10 - wktsDown;
-    return wktsLeft >= 0 ? { m, margin:wktsLeft, marginStr: wktsLeft+' wicket'+(wktsLeft===1?'':'s') } : null;
-  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
-
-  // Losses by runs: opposition batted first, margin = OppTotal - GodTotal
-  const lossesByRuns = lossesWithData.map(m => {
-    const godBatFirst = m.bat_first===OUR_TEAM;
-    if (godBatFirst) return null;
-    const gs = getTeamScore(m, OUR_TEAM);
-    const os = getTeamScore(m, m.opponent);
-    if (!gs || !os) return null;
-    const margin = os.total - gs.total;
-    return margin > 0 ? { m, margin, marginStr: margin+' run'+(margin===1?'':'s') } : null;
-  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
-
-  // Losses by wickets: Godshill batted first, opposition chased
-  const lossesByWkts = lossesWithData.map(m => {
-    if (m.bat_first!==OUR_TEAM) return null;
-    const inn = 2; // opposition bat in innings 2 when chasing
-    const bat = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===m.opponent);
-    if (!bat.length) return null;
-    const wktsDown = bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length;
-    const wktsLeft = 10 - wktsDown;
-    return wktsLeft >= 0 ? { m, margin:wktsLeft, marginStr: wktsLeft+' wicket'+(wktsLeft===1?'':'s') } : null;
-  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
-
-  _renderMarginTable('margin-win-runs',   winsByRuns,   true);
-  _renderMarginTable('margin-win-wkts',   winsByWkts,   true);
-  _renderMarginTable('margin-loss-runs',  lossesByRuns,  false);
-  _renderMarginTable('margin-loss-wkts',  lossesByWkts,  false);
-
-  // Narrowest: same data, sorted ascending
-  const narrowWinsByRuns  = [...winsByRuns].sort((a,b)=>a.margin-b.margin);
-  const narrowWinsByWkts  = [...winsByWkts].sort((a,b)=>a.margin-b.margin);
-  const narrowLossByRuns  = [...lossesByRuns].sort((a,b)=>a.margin-b.margin);
-  const narrowLossByWkts  = [...lossesByWkts].sort((a,b)=>a.margin-b.margin);
-
-  _renderMarginTable('margin-nwin-runs',  narrowWinsByRuns,  true);
-  _renderMarginTable('margin-nwin-wkts',  narrowWinsByWkts,  true);
-  _renderMarginTable('margin-nloss-runs', narrowLossByRuns,  false);
-  _renderMarginTable('margin-nloss-wkts', narrowLossByWkts,  false);
-
-  // ── BEST BATTING INNINGS ──────────────────────────────────────────────────
+  // ── BEST BATTING INNINGS ──────────────────────────────────────────────
   const bestBat = filtBat
     .filter(r => r.team===OUR_TEAM && r.how_out!=='did not bat' && r.player && r.runs!=null)
     .map(r => {
@@ -9814,7 +9810,7 @@ function renderRecords() {
       }).join('')
     : '<tr><td colspan="6" class="empty-state">No data.</td></tr>';
 
-  // ── BEST BOWLING INNINGS ───────────────────────────────────────────────────
+  // ── BEST BOWLING INNINGS ───────────────────────────────────────────────
   const bestBowl = filtBowl
     .filter(r => r.team===OUR_TEAM && r.player && r.wickets>0)
     .map(r => {
@@ -9852,8 +9848,146 @@ function renderRecords() {
         </tr>${scRow}`;
       }).join('')
     : '<tr><td colspan="6" class="empty-state">No data.</td></tr>';
+}
 
-  // ── RECORD BY BATTING POSITION ────────────────────────────────────────────
+// ── RECORD SCORES TAB ──────────────────────────────────────────────────────
+function _recRenderScores(ctx) {
+  const { filteredMatches, battingByMatch } = ctx;
+
+  const getTeamScore = (m, team) => {
+    const godBat = m.bat_first===OUR_TEAM;
+    const inn    = team===OUR_TEAM ? (godBat?1:2) : (godBat?2:1);
+    const bat    = (battingByMatch.get(m.id)||[]).filter(r=>r.innings===inn&&r.team===team);
+    if (!bat.length) return null;
+    const runs   = bat.reduce((s,r)=>s+r.runs,0);
+    const ex     = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
+    const ext    = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
+    const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
+    const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
+    const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
+    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
+    const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
+    return { total: runs+ext, wkts };
+  };
+  ctx._getTeamScore = getTeamScore; // reused by margins tab
+
+  const matchesWithScores = filteredMatches.filter(m =>
+    !['Cancelled','Abandoned','No Result','Godshill Conceded','Opposition Conceded'].includes(m.result) &&
+    (battingByMatch.get(m.id)||[]).length > 0
+  );
+  ctx._matchesWithScores = matchesWithScores; // reused by margins tab
+
+  const hiTeam = matchesWithScores.map(m => {
+    const s = getTeamScore(m, OUR_TEAM);
+    return s ? { m, score: s.total, wkts: s.wkts } : null;
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+  _recScoreTable('rec-hi-team', hiTeam);
+
+  const loTeam = matchesWithScores.filter(m=>m.result==='Lost').map(m => {
+    const s = getTeamScore(m, OUR_TEAM);
+    return s ? { m, score: s.total, wkts: s.wkts } : null;
+  }).filter(Boolean).sort((a,b)=>a.score-b.score);
+  _recScoreTable('rec-lo-team', loTeam);
+
+  const hiOpp = matchesWithScores.map(m => {
+    const s = getTeamScore(m, m.opponent);
+    return s ? { m, score: s.total, wkts: s.wkts } : null;
+  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+  _recScoreTable('rec-hi-opp', hiOpp);
+
+  const loOpp = matchesWithScores.filter(m=>m.result==='Won').map(m => {
+    const s = getTeamScore(m, m.opponent);
+    return s ? { m, score: s.total, wkts: s.wkts } : null;
+  }).filter(Boolean).sort((a,b)=>a.score-b.score);
+  _recScoreTable('rec-lo-opp', loOpp);
+}
+
+// ── RESULT MARGINS TAB ─────────────────────────────────────────────────────
+function _recRenderMargins(ctx) {
+  const { battingByMatch } = ctx;
+  // Reuse scores-tab helpers if that tab has already run this cycle; otherwise build fresh
+  const getTeamScore = ctx._getTeamScore || ((m, team) => {
+    const godBat = m.bat_first===OUR_TEAM;
+    const inn    = team===OUR_TEAM ? (godBat?1:2) : (godBat?2:1);
+    const bat    = (battingByMatch.get(m.id)||[]).filter(r=>r.innings===inn&&r.team===team);
+    if (!bat.length) return null;
+    const runs   = bat.reduce((s,r)=>s+r.runs,0);
+    const ex     = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
+    const ext    = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
+    const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
+    const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
+    const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
+    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
+    const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
+    return { total: runs+ext, wkts };
+  });
+  const matchesWithScores = ctx._matchesWithScores || ctx.filteredMatches.filter(m =>
+    !['Cancelled','Abandoned','No Result','Godshill Conceded','Opposition Conceded'].includes(m.result) &&
+    (battingByMatch.get(m.id)||[]).length > 0
+  );
+
+  const winsWithData   = matchesWithScores.filter(m=>m.result==='Won');
+  const lossesWithData = matchesWithScores.filter(m=>m.result==='Lost');
+
+  const winsByRuns = winsWithData.map(m => {
+    const godBatFirst = m.bat_first===OUR_TEAM;
+    if (!godBatFirst) return null;
+    const gs = getTeamScore(m, OUR_TEAM);
+    const os = getTeamScore(m, m.opponent);
+    if (!gs || !os) return null;
+    const margin = gs.total - os.total;
+    return margin > 0 ? { m, margin, marginStr: margin+' run'+(margin===1?'':'s') } : null;
+  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
+
+  const winsByWkts = winsWithData.map(m => {
+    if (m.bat_first===OUR_TEAM) return null;
+    const inn = 2;
+    const bat = (battingByMatch.get(m.id)||[]).filter(r=>r.innings===inn&&r.team===OUR_TEAM);
+    if (!bat.length) return null;
+    const wktsDown = bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length;
+    const wktsLeft = 10 - wktsDown;
+    return wktsLeft >= 0 ? { m, margin:wktsLeft, marginStr: wktsLeft+' wicket'+(wktsLeft===1?'':'s') } : null;
+  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
+
+  const lossesByRuns = lossesWithData.map(m => {
+    const godBatFirst = m.bat_first===OUR_TEAM;
+    if (godBatFirst) return null;
+    const gs = getTeamScore(m, OUR_TEAM);
+    const os = getTeamScore(m, m.opponent);
+    if (!gs || !os) return null;
+    const margin = os.total - gs.total;
+    return margin > 0 ? { m, margin, marginStr: margin+' run'+(margin===1?'':'s') } : null;
+  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
+
+  const lossesByWkts = lossesWithData.map(m => {
+    if (m.bat_first!==OUR_TEAM) return null;
+    const inn = 2;
+    const bat = (battingByMatch.get(m.id)||[]).filter(r=>r.innings===inn&&r.team===m.opponent);
+    if (!bat.length) return null;
+    const wktsDown = bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length;
+    const wktsLeft = 10 - wktsDown;
+    return wktsLeft >= 0 ? { m, margin:wktsLeft, marginStr: wktsLeft+' wicket'+(wktsLeft===1?'':'s') } : null;
+  }).filter(Boolean).sort((a,b)=>b.margin-a.margin);
+
+  _renderMarginTable('margin-win-runs',   winsByRuns,   true);
+  _renderMarginTable('margin-win-wkts',   winsByWkts,   true);
+  _renderMarginTable('margin-loss-runs',  lossesByRuns,  false);
+  _renderMarginTable('margin-loss-wkts',  lossesByWkts,  false);
+
+  const narrowWinsByRuns  = [...winsByRuns].sort((a,b)=>a.margin-b.margin);
+  const narrowWinsByWkts  = [...winsByWkts].sort((a,b)=>a.margin-b.margin);
+  const narrowLossByRuns  = [...lossesByRuns].sort((a,b)=>a.margin-b.margin);
+  const narrowLossByWkts  = [...lossesByWkts].sort((a,b)=>a.margin-b.margin);
+
+  _renderMarginTable('margin-nwin-runs',  narrowWinsByRuns,  true);
+  _renderMarginTable('margin-nwin-wkts',  narrowWinsByWkts,  true);
+  _renderMarginTable('margin-nloss-runs', narrowLossByRuns,  false);
+  _renderMarginTable('margin-nloss-wkts', narrowLossByWkts,  false);
+}
+
+// ── RECORD BY BATTING POSITION TAB ─────────────────────────────────────────
+function _recRenderWicket(ctx) {
+  const { filtBat } = ctx;
   const byPos = {};
   filtBat.filter(r=>r.team===OUR_TEAM&&r.how_out!=='did not bat'&&r.player&&r.position).forEach(r => {
     const pos = parseInt(r.position);

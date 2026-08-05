@@ -696,6 +696,18 @@
         <div><label>Batted First</label>
           <select id="m-bat-first"><option id="m-bf-us">Godshill</option><option>Opponent</option></select>
         </div>
+        <div style="display:flex;align-items:flex-end;padding-bottom:8px;">
+          <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
+            <input type="checkbox" id="m-two-innings" onchange="toggleTwoInningsTabs()" style="width:16px;height:16px;">
+            Two Innings Match <span style="font-size:11px;color:var(--ink-muted);">(each side bats twice)</span>
+          </label>
+        </div>
+        <div id="two-innings-order-field" style="display:none;">
+          <label>Innings 3 Batting Team <span style="font-size:11px;color:var(--ink-muted);">(set who bats 3rd if there's a follow-on)</span></label>
+          <select id="m-i3-team" onchange="this.dataset.touched='1';toggleTwoInningsTabs()">
+            <option>Godshill</option><option>Opponent</option>
+          </select>
+        </div>
       </div>
       <!-- hidden inputs kept for data compatibility -->
       <input type="hidden" id="m-overs" value="0">
@@ -762,11 +774,21 @@
         <button class="tab-btn"        onclick="showTab(this,'tab-i1bowl')">Inns 1 &middot; Bowling</button>
         <button class="tab-btn"        onclick="showTab(this,'tab-i2bat')">Inns 2 &middot; Batting</button>
         <button class="tab-btn"        onclick="showTab(this,'tab-i2bowl')">Inns 2 &middot; Bowling</button>
+        <span id="two-innings-tab-btns" style="display:none;">
+          <button class="tab-btn" onclick="showTab(this,'tab-i3bat')">Inns 3 &middot; Batting</button>
+          <button class="tab-btn" onclick="showTab(this,'tab-i3bowl')">Inns 3 &middot; Bowling</button>
+          <button class="tab-btn" onclick="showTab(this,'tab-i4bat')">Inns 4 &middot; Batting</button>
+          <button class="tab-btn" onclick="showTab(this,'tab-i4bowl')">Inns 4 &middot; Bowling</button>
+        </span>
       </div>
       <div id="tab-i1bat"  class="tab-panel active"></div>
       <div id="tab-i1bowl" class="tab-panel"></div>
       <div id="tab-i2bat"  class="tab-panel"></div>
       <div id="tab-i2bowl" class="tab-panel"></div>
+      <div id="tab-i3bat"  class="tab-panel"></div>
+      <div id="tab-i3bowl" class="tab-panel"></div>
+      <div id="tab-i4bat"  class="tab-panel"></div>
+      <div id="tab-i4bowl" class="tab-panel"></div>
     </div>
 
     <div class="card">
@@ -2552,17 +2574,42 @@ function buildTeamSheets() {
 // ════════════════════════════════════════════════════════════
 // SCOREBOOK TABLES
 // ════════════════════════════════════════════════════════════
+function toggleTwoInningsTabs() {
+  const on = !!(document.getElementById('m-two-innings')?.checked);
+  const el = document.getElementById('two-innings-tab-btns');
+  if (el) el.style.display = on ? '' : 'none';
+  const orderEl = document.getElementById('two-innings-order-field');
+  if (orderEl) orderEl.style.display = on ? '' : 'none';
+  const i3Sel = document.getElementById('m-i3-team');
+  if (on && i3Sel && !i3Sel.dataset.touched) {
+    // Default: same side that batted 1st bats 3rd too (no follow-on) — user can change this
+    i3Sel.value = document.getElementById('m-bat-first').value;
+  }
+  if (wiz.step === 3) { buildScorecard(); runValidation(); }
+}
+
 function getInningsTeams() {
   const batFirst = document.getElementById('m-bat-first').value;
   const i1bat  = batFirst === OUR_TEAM ? wiz.team1 : wiz.team2;
   const i1bowl = batFirst === OUR_TEAM ? wiz.team2 : wiz.team1;
-  return { i1bat, i1bowl, i2bat: i1bowl, i2bowl: i1bat };
+  const result = { i1bat, i1bowl, i2bat: i1bowl, i2bowl: i1bat };
+  if (document.getElementById('m-two-innings')?.checked) {
+    // Innings 3's batting side is user-selectable (to allow for a follow-on where
+    // the same side bats in two consecutive innings); innings 4 is whichever side is left.
+    const i3Team = document.getElementById('m-i3-team')?.value || batFirst;
+    const i3bat  = i3Team === OUR_TEAM ? wiz.team1 : wiz.team2;
+    const i3bowl = i3Team === OUR_TEAM ? wiz.team2 : wiz.team1;
+    result.i3bat = i3bat;   result.i3bowl = i3bowl;
+    result.i4bat = i3bowl;  result.i4bowl = i3bat;
+  }
+  return result;
 }
 
 function buildScorecard() {
   const opp = document.getElementById('m-opp').value.trim() || 'Opponent';
-  const {i1bat, i1bowl, i2bat, i2bowl} = getInningsTeams();
+  const {i1bat, i1bowl, i2bat, i2bowl, i3bat, i3bowl, i4bat, i4bowl} = getInningsTeams();
   const batFirst = document.getElementById('m-bat-first').value;
+  const twoInnings = !!(document.getElementById('m-two-innings')?.checked);
 
   // Update tab labels
   const tbs = document.querySelectorAll('#page-scorecard .tab-btn');
@@ -2571,10 +2618,21 @@ function buildScorecard() {
   tbs[2].textContent = `${batFirst === OUR_TEAM ? opp : OUR_TEAM} · Batting`;
   tbs[3].textContent = `${batFirst === OUR_TEAM ? OUR_TEAM : opp} · Bowling`;
 
-  document.getElementById('tab-i1bat').innerHTML  = buildBatTable(i1bat,  i1bowl, 'i1b');
+  document.getElementById('tab-i1bat').innerHTML  = buildBatTable(i1bat,  i1bowl, 'i1b', twoInnings);
   document.getElementById('tab-i1bowl').innerHTML = buildBowlTable(i1bowl, 'i1bw', i1bowl !== wiz.team1);
-  document.getElementById('tab-i2bat').innerHTML  = buildBatTable(i2bat,  i2bowl, 'i2b');
+  document.getElementById('tab-i2bat').innerHTML  = buildBatTable(i2bat,  i2bowl, 'i2b', twoInnings);
   document.getElementById('tab-i2bowl').innerHTML = buildBowlTable(i2bowl, 'i2bw', i2bowl !== wiz.team1);
+
+  if (twoInnings) {
+    tbs[4].textContent = `${batFirst === OUR_TEAM ? OUR_TEAM : opp} · Batting`;
+    tbs[5].textContent = `${batFirst === OUR_TEAM ? opp : OUR_TEAM} · Bowling`;
+    tbs[6].textContent = `${batFirst === OUR_TEAM ? opp : OUR_TEAM} · Batting`;
+    tbs[7].textContent = `${batFirst === OUR_TEAM ? OUR_TEAM : opp} · Bowling`;
+    document.getElementById('tab-i3bat').innerHTML  = buildBatTable(i3bat,  i3bowl, 'i3b', true);
+    document.getElementById('tab-i3bowl').innerHTML = buildBowlTable(i3bowl, 'i3bw', i3bowl !== wiz.team1);
+    document.getElementById('tab-i4bat').innerHTML  = buildBatTable(i4bat,  i4bowl, 'i4b', true);
+    document.getElementById('tab-i4bowl').innerHTML = buildBowlTable(i4bowl, 'i4bw', i4bowl !== wiz.team1);
+  }
 }
 
 function populateScorecardFromEdit() {
@@ -2598,13 +2656,16 @@ function populateScorecardFromEdit() {
   }
 
   // Populate batting rows
-  [[1,'i1b'],[2,'i2b']].forEach(([inn, pfx]) => {
+  const inningsList = [[1,'i1b'],[2,'i2b']];
+  if (document.getElementById('m-two-innings')?.checked) inningsList.push([3,'i3b'],[4,'i4b']);
+  inningsList.forEach(([inn, pfx]) => {
     const batRows = (wiz.editBatting || [])
       .filter(r=>r.innings===inn)
       .sort((a,b)=>a.position-b.position);
 
     batRows.forEach((r, idx) => {
       const i = idx + 1;
+      setSelect(pfx+'_bat_'+i,    r.player  || '');
       setSelect(pfx+'_dism_'+i,   r.how_out || 'not out');
       setSelect(pfx+'_fielder_'+i, r.fielder || '');
       setSelect(pfx+'_bowler_'+i,  r.bowler  || '');
@@ -2613,7 +2674,7 @@ function populateScorecardFromEdit() {
     });
 
     // Extras
-    const ext = inn === 1 ? wiz.editExtras.i1 : wiz.editExtras.i2;
+    const ext = (wiz.editExtras || {})['i'+inn];
     if (ext) {
       const setExt = (s, v) => { const e=document.getElementById(pfx+s); if(e) e.value=v||0; };
       setExt('_eb',ext.b); setExt('_elb',ext.lb); setExt('_ew',ext.w);
@@ -2623,7 +2684,9 @@ function populateScorecardFromEdit() {
   });
 
   // Populate bowling rows — match by player name to the correct row in the table
-  [[1,'i1bw','i1bat'],[2,'i2bw','i2bat']].forEach(([inn, pfx, batPfx]) => {
+  const bowlList = [[1,'i1bw','i1bat'],[2,'i2bw','i2bat']];
+  if (document.getElementById('m-two-innings')?.checked) bowlList.push([3,'i3bw','i3bat'],[4,'i4bw','i4bat']);
+  bowlList.forEach(([inn, pfx, batPfx]) => {
     const bowlRows = (wiz.editBowling || []).filter(r=>r.innings===inn);
 
     // The bowling table rows correspond to the bowling team's order in the team sheet.
@@ -2631,7 +2694,7 @@ function populateScorecardFromEdit() {
     // We reconstruct the bowler order from the DOM: row i has id pfx_ov_i, and
     // the bowler name is in the sibling <td class="name-cell"> of that row.
     // Simpler: find the row index by scanning td.name-cell text in that table.
-    const tabId = pfx === 'i1bw' ? 'tab-i1bowl' : 'tab-i2bowl';
+    const tabId = {i1bw:'tab-i1bowl', i2bw:'tab-i2bowl', i3bw:'tab-i3bowl', i4bw:'tab-i4bowl'}[pfx];
     const bowlTable = document.getElementById(tabId)?.querySelector('.scorebook');
 
     bowlRows.forEach(r => {
@@ -2670,13 +2733,20 @@ function personOpts(names) {
     names.map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
 }
 
-function buildBatTable(batters, fielders, pfx) {
+function battingOrderOpts(names, selected) {
+  return names.map(n => `<option value="${esc(n)}"${n===selected?' selected':''}>${esc(n)}</option>`).join('');
+}
+
+function buildBatTable(batters, fielders, pfx, editableOrder) {
   if (!batters.length) return '<p class="muted" style="padding:12px;">No batters — check team sheet.</p>';
   let rows = batters.map((nm, idx) => {
     const i = idx + 1;
+    const nameCell = editableOrder
+      ? `<select id="${pfx}_bat_${i}" style="font-size:12px;width:100%;">${battingOrderOpts(batters, nm)}</select>`
+      : esc(nm);
     return `<tr>
       <td class="pos-cell">${i}</td>
-      <td class="name-cell" style="min-width:130px;">${esc(nm)}</td>
+      <td class="name-cell" style="min-width:150px;">${nameCell}</td>
       <td style="min-width:120px;"><select id="${pfx}_dism_${i}" onchange="scUpdate('${pfx}')" style="font-size:12px;">${dismOpts()}</select></td>
       <td style="min-width:130px;"><select id="${pfx}_fielder_${i}" style="font-size:12px;">${personOpts(fielders)}</select></td>
       <td style="min-width:130px;"><select id="${pfx}_bowler_${i}" style="font-size:12px;">${personOpts(fielders)}</select></td>
@@ -2795,8 +2865,9 @@ function setInner(id,v) { const e=document.getElementById(id); if(e) e.innerText
 function readBatData(pfx, batters) {
   return batters.map((nm, idx) => {
     const i = idx + 1;
+    const selEl = document.getElementById(pfx+'_bat_'+i);
     return {
-      player:  nm,
+      player:  selEl ? selEl.value : nm,
       how_out: val(pfx+'_dism_'+i),
       bowler:  val(pfx+'_bowler_'+i),
       fielder: val(pfx+'_fielder_'+i),
@@ -2853,12 +2924,16 @@ function runValidation() {
   const warn = (m) => checks.push({t:'warn', m});
   const err  = (m) => checks.push({t:'err',  m});
 
-  const {i1bat, i1bowl, i2bat, i2bowl} = getInningsTeams();
+  const {i1bat, i1bowl, i2bat, i2bowl, i3bat, i3bowl, i4bat, i4bowl} = getInningsTeams();
   const opp = document.getElementById('m-opp').value.trim() || 'Opponent';
 
   ok(`Match: ${OUR_TEAM} vs ${opp} &bull; ${document.getElementById('m-date').value || '(no date)'}`);
 
-  [[i1bat,i1bowl,'i1b','i1bw',1],[i2bat,i2bowl,'i2b','i2bw',2]].forEach(([bat,bowl,pb,pbw,inn]) => {
+  const inningsCfgs = [[i1bat,i1bowl,'i1b','i1bw',1],[i2bat,i2bowl,'i2b','i2bw',2]];
+  if (document.getElementById('m-two-innings')?.checked) {
+    inningsCfgs.push([i3bat,i3bowl,'i3b','i3bw',3],[i4bat,i4bowl,'i4b','i4bw',4]);
+  }
+  inningsCfgs.forEach(([bat,bowl,pb,pbw,inn]) => {
     if (!bat.length) return;
     const bdf = readBatData(pb, bat);
     const wdf = readBowlData(pbw, bowl, bowl !== wiz.team1);
@@ -2923,7 +2998,7 @@ function runValidation() {
 function saveScorecard() {
   if (typeof _recBumpCache === 'function') _recBumpCache();
   // block on any errors
-  const {i1bat, i1bowl, i2bat, i2bowl} = getInningsTeams();
+  const {i1bat, i1bowl, i2bat, i2bowl, i3bat, i3bowl, i4bat, i4bowl} = getInningsTeams();
   const batFirst = document.getElementById('m-bat-first').value;
   const opp = document.getElementById('m-opp').value.trim();
   const isEdit = !!(wiz.editingMatchId);
@@ -2953,6 +3028,7 @@ function saveScorecard() {
     rain_affected: !!(document.getElementById('m-rain')?.checked),
     dls_target:   parseInt(document.getElementById('m-dls-target')?.value)||null,
     dls_overs:    parseFloat(document.getElementById('m-dls-overs')?.value)||null,
+    two_innings:  !!(document.getElementById('m-two-innings')?.checked),
   });
 
   const cfgs = [
@@ -2961,6 +3037,14 @@ function saveScorecard() {
     {inn:2, bat:i2bat, bowl:i2bowl, batTeam: batFirst===OUR_TEAM?opp:OUR_TEAM,
      bowlTeam: batFirst===OUR_TEAM?OUR_TEAM:opp, pb:'i2b', pbw:'i2bw'},
   ];
+  if (document.getElementById('m-two-innings')?.checked) {
+    cfgs.push(
+      {inn:3, bat:i3bat, bowl:i3bowl, batTeam: batFirst===OUR_TEAM?OUR_TEAM:opp,
+       bowlTeam: batFirst===OUR_TEAM?opp:OUR_TEAM, pb:'i3b', pbw:'i3bw'},
+      {inn:4, bat:i4bat, bowl:i4bowl, batTeam: batFirst===OUR_TEAM?opp:OUR_TEAM,
+       bowlTeam: batFirst===OUR_TEAM?OUR_TEAM:opp, pb:'i4b', pbw:'i4bw'},
+    );
+  }
 
   cfgs.forEach(cfg => {
     if (!cfg.bat.length) return;
@@ -3069,6 +3153,8 @@ function resetWizard() {
   const _dlsT = document.getElementById('m-dls-target'); if(_dlsT) _dlsT.value = '';
   const _dlsO = document.getElementById('m-dls-overs');  if(_dlsO) _dlsO.value = '';
   toggleRainFields();
+  const _twoInnR = document.getElementById('m-two-innings'); if(_twoInnR) _twoInnR.checked = false;
+  toggleTwoInningsTabs();
   document.getElementById('m-overs').value  = '0';
   wiz.team1 = []; wiz.team2 = [];
   wiz.editingMatchId = null;
@@ -3336,14 +3422,20 @@ function _homeLtScClick(idx, mid) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const col2 = i2bat.html ? `<div>${i2bat.html}${i2bowl}</div>` : '';
+  const col3 = i3bat.html ? `<div>${i3bat.html}${i3bowl}</div>` : '';
+  const col4 = i4bat.html ? `<div>${i4bat.html}${i4bowl}</div>` : '';
   const rc = resultColour(m.result);
   const resultStr = calcResultString(m, allBat) || m.result;
   content.innerHTML = `<div style="padding:10px;background:var(--cream-dark);font-size:13px;font-weight:600;color:var(--green-deep);">
     ${esc(m.opponent)} &bull; ${m.date} &bull; <span style="color:${rc};">${esc(resultStr)}</span>
   </div>
   <div class="sc-two-col">
-    <div>${i1bat.html}${i1bowl}</div>${col2}
+    <div>${i1bat.html}${i1bowl}</div>${col2}${col3}${col4}
   </div>`;
 }
 
@@ -3449,6 +3541,10 @@ function toggleHomeRecentlyAddedSc(idx, mid) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won'?'#155724':m.result==='Lost'?'#721c24':'#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -3460,9 +3556,11 @@ function toggleHomeRecentlyAddedSc(idx, mid) {
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
   const col2 = i2bat.html ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
+  const col3 = i3bat.html ? `<div style="">${i3bat.html}${i3bowl}</div>` : '';
+  const col4 = i4bat.html ? `<div style="">${i4bat.html}${i4bowl}</div>` : '';
   scContent.innerHTML = header +
     `<div class="sc-two-col">
-      <div style="">${i1bat.html}${i1bowl}</div>${col2}
+      <div style="">${i1bat.html}${i1bowl}</div>${col2}${col3}${col4}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -3612,6 +3710,10 @@ function toggleHomeInlineSc(idx, mid) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won' ? '#155724' : m.result==='Lost' ? '#721c24' : '#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -3624,6 +3726,8 @@ function toggleHomeInlineSc(idx, mid) {
   const col2 = i2bat.html
     ? i2bat.html + i2bowl
     : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No second innings recorded.</p>';
+  const col3 = m.two_innings ? (i3bat.html ? i3bat.html + i3bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? i4bat.html + i4bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
   const notesHtml = m.notes
     ? `<div style="margin-top:14px;padding:10px 16px;background:var(--cream);
          border-radius:5px;border:1px solid var(--green-pale);
@@ -3639,7 +3743,7 @@ function toggleHomeInlineSc(idx, mid) {
       onclick="exportMatchPDF('${mid}')">&#128196; PDF</button></div>`;
   scContent.innerHTML = header +
     `<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">` +
-    `<div>${i1bat.html+i1bowl}</div><div>${col2}</div></div>` + footer + homePdfBtn;
+    `<div>${i1bat.html+i1bowl}</div><div>${col2}</div><div>${col3}</div><div>${col4}</div></div>` + footer + homePdfBtn;
   scRow.style.display='';
   link.classList.add('open');
   _homeOpenSc[idx] = true;
@@ -3945,6 +4049,10 @@ function toggleMatchInlineSc(idx, mid) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won' ? '#155724' : m.result==='Lost' ? '#721c24' : '#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -3957,6 +4065,8 @@ function toggleMatchInlineSc(idx, mid) {
   const col2 = i2bat.html
     ? i2bat.html + i2bowl
     : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No second innings recorded.</p>';
+  const col3 = m.two_innings ? (i3bat.html ? i3bat.html + i3bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? i4bat.html + i4bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
   const notesHtml = m.notes
     ? `<div style="margin-top:14px;padding:10px 16px;background:var(--cream);
          border-radius:5px;border:1px solid var(--green-pale);
@@ -3972,7 +4082,7 @@ function toggleMatchInlineSc(idx, mid) {
       onclick="exportMatchPDF('${mid}')">&#128196; PDF</button></div>`;
   scContent.innerHTML = header +
     `<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">` +
-    `<div>${i1bat.html+i1bowl}</div><div>${col2}</div></div>` + footer + pdfBtn;
+    `<div>${i1bat.html+i1bowl}</div><div>${col2}</div><div>${col3}</div><div>${col4}</div></div>` + footer + pdfBtn;
   scRow.style.display='';
   link.classList.add('open');
   _matchOpenSc[idx] = true;
@@ -4009,6 +4119,55 @@ function calcResultString(match, allBat) {
   // Resolve team names: bat_first may be 'Godshill', opponent name, or 'Opponent'
   const i1TeamName = match.bat_first === 'Godshill' ? 'Godshill' : match.opponent;
   const i2TeamName = match.bat_first === 'Godshill' ? match.opponent : 'Godshill';
+
+  // ── Two innings per side: innings-margin / aggregate-runs / wickets result ──
+  if (match.two_innings) {
+    const i3Total = inningsTotal(3);
+    const i4Total = inningsTotal(4);
+    const i4Wkts  = inningsWickets(4);
+    const hasI3 = allBat.some(r=>r.innings===3);
+    const hasI4 = allBat.some(r=>r.innings===4);
+    if (!hasI3 && !hasI4) {
+      // No second-innings data entered yet — fall back to the single-innings logic below
+    } else {
+      const xTeam = i1TeamName, yTeam = i2TeamName; // X bats 1st & 3rd, Y bats 2nd & 4th
+      const xAgg = i1Total + (hasI3 ? i3Total : 0);
+      const yAgg = i2Total + (hasI4 ? i4Total : 0);
+      const xInnCount = 1 + (hasI3 ? 1 : 0);
+      const yInnCount = 1 + (hasI4 ? 1 : 0);
+      const finishLabel = (winner, marginTxt) => {
+        if ((winner === 'Godshill') === godshillWon) return `${winner} won by ${marginTxt}`;
+        const actualWinner = godshillWon ? 'Godshill' : match.opponent;
+        return `${actualWinner} won by ${marginTxt}`;
+      };
+
+      // Innings win: one side batted only once, the other batted twice and still fell short
+      if (xInnCount===1 && yInnCount===2 && i1Total > yAgg) {
+        const margin = i1Total - yAgg;
+        return finishLabel(xTeam, `an innings and ${margin} run${margin===1?'':'s'}`);
+      }
+      if (yInnCount===1 && xInnCount===2 && i2Total > xAgg) {
+        const margin = i2Total - xAgg;
+        return finishLabel(yTeam, `an innings and ${margin} run${margin===1?'':'s'}`);
+      }
+
+      // Wickets win: the side batting last (innings 4) chased down the target without being all out
+      if (hasI4 && yAgg > xAgg) {
+        const wktsLeft = 10 - i4Wkts;
+        if (wktsLeft > 0) return finishLabel(yTeam, `${wktsLeft} wicket${wktsLeft===1?'':'s'}`);
+      }
+
+      // Otherwise: decided by aggregate run margin
+      if (xAgg > yAgg) {
+        const margin = xAgg - yAgg;
+        return finishLabel(xTeam, `${margin} run${margin===1?'':'s'}`);
+      } else if (yAgg > xAgg) {
+        const margin = yAgg - xAgg;
+        return finishLabel(yTeam, `${margin} run${margin===1?'':'s'}`);
+      }
+      return 'Tie';
+    }
+  }
 
   if (i1Total && i2Total) {
     // For DLS games with a revised target, compare chasing innings against the target
@@ -4124,6 +4283,8 @@ function editMatch(mid) {
   if (rainCb) { rainCb.checked = !!(m.rain_affected); toggleRainFields(); }
   if (m.dls_target) { const t = document.getElementById('m-dls-target'); if(t) t.value = m.dls_target; }
   if (m.dls_overs)  { const o = document.getElementById('m-dls-overs');  if(o) o.value = m.dls_overs; }
+  const twoInnCb = document.getElementById('m-two-innings');
+  if (twoInnCb) { twoInnCb.checked = !!(m.two_innings); toggleTwoInningsTabs(); }
 
   // Pre-populate team sheets from existing batting records (sorted by position)
   const batFirst  = m.bat_first || OUR_TEAM;
@@ -4140,7 +4301,7 @@ function editMatch(mid) {
   wiz.editingMatchId  = mid;
   wiz.editBatting     = db.batting.filter(r=>r.match_id===mid);
   wiz.editBowling     = db.bowling.filter(r=>r.match_id===mid);
-  wiz.editExtras      = { i1: m.extras_i1 || {}, i2: m.extras_i2 || {} };
+  wiz.editExtras      = { i1: m.extras_i1 || {}, i2: m.extras_i2 || {}, i3: m.extras_i3 || {}, i4: m.extras_i4 || {} };
 
   showPage('scorecard', document.querySelector('nav button:nth-child(2)'));
   goStep(1);
@@ -5884,7 +6045,7 @@ function buildInningsBatHtml(mid, innings) {
   const m   = db.matches.find(m=>m.id===mid);
   const bat = db.batting.filter(r=>r.match_id===mid&&r.innings===innings)
                          .sort((a,b)=>a.position-b.position);
-  const ext = ((innings===1 ? m?.extras_i1 : m?.extras_i2) || {});
+  const ext = (m?.['extras_i'+innings] || {});
   const extTotal = (ext.b||0)+(ext.lb||0)+(ext.w||0)+(ext.nb||0)+(ext.p||0);
   const batTotal = bat.reduce((s,r)=>s+r.runs,0) + extTotal;
   const teamLabel = bat.length ? bat[0].team : '';
@@ -6035,6 +6196,10 @@ function toggleInlineSc(pfx, idx, mid, innings, focus) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
 
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won' ? '#155724' : m.result==='Lost' ? '#721c24' : '#5d4037';
@@ -6051,6 +6216,8 @@ function toggleInlineSc(pfx, idx, mid, innings, focus) {
   const col2 = i2bat.html
     ? i2bat.html + i2bowl
     : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No second innings recorded.</p>';
+  const col3 = m.two_innings ? (i3bat.html ? i3bat.html + i3bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? i4bat.html + i4bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
 
   const notesHtml2 = m.notes
     ? `<div style="margin-top:14px;padding:10px 16px;background:var(--cream);
@@ -6066,7 +6233,7 @@ function toggleInlineSc(pfx, idx, mid, innings, focus) {
 
   scContent.innerHTML = header +
     `<div class="sc-two-col">`+
-    `<div>${col1}</div><div>${col2}</div></div>` + footer;
+    `<div>${col1}</div><div>${col2}</div><div>${col3}</div><div>${col4}</div></div>` + footer;
 
   scRow.style.display = '';
   link.classList.add('open');
@@ -6276,6 +6443,10 @@ function toggleErrInlineSc(idx, mid, pfx) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won' ? '#155724' : m.result==='Lost' ? '#721c24' : '#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -6288,6 +6459,8 @@ function toggleErrInlineSc(idx, mid, pfx) {
   const col2 = i2bat.html
     ? i2bat.html + i2bowl
     : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No second innings recorded.</p>';
+  const col3 = m.two_innings ? (i3bat.html ? i3bat.html + i3bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? i4bat.html + i4bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
   const notesHtml = m.notes
     ? `<div style="margin-top:14px;padding:10px 16px;background:var(--cream);
          border-radius:5px;border:1px solid var(--green-pale);
@@ -6300,7 +6473,7 @@ function toggleErrInlineSc(idx, mid, pfx) {
     ${esc(resultStr)}</div>`;
   scContent.innerHTML = header +
     `<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">` +
-    `<div>${i1bat.html+i1bowl}</div><div>${col2}</div></div>` + footer;
+    `<div>${i1bat.html+i1bowl}</div><div>${col2}</div><div>${col3}</div><div>${col4}</div></div>` + footer;
   scRow.style.display='';
   link.classList.add('open');
   _errOpenSc[idx] = true;
@@ -6314,6 +6487,10 @@ function exportMatchPDF(mid) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won' ? '#155724' : m.result==='Lost' ? '#721c24' : '#5d4037';
   const rcBg = m.result==='Won' ? '#d4edda' : m.result==='Lost' ? '#f8d7da' : '#fff3cd';
@@ -6324,6 +6501,8 @@ function exportMatchPDF(mid) {
   const col2 = i2bat.html
     ? i2bat.html + i2bowl
     : '<p style="color:#888;font-style:italic;font-size:12px;padding-top:16px;">No second innings recorded.</p>';
+  const col3 = m.two_innings ? (i3bat.html ? i3bat.html + i3bowl : '<p style="color:#888;font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? i4bat.html + i4bowl : '<p style="color:#888;font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
 
   const html = `<!DOCTYPE html>
 <html>
@@ -6424,7 +6603,7 @@ function exportMatchPDF(mid) {
 
   <div class="grid">
     <div>${i1bat.html}${i1bowl}</div>
-    <div>${col2}</div>
+    <div>${col2}</div><div>${col3}</div><div>${col4}</div>
   </div>
   ${notesHtml}
 </body>
@@ -6462,6 +6641,10 @@ function toggleStatsInlineSc(pfx, idx, mid) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won' ? '#155724' : m.result==='Lost' ? '#721c24' : '#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -6474,6 +6657,8 @@ function toggleStatsInlineSc(pfx, idx, mid) {
   const col2 = i2bat.html
     ? i2bat.html + i2bowl
     : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No second innings recorded.</p>';
+  const col3 = m.two_innings ? (i3bat.html ? i3bat.html + i3bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? i4bat.html + i4bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
   const notesHtml = m.notes
     ? `<div style="margin-top:14px;padding:10px 16px;background:var(--cream);border-radius:5px;
          border:1px solid var(--green-pale);font-size:12px;color:var(--ink-muted);font-style:italic;">
@@ -6484,7 +6669,7 @@ function toggleStatsInlineSc(pfx, idx, mid) {
     ${esc(resultStr)}</div>`;
   scContent.innerHTML = header +
     `<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">` +
-    `<div>${i1bat.html+i1bowl}</div><div>${col2}</div></div>` + footer;
+    `<div>${i1bat.html+i1bowl}</div><div>${col2}</div><div>${col3}</div><div>${col4}</div></div>` + footer;
   scRow.style.display='';
   link.classList.add('open');
   _statsOpenSc[key] = true;
@@ -7792,6 +7977,10 @@ function toggleH2HInlineSc(idx, el) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won'?'#155724':m.result==='Lost'?'#721c24':'#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -7804,9 +7993,13 @@ function toggleH2HInlineSc(idx, el) {
   </div>`;
   const col2 = i2bat.html
     ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
+  const col3 = i3bat.html
+    ? `<div style="">${i3bat.html}${i3bowl}</div>` : '';
+  const col4 = i4bat.html
+    ? `<div style="">${i4bat.html}${i4bowl}</div>` : '';
   scContent.innerHTML = header +
     `<div class="sc-two-col">
-      <div style="">${i1bat.html}${i1bowl}</div>${col2}
+      <div style="">${i1bat.html}${i1bowl}</div>${col2}${col3}${col4}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -8779,6 +8972,10 @@ function toggleLTInlineSc(tblId, idx, el) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won' ? '#155724' : m.result==='Lost' ? '#721c24' : '#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -8791,6 +8988,8 @@ function toggleLTInlineSc(tblId, idx, el) {
   const col2 = i2bat.html
     ? i2bat.html + i2bowl
     : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No second innings recorded.</p>';
+  const col3 = m.two_innings ? (i3bat.html ? i3bat.html + i3bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? i4bat.html + i4bowl : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
   const notesHtml = m.notes
     ? `<div style="margin-top:14px;padding:10px 16px;background:var(--cream);
          border-radius:5px;border:1px solid var(--green-pale);
@@ -8807,7 +9006,7 @@ function toggleLTInlineSc(tblId, idx, el) {
   scContent.innerHTML = header +
     `<div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">` +
       `<div>${i1bat.html}${i1bowl}</div>` +
-      `<div>${col2}</div>` +
+      `<div>${col2}</div><div>${col3}</div><div>${col4}</div>` +
     `</div>` + footer + pdfBtn;
   scRow.style.display = '';
   if (link) link.classList.add('open');
@@ -8966,6 +9165,10 @@ function toggleProfileMatchSc(si, el) {
   const i1bowl = buildInningsBowlHtml(mid, 1);
   const i2bat  = buildInningsBatHtml(mid, 2);
   const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won'?'#155724':m.result==='Lost'?'#721c24':'#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -8977,9 +9180,11 @@ function toggleProfileMatchSc(si, el) {
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
   const col2 = i2bat.html ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
+  const col3 = i3bat.html ? `<div style="">${i3bat.html}${i3bowl}</div>` : '';
+  const col4 = i4bat.html ? `<div style="">${i4bat.html}${i4bowl}</div>` : '';
   scContent.innerHTML = header +
     `<div class="sc-two-col">
-      <div style="">${i1bat.html}${i1bowl}</div>${col2}
+      <div style="">${i1bat.html}${i1bowl}</div>${col2}${col3}${col4}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -9056,9 +9261,11 @@ function toggleRecInlineSc(idx, el) {
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
   const col2 = i2bat.html ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
+  const col3 = i3bat.html ? `<div style="">${i3bat.html}${i3bowl}</div>` : '';
+  const col4 = i4bat.html ? `<div style="">${i4bat.html}${i4bowl}</div>` : '';
   scContent.innerHTML = header +
     `<div class="sc-two-col">
-      <div style="">${i1bat.html}${i1bowl}</div>${col2}
+      <div style="">${i1bat.html}${i1bowl}</div>${col2}${col3}${col4}
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
@@ -9926,8 +10133,8 @@ function _recRenderMargins(ctx) {
     (battingByMatch.get(m.id)||[]).length > 0
   );
 
-  const winsWithData   = matchesWithScores.filter(m=>m.result==='Won');
-  const lossesWithData = matchesWithScores.filter(m=>m.result==='Lost');
+  const winsWithData   = matchesWithScores.filter(m=>m.result==='Won' && !m.two_innings);
+  const lossesWithData = matchesWithScores.filter(m=>m.result==='Lost' && !m.two_innings);
 
   const winsByRuns = winsWithData.map(m => {
     const godBatFirst = m.bat_first===OUR_TEAM;

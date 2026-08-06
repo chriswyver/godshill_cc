@@ -635,8 +635,18 @@
     <div id="home-league-table"></div>
   </div>
 
-  <!-- Row 4: recently added scorecards -->
+  <!-- Row 4: On This Day -->
   <div class="card">
+    <div class="card-title"><span class="icon">&#128197;</span> On This Day<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
+    <p class="muted" style="font-size:12px;margin-bottom:10px;" id="on-this-day-subtitle">Godshill matches played on this date in previous years.</p>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th></tr></thead>
+      <tbody id="tbody-on-this-day"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Recently added scorecards — editor-only workflow aid, not shown on the published site -->
+  <div class="card edit-only">
     <div class="card-title"><span class="icon">&#128221;</span> Recently Added Scorecards<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div>
     <p class="muted" style="font-size:12px;margin-bottom:10px;">The 5 most recently entered scorecards, in the order they were added.</p>
     <div class="table-wrap"><table class="data-table">
@@ -1421,6 +1431,7 @@
     <button class="tab-btn active" id="stab-bat"   onclick="showStatsTab('bat')">Batting</button>
     <button class="tab-btn"        id="stab-bowl"  onclick="showStatsTab('bowl')">Bowling</button>
     <button class="tab-btn"        id="stab-field" onclick="showStatsTab('field')">Fielding</button>
+    <button class="tab-btn"        id="stab-matches" onclick="showStatsTab('matches')">Matches</button>
     <button class="tab-btn"        id="stab-100s"  onclick="showStatsTab('100s')">Centuries</button>
     <button class="tab-btn"        id="stab-5wi"   onclick="showStatsTab('5wi')">5-Wicket Hauls</button>
   </div>
@@ -1535,6 +1546,21 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
         </table>
       </div>
       <div id="stats-field-pager" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
+    </div>
+  </div>
+  <div id="stats-matches" class="tab-panel">
+    <div class="card mt16">
+      <p class="muted" style="font-size:12px;margin-bottom:10px;">Matches played for Godshill (batted, bowled or fielded), respecting the filters above.</p>
+      <div class="table-wrap">
+        <table class="data-table">
+          <thead id="thead-matches-stats" class="sortable"><tr>
+            <th onclick="sortStats('matches','p',0)">Player</th>
+            <th class="r" onclick="sortStats('matches','m',1)">Matches</th>
+          </tr></thead>
+          <tbody id="tbody-matches-stats"></tbody>
+        </table>
+      </div>
+      <div id="stats-matches-pager" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
     </div>
   </div>
 </div>
@@ -3292,6 +3318,7 @@ let _homeBatFilter  = 'all';
 let _homeBowlFilter = 'all';
 
 let _homeRecentlyAddedOpenSc = {};
+let _homeOnThisDayOpenSc = {};
 
 function renderHomeLeagueTable() {
   const card  = document.getElementById('home-league-card');
@@ -3493,6 +3520,35 @@ function renderHomeRecent() {
       }).join('')
     : '<tr><td colspan="4" class="empty-state">No matches yet</td></tr>';
 
+  // On This Day: matches played on this calendar date in previous years, with a scorecard
+  _homeOnThisDayOpenSc = {};
+  const today = new Date();
+  const todayMMDD = String(today.getMonth()+1).padStart(2,'0') + '-' + String(today.getDate()).padStart(2,'0');
+  const todayLabel = today.toLocaleDateString('en-GB', {day:'numeric', month:'long'});
+  const subtitleEl = document.getElementById('on-this-day-subtitle');
+  if (subtitleEl) subtitleEl.textContent = `Godshill matches played on ${todayLabel} in previous years.`;
+  const onThisDay = db.matches
+    .filter(m => (m.date||'').slice(5,10) === todayMMDD && (m.date||'').slice(0,4) !== String(today.getFullYear()))
+    .filter(m => db.batting.some(r=>r.match_id===m.id))
+    .sort((a,b) => b.date.localeCompare(a.date));
+
+  document.getElementById('tbody-on-this-day').innerHTML = onThisDay.length
+    ? onThisDay.map((m, idx) => {
+        const _otdResultCell = resultCell(m, db.batting.filter(r=>r.match_id===m.id));
+        return `<tr>
+          <td style="color:var(--ink-muted);font-size:12px;">${m.date}</td>
+          <td><a class="sc-toggle-link" id="home-otd-link-${idx}"
+                 onclick="toggleHomeOnThisDaySc(${idx},'${m.id}')"
+                 style="cursor:pointer;">${esc(m.opponent)}</a></td>
+          <td style="font-size:12px;">${esc(m.format||'')}</td>
+          <td>${_otdResultCell}</td>
+        </tr>
+        <tr id="home-otd-sc-row-${idx}" class="inline-sc-row" style="display:none;">
+          <td colspan="4"><div class="inline-sc-wrap" id="home-otd-sc-content-${idx}"></div></td>
+        </tr>`;
+      }).join('')
+    : `<tr><td colspan="4" class="empty-state">No matches recorded on ${todayLabel} in previous years</td></tr>`;
+
   // Recently added: sort by match ID (M + timestamp) descending = added order
   // Only show matches that have batting data (actual scorecards)
   _homeRecentlyAddedOpenSc = {};
@@ -3518,6 +3574,56 @@ function renderHomeRecent() {
         </tr>`;
       }).join('')
     : '<tr><td colspan="4" class="empty-state">No scorecards yet</td></tr>';
+}
+
+function toggleHomeOnThisDaySc(idx, mid) {
+  const scRow     = document.getElementById('home-otd-sc-row-'+idx);
+  const scContent = document.getElementById('home-otd-sc-content-'+idx);
+  const link      = document.getElementById('home-otd-link-'+idx);
+  if (!scRow) return;
+  const isOpen = _homeOnThisDayOpenSc[idx];
+  // Close all
+  Object.keys(_homeOnThisDayOpenSc).forEach(k => {
+    const r = document.getElementById('home-otd-sc-row-'+k);
+    const l = document.getElementById('home-otd-link-'+k);
+    if (r) r.style.display='none';
+    if (l) l.classList.remove('open');
+    delete _homeOnThisDayOpenSc[k];
+  });
+  if (isOpen) return;
+  const m = db.matches.find(m=>m.id===mid);
+  if (!m) return;
+  const i1bat  = buildInningsBatHtml(mid, 1);
+  const i1bowl = buildInningsBowlHtml(mid, 1);
+  const i2bat  = buildInningsBatHtml(mid, 2);
+  const i2bowl = buildInningsBowlHtml(mid, 2);
+  const i3bat  = buildInningsBatHtml(mid, 3);
+  const i3bowl = buildInningsBowlHtml(mid, 3);
+  const i4bat  = buildInningsBatHtml(mid, 4);
+  const i4bowl = buildInningsBowlHtml(mid, 4);
+  const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
+  const rc = m.result==='Won'?'#155724':m.result==='Lost'?'#721c24':'#5d4037';
+  const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
+      margin-bottom:14px;padding-bottom:10px;border-bottom:2px solid var(--green-pale);">
+    <span style="font-family:'Playfair Display',serif;font-weight:900;font-size:15px;">
+      Godshill vs ${esc(m.opponent)}</span>
+    <span style="font-size:11px;color:var(--ink-muted);">
+      &bull; ${m.date}${m.venue?' &bull; '+esc(m.venue):''} &bull; ${esc(m.format)}</span>
+    <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
+  </div>`;
+  const col2 = i2bat.html ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
+  const col3 = m.two_innings ? (i3bat.html ? `<div style="">${i3bat.html}${i3bowl}</div>` : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? `<div style="">${i4bat.html}${i4bowl}</div>` : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
+  scContent.innerHTML = header +
+    `<div class="sc-two-col">
+      <div style="">${i1bat.html}${i1bowl}</div><div>${col2}</div><div>${col3}</div><div>${col4}</div>
+    </div>
+    <div style="text-align:right;margin-top:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>
+    </div>`;
+  scRow.style.display = '';
+  if (link) link.classList.add('open');
+  _homeOnThisDayOpenSc[idx] = true;
 }
 
 function toggleHomeRecentlyAddedSc(idx, mid) {
@@ -3775,7 +3881,7 @@ function clearProfileFilters() {
 }
 
 function clearStatsFilters() {
-  _statsPage.bat = 1; _statsPage.bowl = 1; _statsPage.field = 1;
+  _statsPage.bat = 1; _statsPage.bowl = 1; _statsPage.field = 1; _statsPage.matches = 1;
   document.querySelectorAll('.min-pill').forEach(p=>p.classList.remove('active'));
   const vw = document.getElementById('stats-min-val-wrap');
   if (vw) { vw.style.display = 'none'; }
@@ -4464,7 +4570,7 @@ function populatePlayerManageSelects() {
 let _currentStatsTab = 'bat';
 function showStatsTab(which) {
   _currentStatsTab = which;
-  ['bat','bowl','field','100s','5wi'].forEach(t=>{
+  ['bat','bowl','field','matches','100s','5wi'].forEach(t=>{
     const panel = document.getElementById('stats-'+t);
     const btn   = document.getElementById('stab-'+t);
     if (panel) { panel.classList.toggle('active', t===which); }
@@ -4484,14 +4590,14 @@ function showStatsTab(which) {
   updateMinPlaceholder();
 }
 
-const _statsCache = { bat:[], bowl:[], field:[], sortKey:{bat:'runs',bowl:'wk',field:'tot'}, sortDir:{bat:-1,bowl:-1,field:-1} };
+const _statsCache = { bat:[], bowl:[], field:[], matches:[], sortKey:{bat:'runs',bowl:'wk',field:'tot',matches:'m'}, sortDir:{bat:-1,bowl:-1,field:-1,matches:-1} };
 
 function statsPlayerLink(name) {
   const safe = name.replace(/'/g,"\'");
   return `<a class="sc-toggle-link" onclick="openPlayerByName('${safe}')">${esc(name)}</a>`;
 }
 // ── Pagination state ─────────────────────────────────────────────────────────
-const _statsPage    = { bat:1, bowl:1, field:1 };
+const _statsPage    = { bat:1, bowl:1, field:1, matches:1 };
 const _matchPage    = { matches:1, players:1, '100s':1, '5wi':1 };
 let _matchExactOpponent = null; // when set (by global search), opponent filter uses exact match instead of substring
 let _leagueDivisionFilter = ''; // '' = All divisions, else exact division name
@@ -4552,6 +4658,7 @@ function statsGoPage(tab, page) {
   if (tab==='bat')   renderBatTable(rows);
   if (tab==='bowl')  renderBowlTable(rows);
   if (tab==='field') renderFieldTable(rows);
+  if (tab==='matches') renderMatchesStatsTable(rows);
 }
 
 function _pageSlice(tab, rows) {
@@ -4596,6 +4703,16 @@ function renderFieldTable(rows) {
   _renderPager('field', rows.length, 5);
 }
 
+function renderMatchesStatsTable(rows) {
+  const slice = _pageSlice('matches', rows);
+  document.getElementById('tbody-matches-stats').innerHTML = slice.length
+    ? slice.map(r=>`<tr>
+        <td>${statsPlayerLink(r.p)}</td><td class="num">${r.m}</td>
+      </tr>`).join('')
+    : '<tr><td colspan="2" class="empty-state">No matches data</td></tr>';
+  _renderPager('matches', rows.length, 5);
+}
+
 function sortStats(table, key, colIdx) {
   const cache = _statsCache;
   if (cache.sortKey[table] === key) {
@@ -4625,6 +4742,7 @@ function sortStats(table, key, colIdx) {
   if (table==='bat')   renderBatTable(rows);
   if (table==='bowl')  renderBowlTable(rows);
   if (table==='field') renderFieldTable(rows);
+  if (table==='matches') renderMatchesStatsTable(rows);
 }
 
 let _profPosFilter = null;
@@ -4720,7 +4838,7 @@ function _getMinPillVal(group) {
 }
 
 function renderStats() {
-  _statsPage.bat = 1; _statsPage.bowl = 1; _statsPage.field = 1;
+  _statsPage.bat = 1; _statsPage.bowl = 1; _statsPage.field = 1; _statsPage.matches = 1;
   _statsPage['100s'] = 1; _statsPage['5wi'] = 1;
   populateSeasonDropdowns();
   const fp    = document.getElementById('filter-player')?.value || '';
@@ -4865,6 +4983,27 @@ function renderStats() {
   _statsCache.field = filtFieldRows;
 
   renderFieldTable(filtFieldRows);
+
+  // Matches played (batted, bowled or fielded) — respects the same filters
+  const matchesMap = {};
+  const addMatch = (player, mid) => {
+    if (!player || player.toLowerCase()==='unsure') return;
+    if (!matchesMap[player]) matchesMap[player] = new Set();
+    matchesMap[player].add(mid);
+  };
+  db.batting.filter(r=>r.team===OUR_TEAM && mids.has(r.match_id) && r.how_out!=='did not bat')
+    .forEach(r=>addMatch(r.player, r.match_id));
+  db.bowling.filter(r=>r.team===OUR_TEAM && mids.has(r.match_id))
+    .forEach(r=>addMatch(r.player, r.match_id));
+  db.fielding.filter(r=>r.team===OUR_TEAM && mids.has(r.match_id))
+    .forEach(r=>addMatch(r.player, r.match_id));
+  let matchesRows = Object.entries(matchesMap)
+    .filter(([p]) => !fp || p === fp)
+    .map(([p,set])=>({ p, m: set.size }))
+    .sort((a,b)=>b.m-a.m);
+  _statsCache.matches = matchesRows;
+
+  renderMatchesStatsTable(matchesRows);
 
   // Centuries tab
   const centuries = db.batting
@@ -9251,6 +9390,8 @@ function toggleRecInlineSc(idx, el) {
   if (!m) return;
   const i1bat=buildInningsBatHtml(mid,1), i1bowl=buildInningsBowlHtml(mid,1);
   const i2bat=buildInningsBatHtml(mid,2), i2bowl=buildInningsBowlHtml(mid,2);
+  const i3bat=buildInningsBatHtml(mid,3), i3bowl=buildInningsBowlHtml(mid,3);
+  const i4bat=buildInningsBatHtml(mid,4), i4bowl=buildInningsBowlHtml(mid,4);
   const resultStr = calcResultString(m, db.batting.filter(r=>r.match_id===mid));
   const rc = m.result==='Won'?'#155724':m.result==='Lost'?'#721c24':'#5d4037';
   const header = `<div style="display:flex;align-items:baseline;flex-wrap:wrap;gap:6px;
@@ -9261,11 +9402,11 @@ function toggleRecInlineSc(idx, el) {
     <span style="margin-left:auto;font-weight:700;color:${rc};">${resultStr}</span>
   </div>`;
   const col2 = i2bat.html ? `<div style="">${i2bat.html}${i2bowl}</div>` : '';
-  const col3 = i3bat.html ? `<div style="">${i3bat.html}${i3bowl}</div>` : '';
-  const col4 = i4bat.html ? `<div style="">${i4bat.html}${i4bowl}</div>` : '';
+  const col3 = m.two_innings ? (i3bat.html ? `<div style="">${i3bat.html}${i3bowl}</div>` : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 3rd innings recorded.</p>') : '';
+  const col4 = m.two_innings ? (i4bat.html ? `<div style="">${i4bat.html}${i4bowl}</div>` : '<p style="color:var(--ink-muted);font-style:italic;font-size:12px;padding-top:16px;">No 4th innings recorded.</p>') : '';
   scContent.innerHTML = header +
     `<div class="sc-two-col">
-      <div style="">${i1bat.html}${i1bowl}</div>${col2}${col3}${col4}
+      <div style="">${i1bat.html}${i1bowl}</div><div>${col2}</div><div>${col3}</div><div>${col4}</div>
     </div>
     <div style="text-align:right;margin-top:8px;">
       <button class="btn btn-secondary btn-sm" onclick="exportMatchPDF('${mid}')" style="font-size:11px;">PDF</button>

@@ -837,7 +837,9 @@
       <div id="matches-year-chart" style="overflow-x:auto;"></div>
       <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:10px;font-size:12px;">
         <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#2e5c38;display:inline-block;"></span>Saturday League</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#4a7a90;display:inline-block;"></span>Midweek League</span>
         <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#c8922a;display:inline-block;"></span>NVKO</span>
+        <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#8a5fa8;display:inline-block;"></span>Tour</span>
         <span style="display:flex;align-items:center;gap:5px;"><span style="width:12px;height:12px;border-radius:2px;background:#5a9a6a;display:inline-block;"></span>Friendly</span>
       </div>
     </div>
@@ -890,7 +892,7 @@
       </div>
       <div>
         <label>Opposition</label>
-        <input type="text" id="match-filter-opp" oninput="_matchExactOpponent=null;renderMatches();_reRenderH2HIfActive();" placeholder="Any opponent..." style="width:100%;">
+        <input type="text" id="match-filter-opp" oninput="_matchExactOpponent=null;_matchClubFilter=null;renderMatches();_reRenderH2HIfActive();" placeholder="Any opponent..." style="width:100%;">
       </div>
       <div>
         <label>Venue</label>
@@ -918,6 +920,28 @@
     </div><!-- /match-filter-collapsible -->
     </div><!-- /match-filter-outer-body -->
   </div>
+
+  <div class="card edit-only" style="margin-bottom:12px;">
+    <div class="card-title" style="font-size:14px;">&#9998; Rename Opponent</div>
+    <p style="font-size:12px;color:var(--ink-muted);margin-bottom:10px;">
+      Updates the opponent name on every match it appears on.
+    </p>
+    <div class="form-grid">
+      <div><label>Select Opponent</label>
+        <select id="rename-opp-select" style="width:100%;">
+          <option value="">-- choose --</option>
+        </select>
+      </div>
+      <div><label>New Name</label>
+        <input type="text" id="rename-opp-new" placeholder="New opponent name...">
+      </div>
+    </div>
+    <div class="btn-row mt16">
+      <button class="btn btn-primary" onclick="renameOpponent()">&#10003; Save Name</button>
+    </div>
+    <div id="rename-opp-msg" class="mt8"></div>
+  </div>
+
   <div id="match-del-msg"></div>
   <!-- Issues + Unsures + Changelog panels -->
   <div id="issues-panel" style="display:none;margin-bottom:16px;">
@@ -3862,6 +3886,7 @@ let selectedMatchId = null;
 
 function clearMatchFilters() {
   _matchExactOpponent = null;
+  _matchClubFilter = null;
   ['match-filter-season','match-filter-type','match-filter-from','match-filter-to',
    'match-filter-opp','match-filter-venue','match-filter-result'].forEach(id=>{
     const el = document.getElementById(id);
@@ -3909,20 +3934,22 @@ function renderMatchesYearChart() {
   years.sort((a,b)=>a-b);
 
   const counts = {};
-  years.forEach(y => counts[y] = {hcl:0, nvk:0, friendly:0});
+  years.forEach(y => counts[y] = {hcl:0, midweek:0, nvk:0, tour:0, friendly:0});
   db.matches.filter(m => !m.cancelled && !['Cancelled','Godshill Conceded','Opposition Conceded','Bye'].includes(m.result) &&
     (m.result !== 'Abandoned' && m.result !== 'No Result' || db.batting.some(b=>b.match_id===m.id))).forEach(m => {
     const y = parseInt((m.date||'').slice(0,4));
     if (!counts[y]) return;
     if (isSaturdayLeague(m.format)) counts[y].hcl++;
+    else if (isMidweekLeague(m.format)) counts[y].midweek++;
     else if (isNVK(m.format)) counts[y].nvk++;
+    else if (isTour(m.format)) counts[y].tour++;
     else counts[y].friendly++;
   });
 
   const selEl = document.getElementById('match-filter-season');
   const selYear = selEl ? selEl.value : '';
 
-  const maxTotal = Math.max(...years.map(y => counts[y].hcl + counts[y].nvk + counts[y].friendly), 1);
+  const maxTotal = Math.max(...years.map(y => counts[y].hcl + counts[y].midweek + counts[y].nvk + counts[y].tour + counts[y].friendly), 1);
   const BAR_W = 32, GAP = 8, PAD_L = 36, PAD_R = 16, PAD_T = 12, PAD_B = 44;
   const chartH = 180;
   const W = years.length * (BAR_W + GAP) + PAD_L + PAD_R;
@@ -3946,7 +3973,7 @@ function renderMatchesYearChart() {
     const d = counts[y];
     let stackY = PAD_T + chartH;
     const isSelected = String(y) === selYear;
-    const total = d.hcl + d.nvk + d.friendly;
+    const total = d.hcl + d.midweek + d.nvk + d.tour + d.friendly;
     const fn = `_chartClickYear(${y})`;
 
     if (isSelected) {
@@ -3955,7 +3982,9 @@ function renderMatchesYearChart() {
 
     const segments = [
       {val:d.hcl, col:'#2e5c38'},
+      {val:d.midweek, col:'#4a7a90'},
       {val:d.nvk, col:'#c8922a'},
+      {val:d.tour, col:'#8a5fa8'},
       {val:d.friendly, col:'#5a9a6a'},
     ].filter(s=>s.val>0);
 
@@ -3969,7 +3998,7 @@ function renderMatchesYearChart() {
         ? `M${rx+r},${ry} H${rx+rw-r} Q${rx+rw},${ry} ${rx+rw},${ry+r} V${ry+rh} H${rx} V${ry+r} Q${rx},${ry} ${rx+r},${ry}`
         : `M${rx},${ry} H${rx+rw} V${ry+rh} H${rx} Z`;
       const opacity = selYear && !isSelected ? '0.45' : '1';
-      svg += `<path d="${path}" fill="${s.col}" opacity="${opacity}" onclick="${fn}" style="cursor:pointer;"><title>${y}: ${d.hcl} Saturday League, ${d.nvk} NVKO, ${d.friendly} Friendly</title></path>`;
+      svg += `<path d="${path}" fill="${s.col}" opacity="${opacity}" onclick="${fn}" style="cursor:pointer;"><title>${y}: ${d.hcl} Saturday League, ${d.midweek} Midweek League, ${d.nvk} NVKO, ${d.tour} Tour, ${d.friendly} Friendly</title></path>`;
     });
 
     if (total > 0) {
@@ -4023,6 +4052,7 @@ function toggleMatchesChart() {
 function renderMatches() {
   restoreCardSection('matches-chart-body', 'matches-chart-toggle-btn', 'matchesChartHidden');
   restoreCardSection('match-filter-outer-body', 'match-filter-hide-btn', 'matchFiltersHidden');
+  _populateRenameOppSelect();
   _matchPage.matches=1;
   populateSeasonDropdowns();
   selectedMatchId = null;
@@ -4043,7 +4073,9 @@ function renderMatches() {
       if (from && m.date < from) return false;
       if (to   && m.date > to)   return false;
       if (oppF) {
-        if (_matchExactOpponent) {
+        if (_matchClubFilter) {
+          if (_extractClubName(m.opponent) !== _matchClubFilter) return false;
+        } else if (_matchExactOpponent) {
           if (m.opponent.toLowerCase().trim() !== _matchExactOpponent.toLowerCase().trim()) return false;
         } else if (!m.opponent.toLowerCase().includes(oppF)) return false;
       }
@@ -4517,6 +4549,9 @@ function isMidweekLeague(format) {
   const f = (format||'').toLowerCase();
   return f.includes('salisbury') && f.includes('wednesday');
 }
+function isTour(format) {
+  return (format||'').toLowerCase().includes('tour');
+}
 function isNVK(format) {
   return (format||'').toLowerCase().includes('national village knockout');
 }
@@ -4600,6 +4635,7 @@ function statsPlayerLink(name) {
 const _statsPage    = { bat:1, bowl:1, field:1, matches:1 };
 const _matchPage    = { matches:1, players:1, '100s':1, '5wi':1 };
 let _matchExactOpponent = null; // when set (by global search), opponent filter uses exact match instead of substring
+let _matchClubFilter = null; // when set (by global search "club" result), opponent filter matches ANY side of that club
 let _leagueDivisionFilter = ''; // '' = All divisions, else exact division name
 const _profilePage  = { bat:1, bowl:1, wickets:1, field:1 };
 const _PAGE_SIZE    = 50; // default for non-stats tables
@@ -5270,6 +5306,59 @@ function editPlayerName() {
   msg.innerHTML=`<div class="alert alert-ok">&#10003; Renamed to <strong>${esc(newName)}</strong> everywhere.</div>`;
 }
 
+// ── Opponent rename tools ──────────────────────────────────────────────────
+function _populateRenameOppSelect() {
+  const sel = document.getElementById('rename-opp-select');
+  if (!sel) return;
+  const cur = sel.value;
+  const opponents = [...new Set(db.matches.map(m=>m.opponent).filter(o=>o && o!=='(Bye)'))].sort();
+  sel.innerHTML = '<option value="">-- choose --</option>' + opponents.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+  if (cur) sel.value = cur;
+}
+
+function renameOpponent() {
+  const oldName = document.getElementById('rename-opp-select')?.value;
+  const newName = document.getElementById('rename-opp-new')?.value.trim();
+  const msg = document.getElementById('rename-opp-msg');
+  if (!msg) return;
+  if (!oldName) { msg.innerHTML = '<div class="alert alert-warn">Select an opponent.</div>'; return; }
+  if (!newName) { msg.innerHTML = '<div class="alert alert-warn">Enter a new name.</div>'; return; }
+  if (newName === oldName) { msg.innerHTML = '<div class="alert alert-warn">New name is the same as the old name.</div>'; return; }
+  let count = 0;
+  db.matches.forEach(m => { if (m.opponent === oldName) { m.opponent = newName; count++; } });
+  if (typeof _recBumpCache === 'function') _recBumpCache();
+  saveDB();
+  _populateRenameOppSelect();
+  document.getElementById('rename-opp-new').value = '';
+  msg.innerHTML = `<div class="alert alert-ok">&#10003; Renamed ${count} match${count===1?'':'es'} from "${esc(oldName)}" to "${esc(newName)}".</div>`;
+  renderMatches();
+  if (typeof _reRenderH2HIfActive === 'function') _reRenderH2HIfActive();
+}
+
+// Extract a "club" identifier from a team name by stripping common side/suffix
+// wording, so "Woodgreen Sunday XI", "Woodgreen II" and "Woodgreen Touring XI"
+// are all recognised as belonging to the same club, "Woodgreen".
+function _extractClubName(teamName) {
+  let t = (teamName || '').trim();
+  if (!t) return t;
+  const suffixPatterns = [
+    /\s+touring\s+xi$/i,
+    /\s+sunday\s+xi$/i,
+    /\s+saturday\s+xi$/i,
+    /\s+midweek\s+xi$/i,
+    /\s+midweek$/i,
+    /\s+wednesday(\s+evening)?(\s+xi)?$/i,
+    /\s+cc$/i,
+    /\s+\d+(st|nd|rd|th)\s+xi$/i,
+    /\s+(x{0,3}(ix|iv|v?i{0,3}))$/i, // roman numerals I–XII at the end
+    /\s+xi$/i,
+  ];
+  for (const pat of suffixPatterns) {
+    if (pat.test(t)) { t = t.replace(pat, '').trim(); break; }
+  }
+  return t;
+}
+
 function mergePlayers() {
   if (typeof _recBumpCache === 'function') _recBumpCache();
   const keepName   = document.getElementById('merge-keep').value;
@@ -5481,7 +5570,21 @@ function globalSearchInput() {
   const oppHits = opponents.map(o => ({ type:'opponent', label:o, sub:'Opponent', score:_fuzzyScore(query, o), data:o }))
     .filter(r=>r.score>=0).sort((a,b)=>b.score-a.score).slice(0,6);
 
-  _gsResults = [...playerHits, ...oppHits];
+  // Clubs — groups all sides of a club together (e.g. "Woodgreen Sunday XI" + "Woodgreen II"
+  // + "Woodgreen CC" all match "Woodgreen"). Only surfaced when a club actually has 2+ named sides.
+  const clubMap = {};
+  opponents.forEach(o => {
+    const club = _extractClubName(o);
+    if (!club) return;
+    if (!clubMap[club]) clubMap[club] = new Set();
+    clubMap[club].add(o);
+  });
+  const clubHits = Object.entries(clubMap)
+    .filter(([club, teams]) => teams.size > 1)
+    .map(([club, teams]) => ({ type:'club', label:club, sub:`All ${teams.size} teams`, score:_fuzzyScore(query, club), data:club }))
+    .filter(r=>r.score>=0).sort((a,b)=>b.score-a.score).slice(0,4);
+
+  _gsResults = [...playerHits, ...clubHits, ...oppHits];
 
   if (!_gsResults.length) {
     box.innerHTML = '<div class="gs-empty">No matches found.</div>';
@@ -5494,6 +5597,10 @@ function globalSearchInput() {
     html += '<div class="gs-section-label">Players</div>';
     playerHits.forEach(r => html += _gsRenderItem(r));
   }
+  if (clubHits.length) {
+    html += '<div class="gs-section-label">Clubs</div>';
+    clubHits.forEach(r => html += _gsRenderItem(r));
+  }
   if (oppHits.length) {
     html += '<div class="gs-section-label">Opponents</div>';
     oppHits.forEach(r => html += _gsRenderItem(r));
@@ -5503,7 +5610,7 @@ function globalSearchInput() {
 }
 
 function _gsRenderItem(r) {
-  const icon = r.type==='player' ? '&#128100;' : '&#127951;';
+  const icon = r.type==='player' ? '&#128100;' : r.type==='club' ? '&#127959;' : '&#127951;';
   const i = _gsResults.indexOf(r);
   return `<div class="gs-item" id="gs-item-${i}" onmousedown="globalSearchSelect(${i})">
     <span class="gs-icon">${icon}</span>
@@ -5565,6 +5672,17 @@ function globalSearchSelect(i) {
     const oppEl = document.getElementById('match-filter-opp');
     if (oppEl) oppEl.value = r.data;
     _matchExactOpponent = r.data;
+    renderMatches(); _reRenderH2HIfActive();
+  } else if (r.type === 'club') {
+    showPage('matches', document.querySelector('nav button[onclick*="matches"]'));
+    ['match-filter-season','match-filter-type','match-filter-from','match-filter-to',
+     'match-filter-venue','match-filter-result'].forEach(id=>{
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    const oppEl = document.getElementById('match-filter-opp');
+    if (oppEl) oppEl.value = r.data + ' (all teams)';
+    _matchClubFilter = r.data;
     renderMatches(); _reRenderH2HIfActive();
   }
 }
@@ -7931,7 +8049,9 @@ function renderH2H() {
     if (to   && m.date > to)   return false;
     if (type && !matchesTypeFilter(m.format, type)) return false;
     if (oppF) {
-      if (_matchExactOpponent && !document.getElementById('h2h-search')?.value) {
+      if (_matchClubFilter && !document.getElementById('h2h-search')?.value) {
+        if (_extractClubName(m.opponent) !== _matchClubFilter) return false;
+      } else if (_matchExactOpponent && !document.getElementById('h2h-search')?.value) {
         if ((m.opponent||'').toLowerCase().trim() !== _matchExactOpponent.toLowerCase().trim()) return false;
       } else if (!(m.opponent||'').toLowerCase().includes(oppF)) return false;
     }

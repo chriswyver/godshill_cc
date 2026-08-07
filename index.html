@@ -4997,7 +4997,7 @@ function renderStats() {
   const _statsBowlNote = document.getElementById('stats-bowl-incomplete-note');
   if (_statsBowlNote) {
     const incompleteMatches = new Set(bowls.filter(r=>r.noFigures).map(r=>r.match_id)).size;
-    _statsBowlNote.textContent = incompleteMatches ? (incompleteMatches===1 ? `This match is not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).` : `These ${incompleteMatches} matches are not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).`) : '';
+    _statsBowlNote.textContent = incompleteMatches ? `${incompleteMatches} match${incompleteMatches===1?' is':'es are'} not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).` : '';
     _statsBowlNote.style.display = incompleteMatches ? '' : 'none';
   }
 
@@ -5901,7 +5901,7 @@ function renderProfile() {
     const noteEl = document.getElementById('profile-bowl-incomplete-note');
     if (noteEl) {
       const n = bowlSpells.filter(r=>r.noFigures).length;
-      noteEl.textContent = n ? (n===1 ? `This match is not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).` : `These ${n} matches are not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).`) : '';
+      noteEl.textContent = n ? `${n} match${n===1?' is':'es are'} not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).` : '';
       noteEl.style.display = n ? '' : 'none';
     }
   }

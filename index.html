@@ -1507,6 +1507,7 @@
         </table>
       </div>
       <div id="stats-bowl-pager" style="display:flex;align-items:center;gap:8px;margin-top:10px;font-size:12px;"></div>
+      <p id="stats-bowl-incomplete-note" class="muted" style="font-size:11px;margin-top:8px;display:none;"></p>
     </div>
   </div>
 
@@ -1881,6 +1882,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
         <div class="card-title"><span class="icon">&#128200;</span> Bowling Summary</div>
         <div id="profile-bowl-boxes"
              style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;flex:1;align-content:start;"></div>
+        <p id="profile-bowl-incomplete-note" class="muted" style="font-size:11px;margin-top:8px;display:none;"></p>
       </div>
       <div class="card">
         <div class="card-title" style="justify-content:space-between;">
@@ -2763,9 +2765,11 @@ function populateScorecardFromEdit() {
       const rnEl  = document.getElementById(pfx+'_rn_'+rowIdx);
       const wkEl  = document.getElementById(pfx+'_wk_'+rowIdx);
       if (ordEl && r.bowl_order != null) ordEl.value = r.bowl_order;
-      if (ovEl  && r.overs      != null) ovEl.value  = r.overs;
-      if (mdEl  && r.maidens    != null) mdEl.value  = r.maidens;
-      if (rnEl  && r.runs       != null) rnEl.value  = r.runs;
+      if (!r.noFigures) {
+        if (ovEl  && r.overs      != null) ovEl.value  = r.overs;
+        if (mdEl  && r.maidens    != null) mdEl.value  = r.maidens;
+        if (rnEl  && r.runs       != null) rnEl.value  = r.runs;
+      }
       if (wkEl  && r.wickets    != null) wkEl.value  = r.wickets;
     });
     bwUpdate(pfx);
@@ -2870,8 +2874,9 @@ function buildBowlTable(bowlers, pfx, addUnsure) {
   return `<div style="overflow-x:auto;"><table class="scorebook">
     <thead><tr>
       <th class="r" style="width:38px;">#</th>
-      <th>Bowler</th><th class="r">Overs</th>
-      <th class="r">Mdns</th><th class="r">Runs</th><th class="r">Wkts</th>
+      <th>Bowler</th><th class="r" title="Optional — leave blank if only wickets are known">Overs</th>
+      <th class="r" title="Optional — leave blank if only wickets are known">Mdns</th>
+      <th class="r" title="Optional — leave blank if only wickets are known">Runs</th><th class="r">Wkts</th>
     </tr></thead>
     <tbody>${rows}</tbody>
   </table></div>`;
@@ -2930,6 +2935,7 @@ function readBowlData(pfx, bowlers, hasUnsure) {
     const i = idx + 1;
     const ordEl = document.getElementById(pfx+'_ord_'+i);
     const ord   = ordEl && ordEl.value !== '' ? parseInt(ordEl.value) : idx + 1;
+    const ovVal = document.getElementById(pfx+'_ov_'+i)?.value;
     return {
       player:      nm,
       bowl_order:  ord,
@@ -2937,18 +2943,29 @@ function readBowlData(pfx, bowlers, hasUnsure) {
       maidens:     num(pfx+'_md_'+i),
       runs:        num(pfx+'_rn_'+i),
       wickets:     num(pfx+'_wk_'+i),
+      // No overs recorded = figures are incomplete (e.g. only wickets are known from
+      // the source material). Still counts for wickets, excluded from average/economy.
+      noFigures:   !ovVal,
     };
   }).filter(r => {
     const i = bowlers.indexOf(r.player) + 1;
-    return document.getElementById(pfx+'_ov_'+i)?.value !== '';
+    const anyField = ['_ov_','_md_','_rn_','_wk_'].some(s => {
+      const v = document.getElementById(pfx+s+i)?.value;
+      return v !== '' && v !== undefined;
+    });
+    return anyField;
   }).sort((a,b) => a.bowl_order - b.bowl_order);
 
   // Read Unsure row if present and filled in
   if (hasUnsure) {
     const i = bowlers.length + 1;
-    const ovEl = document.getElementById(pfx+'_ov_'+i);
-    if (ovEl && ovEl.value !== '') {
+    const anyField = ['_ov_','_md_','_rn_','_wk_'].some(s => {
+      const v = document.getElementById(pfx+s+i)?.value;
+      return v !== '' && v !== undefined;
+    });
+    if (anyField) {
       const ordEl = document.getElementById(pfx+'_ord_'+i);
+      const ovVal = document.getElementById(pfx+'_ov_'+i)?.value;
       results.push({
         player:     'Unsure',
         bowl_order: ordEl && ordEl.value !== '' ? parseInt(ordEl.value) : i,
@@ -2956,6 +2973,7 @@ function readBowlData(pfx, bowlers, hasUnsure) {
         maidens:    num(pfx+'_md_'+i),
         runs:       num(pfx+'_rn_'+i),
         wickets:    num(pfx+'_wk_'+i),
+        noFigures:  !ovVal,
       });
     }
   }
@@ -3142,7 +3160,7 @@ function saveScorecard() {
         match_id: mid, innings: cfg.inn, team: cfg.bowlTeam,
         player: r.player, bowl_order: r.bowl_order,
         overs: r.overs, maidens: r.maidens,
-        runs: r.runs, wickets: r.wickets,
+        runs: r.runs, wickets: r.wickets, noFigures: !!r.noFigures,
       });
     });
   });
@@ -3790,8 +3808,9 @@ function renderHomeTopBowl(filter) {
     && (!filterMids || filterMids.has(r.match_id))
     && (!yearMids   || yearMids.has(r.match_id))
   ).forEach(r=>{
-    if (!bowlMap[r.player]) bowlMap[r.player]={wkts:0,runs:0,balls:0,mdns:0};
+    if (!bowlMap[r.player]) bowlMap[r.player]={wkts:0,wktsForAvg:0,runs:0,balls:0,mdns:0};
     bowlMap[r.player].wkts  += r.wickets;
+    if (!r.noFigures) bowlMap[r.player].wktsForAvg += r.wickets;
     bowlMap[r.player].runs  += r.runs;
     bowlMap[r.player].balls += oversToBalIs(r.overs);
     bowlMap[r.player].mdns  += r.maidens;
@@ -3800,8 +3819,8 @@ function renderHomeTopBowl(filter) {
     p,
     ov:   ballsToOvers(s.balls),
     wkts: s.wkts,
-    avg:  s.wkts>0         ? (s.runs/s.wkts).toFixed(1)   : '-',
-    sr:   s.wkts>0         ? (s.balls/s.wkts).toFixed(1)  : '-',
+    avg:  s.wktsForAvg>0   ? (s.runs/s.wktsForAvg).toFixed(1)   : '-',
+    sr:   s.wktsForAvg>0   ? (s.balls/s.wktsForAvg).toFixed(1)  : '-',
     econ: s.balls>0        ? (s.runs/(s.balls/6)).toFixed(2) : '-',
   })).sort((a,b)=>{
     if (b.wkts !== a.wkts) return b.wkts - a.wkts;
@@ -4952,19 +4971,20 @@ function renderStats() {
 
   const wMap = {};
   bowls.forEach(r => {
-    if (!wMap[r.player]) { wMap[r.player]={m:new Set(),balls:0,md:0,runs:0,wk:0,w5:0}; }
+    if (!wMap[r.player]) { wMap[r.player]={m:new Set(),balls:0,md:0,runs:0,wk:0,wkForAvg:0,w5:0,hasIncomplete:false}; }
     const w = wMap[r.player];
     w.m.add(r.match_id);
     w.balls += oversToBalIs(r.overs);
     w.md+=r.maidens; w.runs+=r.runs; w.wk+=r.wickets;
+    if (!r.noFigures) w.wkForAvg += r.wickets; else w.hasIncomplete = true;
     if (r.wickets>=5) w.w5++;
   });
   const bowlRows = Object.entries(wMap).map(([p,w])=>({
     p, ov:ballsToOvers(w.balls), balls:w.balls, md:w.md, runs:w.runs, wk:w.wk,
-    avg:  w.wk>0    ? (w.runs/w.wk).toFixed(2)       : '-',
-    sr:   w.wk>0    ? (w.balls/w.wk).toFixed(1)       : '-',
+    avg:  w.wkForAvg>0 ? (w.runs/w.wkForAvg).toFixed(2)  : '-',
+    sr:   w.wkForAvg>0 ? (w.balls/w.wkForAvg).toFixed(1) : '-',
     econ: w.balls>0 ? (w.runs/(w.balls/6)).toFixed(2) : '-',
-    w5:   w.w5
+    w5:   w.w5, hasIncomplete: w.hasIncomplete,
   })).sort((a,b)=>b.wk-a.wk);
   let filtBowlRows = bowlRows;
   if (minVal > 0 && minBowlType) {
@@ -4974,6 +4994,12 @@ function renderStats() {
   _statsCache.bowl = filtBowlRows;
 
   renderBowlTable(filtBowlRows);
+  const _statsBowlNote = document.getElementById('stats-bowl-incomplete-note');
+  if (_statsBowlNote) {
+    const incompleteMatches = new Set(bowls.filter(r=>r.noFigures).map(r=>r.match_id)).size;
+    _statsBowlNote.textContent = incompleteMatches ? (incompleteMatches===1 ? `This match is not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).` : `These ${incompleteMatches} matches are not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).`) : '';
+    _statsBowlNote.style.display = incompleteMatches ? '' : 'none';
+  }
 
   // Fielding
   let fields = db.fielding.filter(r=>r.team===OUR_TEAM && mids.has(r.match_id));
@@ -5825,14 +5851,16 @@ function renderProfile() {
   const finalAvg  = (cumInns-cumNO)>0 ? (cumRuns/(cumInns-cumNO)).toFixed(2) : '-';
   const hs        = batInnings.length ? Math.max(...batInnings.map(r=>r.runs)) : '-';
   const totalWkts = bowlSpells.reduce((s,r)=>s+r.wickets,0);
+  const wktsForAvg = bowlSpells.filter(r=>!r.noFigures).reduce((s,r)=>s+r.wickets,0);
   const totalBalls= bowlSpells.reduce((s,r)=>s+oversToBalIs(r.overs),0);
   const totalBRuns= bowlSpells.reduce((s,r)=>s+r.runs,0);
-  const bowlAvg   = totalWkts>0 ? (totalBRuns/totalWkts).toFixed(2) : '-';
+  const bowlAvg   = wktsForAvg>0 ? (totalBRuns/wktsForAvg).toFixed(2) : '-';
   const econ      = totalBalls>0 ? (totalBRuns/(totalBalls/6)).toFixed(2) : '-';
 
   const totalMdns = bowlSpells.reduce((s,r)=>s+r.maidens,0);
   const totalOvsDisplay = ballsToOvers(totalBalls);
-  const strikeRate = totalWkts>0 ? (totalBalls/totalWkts).toFixed(1) : '-';
+  const strikeRate = wktsForAvg>0 ? (totalBalls/wktsForAvg).toFixed(1) : '-';
+  const hasIncompleteBowling = bowlSpells.some(r=>r.noFigures);
 
   const hasBat  = batInnings.length > 0;
   const hasBowl = bowlSpells.length > 0;
@@ -5870,6 +5898,12 @@ function renderProfile() {
     ].map(([v,l])=>`<div class="stat-box" style="min-width:0;">
       <div class="val" style="font-size:28px;">${v}</div>
       <div class="lbl">${l}</div></div>`).join('');
+    const noteEl = document.getElementById('profile-bowl-incomplete-note');
+    if (noteEl) {
+      const n = bowlSpells.filter(r=>r.noFigures).length;
+      noteEl.textContent = n ? (n===1 ? `This match is not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).` : `These ${n} matches are not included in the calculation of bowling average, strike rate or economy (wickets only, no overs/runs recorded).`) : '';
+      noteEl.style.display = n ? '' : 'none';
+    }
   }
 
   // Show/hide profile tabs based on available data
@@ -10231,9 +10265,10 @@ function _recRenderInnings(ctx) {
       const bowl = get(byPlayerBowl, name).filter(r=>mids.has(r.match_id));
       if (bowl.length) {
         const wkts  = bowl.reduce((s,r)=>s+r.wickets,0);
-        const bRuns = bowl.reduce((s,r)=>s+r.runs,0);
+        const wktsForAvg = bowl.filter(r=>!r.noFigures).reduce((s,r)=>s+r.wickets,0);
+        const bRuns = bowl.filter(r=>!r.noFigures).reduce((s,r)=>s+r.runs,0);
         if (wkts>0) seasonMostWkts.push({ name, season, val: wkts });
-        if (wkts>=10) seasonBestBowlAvg.push({ name, season, val: (bRuns/wkts).toFixed(2) });
+        if (wktsForAvg>=10) seasonBestBowlAvg.push({ name, season, val: (bRuns/wktsForAvg).toFixed(2) });
       }
     });
   });

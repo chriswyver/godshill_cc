@@ -1,5 +1,5 @@
 {
-  "exported": "2026-08-07T16:58:23.446Z",
+  "exported": "2026-08-09T19:46:04.059Z",
   "version": 1,
   "publishedSeasons": [
     "1999",
@@ -1552,11 +1552,6 @@
       "role": "Unknown"
     },
     {
-      "id": "P17860197066650.36458042915287914",
-      "name": "S Fotheringham",
-      "role": "Unknown"
-    },
-    {
       "id": "P17860197066650.9456485419880069",
       "name": "C Kinsville-Heyne",
       "role": "Unknown"
@@ -1679,6 +1674,16 @@
     {
       "id": "P17861208304320.901385697576262",
       "name": "D Runham",
+      "role": "Unknown"
+    },
+    {
+      "id": "P17861866496340.567662668097216",
+      "name": "J Couchman",
+      "role": "Unknown"
+    },
+    {
+      "id": "P17863043326440.5494748604919715",
+      "name": "Rob Chalk",
       "role": "Unknown"
     }
   ],
@@ -8600,23 +8605,6 @@
         "nb": 6,
         "p": 0
       }
-    },
-    {
-      "id": "M1782387317993551",
-      "date": "2026-08-08",
-      "opponent": "Redlynch & Hale III",
-      "venue": "Away",
-      "format": "Hampshire Cricket League Division 6C",
-      "overs": 0,
-      "result": "Upcoming",
-      "toss": "",
-      "choice": "",
-      "bat_first": "",
-      "notes": "",
-      "cancelled": true,
-      "rain_affected": false,
-      "dls_target": null,
-      "dls_overs": null
     },
     {
       "id": "M1782387342161931",
@@ -23068,6 +23056,39 @@
         "b": 7,
         "lb": 0,
         "w": 5,
+        "nb": 1,
+        "p": 0
+      }
+    },
+    {
+      "id": "M1782387317993551",
+      "date": "2026-08-08",
+      "opponent": "Redlynch & Hale III",
+      "venue": "Away",
+      "format": "Hampshire Cricket League Division 6C",
+      "overs": 0,
+      "result": "Won",
+      "result_override": "",
+      "toss": "Godshill",
+      "choice": "Bat",
+      "bat_first": "Godshill",
+      "notes": "",
+      "squad_size": 11,
+      "rain_affected": false,
+      "dls_target": null,
+      "dls_overs": null,
+      "two_innings": false,
+      "extras_i1": {
+        "b": 11,
+        "lb": 6,
+        "w": 24,
+        "nb": 3,
+        "p": 0
+      },
+      "extras_i2": {
+        "b": 9,
+        "lb": 5,
+        "w": 18,
         "nb": 1,
         "p": 0
       }
@@ -177167,7 +177188,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "caught",
       "bowler": "Clarke",
       "fielder": "Fillingham",
@@ -177434,7 +177455,7 @@
       "player": "P Veit",
       "how_out": "caught",
       "bowler": "Chris Chatwin",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 7
     },
     {
@@ -177445,7 +177466,7 @@
       "player": "C Pain",
       "how_out": "caught",
       "bowler": "Kevin Beale",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 53
     },
     {
@@ -177541,7 +177562,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 2,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "caught",
       "bowler": "Todd",
       "fielder": "Manning",
@@ -177676,7 +177697,7 @@
       "player": "D Betts",
       "how_out": "caught",
       "bowler": "Roy Roddison",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 27
     },
     {
@@ -177687,7 +177708,7 @@
       "player": "Hodges",
       "how_out": "caught",
       "bowler": "Nigel Fielding",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 58
     },
     {
@@ -177805,7 +177826,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 4,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "lbw",
       "bowler": "Long",
       "fielder": "",
@@ -177893,7 +177914,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "caught",
       "bowler": "Harding",
       "fielder": "Thomas",
@@ -178872,7 +178893,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 3,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "not out",
       "bowler": "",
       "fielder": "",
@@ -179697,7 +179718,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "not out",
       "bowler": "",
       "fielder": "",
@@ -180423,7 +180444,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "caught",
       "bowler": "Wickson",
       "fielder": "Geller",
@@ -181383,7 +181404,7 @@
       "player": "Grearson",
       "how_out": "caught",
       "bowler": "Andy Cross",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 26
     },
     {
@@ -181394,7 +181415,7 @@
       "player": "Johnson",
       "how_out": "caught",
       "bowler": "Andy Cross",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 23
     },
     {
@@ -181501,7 +181522,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "bowled",
       "bowler": "Newman",
       "fielder": "",
@@ -181636,7 +181657,7 @@
       "player": "Dickson",
       "how_out": "caught",
       "bowler": "Andy Cross",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 7
     },
     {
@@ -181743,7 +181764,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 2,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "bowled",
       "bowler": "Hill",
       "fielder": "",
@@ -182098,7 +182119,7 @@
       "player": "Palmer",
       "how_out": "caught",
       "bowler": "Alan Pollard",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 110
     },
     {
@@ -182153,7 +182174,7 @@
       "player": "Clist",
       "how_out": "stumped",
       "bowler": "Scott Sharman",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 31
     },
     {
@@ -182164,7 +182185,7 @@
       "player": "Pettley",
       "how_out": "stumped",
       "bowler": "Scott Sharman",
-      "fielder": "S Fotheringham",
+      "fielder": "Sam Fotheringham",
       "runs": 13
     },
     {
@@ -182293,7 +182314,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 9,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "caught",
       "bowler": "Palmer",
       "fielder": "Unsure",
@@ -182546,7 +182567,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "caught",
       "bowler": "Coveney",
       "fielder": "Smith",
@@ -183261,7 +183282,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "caught and bowled",
       "bowler": "Butterfield",
       "fielder": "",
@@ -183723,7 +183744,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "caught",
       "bowler": "O'Neil",
       "fielder": "Unsure",
@@ -184361,7 +184382,7 @@
       "innings": 2,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "bowled",
       "bowler": "Benall",
       "fielder": "",
@@ -186132,7 +186153,7 @@
       "innings": 1,
       "team": "Godshill",
       "position": 1,
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "how_out": "bowled",
       "bowler": "Churchill",
       "fielder": "",
@@ -186775,6 +186796,248 @@
       "bowler": "",
       "fielder": "",
       "runs": 1
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 1,
+      "player": "Shaun Marlow",
+      "how_out": "bowled",
+      "bowler": "Emily Otten",
+      "fielder": "",
+      "runs": 105
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 2,
+      "player": "Luke Walter",
+      "how_out": "bowled",
+      "bowler": "Harvey Sobucinski",
+      "fielder": "",
+      "runs": 9
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 3,
+      "player": "Anderson Walter",
+      "how_out": "caught",
+      "bowler": "Harvey Sobucinski",
+      "fielder": "Katie Sell",
+      "runs": 44
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 4,
+      "player": "Charlie Rogers",
+      "how_out": "bowled",
+      "bowler": "Aiden Anthony",
+      "fielder": "",
+      "runs": 13
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 5,
+      "player": "Rob Chalk",
+      "how_out": "bowled",
+      "bowler": "Emily Otten",
+      "fielder": "",
+      "runs": 4
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 6,
+      "player": "Tom Marlow",
+      "how_out": "not out",
+      "bowler": "",
+      "fielder": "",
+      "runs": 38
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 7,
+      "player": "Simon Walter",
+      "how_out": "run out",
+      "bowler": "",
+      "fielder": "Greg Ehlen",
+      "runs": 3
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 8,
+      "player": "Neil Fotheringham",
+      "how_out": "caught",
+      "bowler": "Richard Barlow",
+      "fielder": "Aiden Anthony",
+      "runs": 18
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 9,
+      "player": "Alan Cousins",
+      "how_out": "not out",
+      "bowler": "",
+      "fielder": "",
+      "runs": 1
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 10,
+      "player": "Adam Bardsley",
+      "how_out": "did not bat",
+      "bowler": "",
+      "fielder": "",
+      "runs": 0
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Godshill",
+      "position": 11,
+      "player": "Dave Goggin",
+      "how_out": "did not bat",
+      "bowler": "",
+      "fielder": "",
+      "runs": 0
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 1,
+      "player": "Martin Strawbridge",
+      "how_out": "bowled",
+      "bowler": "Neil Fotheringham",
+      "fielder": "",
+      "runs": 23
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 2,
+      "player": "Peter Biddlecombe",
+      "how_out": "caught",
+      "bowler": "Tom Marlow",
+      "fielder": "Neil Fotheringham",
+      "runs": 1
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 3,
+      "player": "Calvin Cranmer",
+      "how_out": "caught",
+      "bowler": "Neil Fotheringham",
+      "fielder": "Shaun Marlow",
+      "runs": 15
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 4,
+      "player": "Greg Ehlen",
+      "how_out": "bowled",
+      "bowler": "Anderson Walter",
+      "fielder": "",
+      "runs": 5
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 5,
+      "player": "Katie Sell",
+      "how_out": "bowled",
+      "bowler": "Adam Bardsley",
+      "fielder": "",
+      "runs": 7
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 6,
+      "player": "Harvey Sobucinski",
+      "how_out": "bowled",
+      "bowler": "Neil Fotheringham",
+      "fielder": "",
+      "runs": 3
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 7,
+      "player": "Aiden Anthony",
+      "how_out": "bowled",
+      "bowler": "Tom Marlow",
+      "fielder": "",
+      "runs": 32
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 8,
+      "player": "Emily Otten",
+      "how_out": "bowled",
+      "bowler": "Tom Marlow",
+      "fielder": "",
+      "runs": 14
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 9,
+      "player": "Sammer Anthony",
+      "how_out": "bowled",
+      "bowler": "Adam Bardsley",
+      "fielder": "",
+      "runs": 5
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 10,
+      "player": "Amy Biddlecombe",
+      "how_out": "caught",
+      "bowler": "Neil Fotheringham",
+      "fielder": "Shaun Marlow",
+      "runs": 5
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Redlynch & Hale III",
+      "position": 11,
+      "player": "Richard Barlow",
+      "how_out": "not out",
+      "bowler": "",
+      "fielder": "",
+      "runs": 0
     }
   ],
   "bowling": [
@@ -269601,7 +269864,7 @@
       "match_id": "M1786020019182885",
       "innings": 2,
       "team": "Godshill",
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "bowl_order": 7,
       "overs": 1,
       "maidens": 0,
@@ -271845,7 +272108,7 @@
       "match_id": "M1786096894647296",
       "innings": 1,
       "team": "Godshill",
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "bowl_order": 7,
       "overs": 3,
       "maidens": 0,
@@ -274373,6 +274636,174 @@
       "maidens": 1,
       "runs": 8,
       "wickets": 1,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Richard Barlow",
+      "bowl_order": 1,
+      "overs": 6,
+      "maidens": 0,
+      "runs": 43,
+      "wickets": 1,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Harvey Sobucinski",
+      "bowl_order": 2,
+      "overs": 8,
+      "maidens": 0,
+      "runs": 33,
+      "wickets": 2,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Katie Sell",
+      "bowl_order": 3,
+      "overs": 3,
+      "maidens": 0,
+      "runs": 27,
+      "wickets": 0,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Greg Ehlen",
+      "bowl_order": 4,
+      "overs": 4,
+      "maidens": 0,
+      "runs": 33,
+      "wickets": 0,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Amy Biddlecombe",
+      "bowl_order": 5,
+      "overs": 8,
+      "maidens": 0,
+      "runs": 39,
+      "wickets": 0,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Aiden Anthony",
+      "bowl_order": 6,
+      "overs": 6,
+      "maidens": 0,
+      "runs": 41,
+      "wickets": 1,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Emily Otten",
+      "bowl_order": 7,
+      "overs": 5,
+      "maidens": 0,
+      "runs": 46,
+      "wickets": 2,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Tom Marlow",
+      "bowl_order": 1,
+      "overs": 8,
+      "maidens": 2,
+      "runs": 21,
+      "wickets": 3,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Simon Walter",
+      "bowl_order": 2,
+      "overs": 4,
+      "maidens": 0,
+      "runs": 21,
+      "wickets": 0,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Anderson Walter",
+      "bowl_order": 3,
+      "overs": 4,
+      "maidens": 1,
+      "runs": 10,
+      "wickets": 1,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Neil Fotheringham",
+      "bowl_order": 4,
+      "overs": 5.5,
+      "maidens": 0,
+      "runs": 29,
+      "wickets": 4,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Adam Bardsley",
+      "bowl_order": 5,
+      "overs": 8,
+      "maidens": 1,
+      "runs": 30,
+      "wickets": 2,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Luke Walter",
+      "bowl_order": 6,
+      "overs": 4,
+      "maidens": 0,
+      "runs": 13,
+      "wickets": 0,
+      "noFigures": false
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Charlie Rogers",
+      "bowl_order": 7,
+      "overs": 1,
+      "maidens": 0,
+      "runs": 5,
+      "wickets": 0,
       "noFigures": false
     }
   ],
@@ -304792,7 +305223,7 @@
       "match_id": "M1786020466817869",
       "innings": 1,
       "team": "Godshill",
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "catches": 2,
       "run_outs": 0,
       "stumpings": 0
@@ -304837,7 +305268,7 @@
       "match_id": "M1786020865165817",
       "innings": 1,
       "team": "Godshill",
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "catches": 2,
       "run_outs": 0,
       "stumpings": 0
@@ -305647,7 +306078,7 @@
       "match_id": "M1786096337117769",
       "innings": 1,
       "team": "Godshill",
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "catches": 2,
       "run_outs": 0,
       "stumpings": 0
@@ -305728,7 +306159,7 @@
       "match_id": "M1786096894647296",
       "innings": 1,
       "team": "Godshill",
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "catches": 1,
       "run_outs": 0,
       "stumpings": 0
@@ -305809,7 +306240,7 @@
       "match_id": "M1786098518019540",
       "innings": 1,
       "team": "Godshill",
-      "player": "S Fotheringham",
+      "player": "Sam Fotheringham",
       "catches": 1,
       "run_outs": 0,
       "stumpings": 2
@@ -306720,6 +307151,51 @@
       "team": "Godshill",
       "player": "L Glover",
       "catches": 1,
+      "run_outs": 0,
+      "stumpings": 0
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Katie Sell",
+      "catches": 1,
+      "run_outs": 0,
+      "stumpings": 0
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Greg Ehlen",
+      "catches": 0,
+      "run_outs": 1,
+      "stumpings": 0
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 1,
+      "team": "Redlynch & Hale III",
+      "player": "Aiden Anthony",
+      "catches": 1,
+      "run_outs": 0,
+      "stumpings": 0
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Neil Fotheringham",
+      "catches": 1,
+      "run_outs": 0,
+      "stumpings": 0
+    },
+    {
+      "match_id": "M1782387317993551",
+      "innings": 2,
+      "team": "Godshill",
+      "player": "Shaun Marlow",
+      "catches": 2,
       "run_outs": 0,
       "stumpings": 0
     }
@@ -308728,132 +309204,132 @@
         {
           "Pos": "1",
           "Team": "Cadnam III",
-          "P": "10",
-          "W": "10",
+          "P": "11",
+          "W": "11",
           "L": "0",
           "T": "0",
-          "BatP": "67",
-          "BowlP": "45",
+          "BatP": "74",
+          "BowlP": "50",
           "Pen": "0",
-          "Pts": "232",
-          "col_1781451415407": "23.20"
+          "Pts": "256",
+          "col_1781451415407": "23.27"
         },
         {
           "Pos": "2",
           "Team": "Ampfield & North Baddesley II",
-          "P": "11",
-          "W": "8",
+          "P": "12",
+          "W": "9",
           "L": "3",
           "T": "0",
-          "BatP": "65",
-          "BowlP": "43",
+          "BatP": "70",
+          "BowlP": "48",
           "Pen": "0",
-          "Pts": "204",
-          "col_1781451415407": "18.55"
+          "Pts": "226",
+          "col_1781451415407": "18.83"
         },
         {
           "Pos": "3",
           "Team": "Breamore Dravidian III",
-          "P": "11",
+          "P": "12",
           "W": "8",
-          "L": "3",
+          "L": "4",
           "T": "0",
-          "BatP": "60",
-          "BowlP": "42",
+          "BatP": "62",
+          "BowlP": "43",
           "Pen": "0",
-          "Pts": "198",
-          "col_1781451415407": "18.00"
+          "Pts": "201",
+          "col_1781451415407": "16.75"
         },
         {
           "Pos": "4",
           "Team": "Godshill I",
-          "P": "11",
-          "W": "6",
+          "P": "12",
+          "W": "7",
           "L": "5",
           "T": "0",
-          "BatP": "70",
-          "BowlP": "35",
+          "BatP": "77",
+          "BowlP": "40",
           "Pen": "0",
-          "Pts": "177",
-          "col_1781451415407": "16.09"
+          "Pts": "201",
+          "col_1781451415407": "16.75"
         },
         {
           "Pos": "5",
           "Team": "Bramshaw III",
-          "P": "11",
-          "W": "5",
+          "P": "12",
+          "W": "6",
           "L": "6",
           "T": "0",
-          "BatP": "63",
-          "BowlP": "39",
+          "BatP": "70",
+          "BowlP": "42",
           "Pen": "0",
-          "Pts": "162",
-          "col_1781451415407": "14.73"
+          "Pts": "184",
+          "col_1781451415407": "15.33"
         },
         {
           "Pos": "6",
           "Team": "Whiteparish III",
-          "P": "10",
+          "P": "11",
           "W": "5",
-          "L": "5",
+          "L": "6",
           "T": "0",
-          "BatP": "48",
-          "BowlP": "37",
+          "BatP": "55",
+          "BowlP": "38",
           "Pen": "0",
-          "Pts": "145",
-          "col_1781451415407": "14.50"
+          "Pts": "153",
+          "col_1781451415407": "13.91"
         },
         {
           "Pos": "7",
-          "Team": "Redlynch & Hale III",
+          "Team": "Wellow & Plaitford Knights II",
           "P": "11",
-          "W": "4",
-          "L": "7",
+          "W": "6",
+          "L": "5",
           "T": "0",
-          "BatP": "56",
-          "BowlP": "35",
-          "Pen": "0",
-          "Pts": "139",
-          "col_1781451415407": "12.64"
+          "BatP": "68",
+          "BowlP": "39",
+          "Pen": "-20",
+          "Pts": "159",
+          "col_1781451415407": "13.25"
         },
         {
           "Pos": "8",
-          "Team": "Wellow & Plaitford Knights II",
-          "P": "10",
-          "W": "5",
-          "L": "5",
+          "Team": "Redlynch & Hale III",
+          "P": "11",
+          "W": "4",
+          "L": "8",
           "T": "0",
-          "BatP": "61",
-          "BowlP": "34",
-          "Pen": "-20",
-          "Pts": "135",
-          "col_1781451415407": "12.27"
+          "BatP": "60",
+          "BowlP": "38",
+          "Pen": "0",
+          "Pts": "146",
+          "col_1781451415407": "12.17"
         },
         {
           "Pos": "9",
           "Team": "Michelmersh & Timsbury II",
-          "P": "11",
+          "P": "12",
           "W": "2",
-          "L": "9",
+          "L": "10",
           "T": "0",
-          "BatP": "41",
+          "BatP": "15",
           "BowlP": "24",
           "Pen": "0",
-          "Pts": "89",
-          "col_1781451415407": "8.09"
+          "Pts": "93",
+          "col_1781451415407": "7.75"
         },
         {
           "Pos": "10",
           "Team": "Old Tauntonians & Romsey IV",
-          "P": "10",
+          "P": "11",
           "W": "0",
-          "L": "10",
+          "L": "11",
           "T": "0",
-          "BatP": "49",
-          "BowlP": "28",
+          "BatP": "53",
+          "BowlP": "33",
           "Pen": "-20",
-          "Pts": "57",
-          "col_1781451415407": "5.18"
+          "Pts": "66",
+          "col_1781451415407": "5.50"
         }
       ],
       "notes": "",
@@ -314710,7 +315186,7 @@
         },
         {
           "Pos": "7",
-          "Team": "East Tytherley",
+          "Team": "East Tytherley I",
           "P": "14",
           "W": "7",
           "L": "7",
@@ -314865,7 +315341,8 @@
           "AveC": "7.69"
         }
       ],
-      "notes": ""
+      "notes": "",
+      "league": ""
     },
     {
       "id": "M1785090364625739",

@@ -672,7 +672,7 @@
     <div class="card">
       <div class="card-title"><span class="icon">&#128221;</span> Match Details</div>
       <div class="form-grid cols-3">
-        <div><label>Date</label><input type="date" id="m-date"></div>
+        <div><label>Date</label><input type="date" id="m-date" onchange="updateFormatListForDate()"></div>
         <div><label>Opponent</label><input type="text" id="m-opp" placeholder="e.g. Riverside CC"></div>
         <div><label>Venue</label><input type="text" id="m-venue" placeholder="e.g. Home Ground"></div>
         <div><label>Squad Size <span style="font-size:11px;color:var(--ink-muted);">(default 11)</span></label>
@@ -3014,7 +3014,7 @@ function runValidation() {
     const BOWL_WICKET_TYPES = ['bowled','caught','caught and bowled','lbw','stumped','hit wicket'];
     // Other valid dismissals (run out, handled the ball, etc.) don't appear in bowling figures
     const OTHER_DISMISSALS  = ['run out','handled the ball','obstructing the field','timed out'];
-    const NOT_DISMISSED     = ['not out','retired hurt','retired out','retired not out','absent hurt','did not bat'];
+    const NOT_DISMISSED     = ['not out','retired hurt','retired not out','absent hurt','did not bat'];
     const bowlWickets = bdf.filter(r => BOWL_WICKET_TYPES.includes(r.how_out)).length;
     const otherDism   = bdf.filter(r => OTHER_DISMISSALS.includes(r.how_out)).length;
     const totalDism   = bdf.filter(r => !NOT_DISMISSED.includes(r.how_out)).length;
@@ -3211,6 +3211,7 @@ function saveScorecard() {
 
 function resetWizard() {
   document.getElementById('m-date').value   = new Date().toISOString().split('T')[0];
+  updateFormatListForDate();
   document.getElementById('m-opp').value    = '';
   document.getElementById('m-venue').value  = '';
   document.getElementById('m-notes').value  = '';
@@ -3784,7 +3785,7 @@ function renderHomeTopBat(filter) {
     if (!batMap[r.player]) batMap[r.player]={runs:0,inns:0,no:0};
     batMap[r.player].runs += r.runs;
     batMap[r.player].inns++;
-    if (['not out','retired hurt','retired out','retired not out','absent hurt'].includes(r.how_out)) batMap[r.player].no++;
+    if (['not out','retired hurt','retired not out','absent hurt'].includes(r.how_out)) batMap[r.player].no++;
   });
   const topBat = Object.entries(batMap).map(([p,s])=>({
     p, inns:s.inns, runs:s.runs,
@@ -4427,6 +4428,7 @@ function editMatch(mid) {
 
   // Pre-fill Step 1
   document.getElementById('m-date').value       = m.date       || '';
+  updateFormatListForDate();
   document.getElementById('m-opp').value        = m.opponent   || '';
   document.getElementById('m-venue').value      = m.venue      || '';
   document.getElementById('m-format').value     = m.format     || '';
@@ -4585,6 +4587,28 @@ function matchesTypeFilter(format, ft) {
   if (ft === 'friendly')  return !isLeague(format) && !isNVK(format);
   if (ft === 'nvk')       return isNVK(format);
   return true;
+}
+
+// Rebuild the "Format" datalist (Step 1 of the scorecard wizard) so it offers
+// the specific league divisions recorded on the League Tables page for the
+// selected date's year, plus the evergreen generic options: Friendly, Tour.
+function updateFormatListForDate() {
+  const dl = document.getElementById('format-list');
+  if (!dl) return;
+  const dateVal = document.getElementById('m-date')?.value || '';
+  const year = dateVal.slice(0, 4);
+
+  let divisions = [];
+  if (year) {
+    divisions = [...new Set(
+      (db.leagueTables || [])
+        .filter(t => String(t.season || '') === year && t.division)
+        .map(t => t.division)
+    )].sort();
+  }
+
+  const options = ['Friendly', 'Tour', ...divisions];
+  dl.innerHTML = options.map(f => `<option>${esc(f)}</option>`).join('');
 }
 
 function populateStatFilters() {
@@ -4834,7 +4858,7 @@ function _togglePosFilter(pos) {
 
   // Recompute running average for filtered data
   let cRuns=0, cInns=0, cNO=0;
-  const NO_M = ['not out','retired hurt','retired out','retired not out','absent hurt'];
+  const NO_M = ['not out','retired hurt','retired not out','absent hurt'];
   const recomputed = filtered.map((r,i) => {
     cRuns += r.runs; cInns++;
     if (NO_M.includes(r.how_out)) cNO++;
@@ -4932,7 +4956,7 @@ function renderStats() {
   let bats = db.batting.filter(r=>r.team===OUR_TEAM && mids.has(r.match_id));
   if (fp) bats = bats.filter(r=>r.player===fp);
 
-  const NOT_OUT_LIST = ['not out','retired hurt','retired out','retired not out','absent hurt'];
+  const NOT_OUT_LIST = ['not out','retired hurt','retired not out','absent hurt'];
   const bMap = {};
   bats.forEach(r => {
     if (r.how_out === 'did not bat') return; // skip DNB
@@ -5466,6 +5490,7 @@ function setReadOnlyMode(on) {
 // INIT
 // ════════════════════════════════════════════════════════════
 document.getElementById('m-date').value = new Date().toISOString().split('T')[0];
+updateFormatListForDate();
 
 // If hosted (not file://), try to fetch godshill_cc_data.json for read-only mode
 (async function init() {
@@ -5835,7 +5860,7 @@ function renderProfile() {
   const batWithAvg = batInnings.map((r,i)=>{
     cumRuns += r.runs;
     cumInns++;
-    if (['not out','retired hurt','retired out','retired not out','absent hurt'].includes(r.how_out)) cumNO++;
+    if (['not out','retired hurt','retired not out','absent hurt'].includes(r.how_out)) cumNO++;
     const denom = cumInns - cumNO;
     return { ...r, innsNum: i+1, runAvg: denom>0 ? (cumRuns/denom) : cumRuns };
   });
@@ -5866,7 +5891,7 @@ function renderProfile() {
   const hasBowl = bowlSpells.length > 0;
 
   // Batting tab stat boxes
-  const ducks = batInnings.filter(r=>r.runs===0&&!['not out','retired hurt','retired out','retired not out','absent hurt'].includes(r.how_out)).length;
+  const ducks = batInnings.filter(r=>r.runs===0&&!['not out','retired hurt','retired not out','absent hurt'].includes(r.how_out)).length;
   const f50s  = batInnings.filter(r=>r.runs>=50&&r.runs<100).length;
   const f100s = batInnings.filter(r=>r.runs>=100).length;
   if (hasBat) {
@@ -5925,9 +5950,9 @@ function renderProfile() {
     if (!posMap[pos]) posMap[pos]={inns:0,no:0,runs:0,hs:0,hsNo:false};
     const pm = posMap[pos];
     pm.inns++; pm.runs+=r.runs;
-    const isNo = ['not out','retired hurt','retired out','retired not out','absent hurt'].includes(r.how_out);
+    const isNo = ['not out','retired hurt','retired not out','absent hurt'].includes(r.how_out);
     if (r.runs>pm.hs) { pm.hs=r.runs; pm.hsNo=isNo; }
-    if (['not out','retired hurt','retired out','retired not out','absent hurt'].includes(r.how_out)) pm.no++;
+    if (['not out','retired hurt','retired not out','absent hurt'].includes(r.how_out)) pm.no++;
   });
   const posRows = Object.entries(posMap)
     .sort((a,b)=>parseInt(a[0])-parseInt(b[0]))
@@ -5974,11 +5999,21 @@ function renderProfile() {
     .filter(r=>r.player===_profName&&r.team===OUR_TEAM&&activeMids.has(r.match_id))
     .map(r=>{
       const m=db.matches.find(m=>m.id===r.match_id);
-      // Add c&b catches for this match/innings if bowler is registered
-      const cnb = _profGodNames.has(_profName) ? db.batting.filter(b=>
-        b.match_id===r.match_id && b.innings===r.innings &&
-        b.how_out==='caught and bowled' && b.bowler===_profName
-      ).length : 0;
+      // Add c&b catches for this match/innings if bowler is registered,
+      // but only if the saved fielding.catches count doesn't already include it
+      // (i.e. skip if catches already exceed the regular/non-c&b catches recorded)
+      let cnb = 0;
+      if (_profGodNames.has(_profName)) {
+        const cnbDismissals = db.batting.filter(b=>
+          b.match_id===r.match_id && b.innings===r.innings &&
+          b.how_out==='caught and bowled' && b.bowler===_profName
+        );
+        const regCatches = db.batting.filter(b=>
+          b.match_id===r.match_id && b.innings===r.innings &&
+          b.how_out==='caught' && b.fielder===_profName
+        ).length;
+        if ((r.catches||0) <= regCatches) cnb = cnbDismissals.length;
+      }
       return {...r, catches:(r.catches||0)+cnb, date:m?m.date:'', opponent:m?m.opponent:''};
     });
   // Also find matches where player had ONLY c&b (no fielding record at all)
@@ -6010,7 +6045,7 @@ function renderProfile() {
   const _fieldTots = _fieldingTotals(
     profilePlayer.name,
     db.fielding.filter(r=>r.player===profilePlayer.name&&r.team===OUR_TEAM&&activeMids.has(r.match_id)),
-    db.batting.filter(r=>r.bowler===profilePlayer.name&&activeMids.has(r.match_id))
+    db.batting.filter(r=>activeMids.has(r.match_id))
   );
   const totCt = _fieldTots.catches;
   const totRO = _fieldTots.run_outs;
@@ -6536,7 +6571,7 @@ function toggleInlineSc(pfx, idx, mid, innings, focus) {
 // ════════════════════════════════════════════════════════════
 const BOWL_WICKET_TYPES_E = ['bowled','caught','caught and bowled','lbw','stumped','hit wicket'];
 const OTHER_DISM_E        = ['run out','handled the ball','obstructing the field','timed out'];
-const NOT_DISM_E          = ['not out','retired hurt','retired out','retired not out','absent hurt','did not bat'];
+const NOT_DISM_E          = ['not out','retired hurt','retired not out','absent hurt','did not bat'];
 
 function checkMatchErrors(mid) {
   // Returns array of {type, msg} objects. Types: maths, wickets, unsure
@@ -7444,7 +7479,9 @@ function _grid(W, H, PAD, maxL, ticksL, maxR, colR, years, axisRFmt) {
 // ANNUAL CHARTS
 // ════════════════════════════════════════════════════════════
 
-const NO_OUT_MODES = ['not out','retired hurt','retired out','retired not out','absent hurt'];
+// "retired out" is a genuine dismissal (counts as a wicket), unlike the other
+// retired/absent modes below, so it is deliberately excluded from this list.
+const NO_OUT_MODES = ['not out','retired hurt','retired not out','absent hurt'];
 
 // ── 1. BATTING: Runs bars + Avg line ─────────────────────────────
 function drawRunsYearChart(batInnings, svgId) {
@@ -9742,11 +9779,9 @@ function _renderMilestones(players, allBat, allBowl, allField) {
 
   function _fieldRows(mids) {
     return activePlayers.map(name => {
-      const batRows   = allBat.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM);
+      const batRows   = allBat.filter(r=>mids.has(r.match_id));
       const fieldRows = allField.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM);
-      const saved  = fieldRows.reduce((s,r)=>s+r.catches,0);
-      const cnb    = batRows.filter(r=>r.how_out==='caught and bowled'&&!allField.some(f=>f.match_id===r.match_id&&f.player===name)).length;
-      const total  = saved + cnb;
+      const total  = _fieldingTotals(name, fieldRows, batRows).catches;
       const next   = _nextMilestone(total, CATCHES_STEP);
       return { name, current:total, milestone:next, needed:next-total };
     }).filter(r=>r.current>0).sort((a,b)=>a.needed-b.needed);
@@ -9839,20 +9874,21 @@ function _renderMilestones(players, allBat, allBowl, allField) {
 
     // Fielding: every 50 catches (including caught & bowled)
     players.forEach(name => {
-      const batRows   = allBat.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM);
+      const batRows   = allBat.filter(r=>mids.has(r.match_id));
       const fieldRows = allField.filter(r=>mids.has(r.match_id)&&r.player===name&&r.team===OUR_TEAM);
       const fieldMids = new Set([
         ...fieldRows.map(r=>r.match_id),
-        ...batRows.filter(r=>r.how_out==='caught and bowled').map(r=>r.match_id),
+        ...batRows.filter(r=>r.how_out==='caught and bowled'&&r.bowler===name).map(r=>r.match_id),
       ]);
       const matchList = [...fieldMids].map(mid=>db.matches.find(m=>m.id===mid)).filter(Boolean)
         .sort((a,b)=>a.date.localeCompare(b.date));
       let cum = 0;
       matchList.forEach(m => {
-        const saved = fieldRows.filter(r=>r.match_id===m.id).reduce((s,r)=>s+r.catches,0);
-        const cnb   = batRows.filter(r=>r.match_id===m.id&&r.how_out==='caught and bowled'
-                        &&!allField.some(f=>f.match_id===m.id&&f.player===name)).length;
-        const total = saved + cnb;
+        const total = _fieldingTotals(
+          name,
+          fieldRows.filter(r=>r.match_id===m.id),
+          batRows.filter(r=>r.match_id===m.id)
+        ).catches;
         const prevStep = Math.floor(cum/CATCHES_STEP);
         cum += total;
         const curStep = Math.floor(cum/CATCHES_STEP);

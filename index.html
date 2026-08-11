@@ -1205,6 +1205,19 @@
       No league tables yet.<br><br>
       <button class="btn btn-primary edit-only" onclick="leagueWizardStart()">&#43; Add your first table</button>
     </p>
+
+    <!-- Cups summary: one row per season+competition, P/W/L/A, expand to see the matches -->
+    <div id="cups-summary-card" class="card" style="display:none;margin-bottom:20px;">
+      <div class="card-title"><span class="icon">&#127942;</span> Cups — Season by Season</div>
+      <p class="muted" style="margin-bottom:12px;font-size:12px;">Click a year to expand the matches played. Click the opponent to expand the scorecard.</p>
+      <div class="table-wrap">
+        <table class="data-table" style="font-size:12px;">
+          <thead><tr><th>Year</th><th>Cup</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">A</th></tr></thead>
+          <tbody id="tbody-cups-summary"></tbody>
+        </table>
+      </div>
+    </div>
+    <p id="cups-empty" class="muted" style="display:none;padding:40px 0;text-align:center;font-size:14px;">No cup matches recorded yet.</p>
   </div>
 
   <!-- WIZARD mode -->
@@ -4575,6 +4588,123 @@ function isTour(format) {
 }
 function isNVK(format) {
   return (format||'').toLowerCase().includes('national village knockout');
+}
+
+// ── Cups tab ──────────────────────────────────────────────────────────────
+// Add a new entry here for each new cup competition as it comes up. `test`
+// should identify matches belonging to that cup from their format/match type.
+const CUP_COMPETITIONS = [
+  { name: 'National Village Knockout Cup', test: isNVK },
+];
+
+function _allCupMatches() {
+  const out = [];
+  db.matches.forEach(m => {
+    const cup = CUP_COMPETITIONS.find(c => c.test(m.format));
+    if (cup) out.push({ m, cup });
+  });
+  return out;
+}
+
+function renderCupsSummary() {
+  const tbody    = document.getElementById('tbody-cups-summary');
+  const emptyMsg = document.getElementById('cups-empty');
+  const card     = document.getElementById('cups-summary-card');
+  if (!tbody) return;
+
+  const roundOf = (m, cup) => (m.format||'').slice(cup.name.length).trim();
+  const isFirstRound = (m, cup) => {
+    const r = roundOf(m, cup).toLowerCase();
+    return r === '' || r === 'round 1';
+  };
+  // Bye and Opposition Conceded always show in the fixture list. Godshill
+  // Conceded only shows once they're past the first round (i.e. they'd
+  // already played their way into the competition before conceding) — a
+  // first-round concession usually just means the club didn't enter that
+  // year, so it's dropped entirely rather than logged as a loss.
+  const all = _allCupMatches().filter(({m, cup}) => {
+    if (m.result === 'Godshill Conceded') return !isFirstRound(m, cup);
+    return true;
+  });
+  if (!all.length) {
+    if (card) card.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = '';
+    return;
+  }
+  if (card) card.style.display = '';
+  if (emptyMsg) emptyMsg.style.display = 'none';
+
+  // Group by year + specific cup competition (a year could feature more than
+  // one cup once further competitions are added above).
+  const groups = {};
+  all.forEach(({m, cup}) => {
+    const year = (m.date||'').slice(0,4) || '?';
+    const key  = year + '|' + cup.name;
+    if (!groups[key]) groups[key] = { year, cup, rows: [] };
+    groups[key].rows.push(m);
+  });
+  const keys = Object.keys(groups).sort((a,b) =>
+    groups[b].year.localeCompare(groups[a].year) || groups[a].cup.name.localeCompare(groups[b].cup.name)
+  );
+
+  // Only genuinely completed matches count towards P/W/L/A — Bye, Opposition
+  // Conceded, and (surviving) Godshill Conceded rows appear in the fixture
+  // list but aren't tallied.
+  const COUNTABLE = ['Won', 'Lost', 'Abandoned'];
+
+  tbody.innerHTML = keys.map((key, gi) => {
+    const g = groups[key];
+    const rows = g.rows.slice().sort((a,b)=>b.date.localeCompare(a.date));
+    const countable = rows.filter(m => COUNTABLE.includes(m.result));
+    const p = countable.length;
+    const w = countable.filter(m=>m.result==='Won').length;
+    const l = countable.filter(m=>m.result==='Lost').length;
+    const a = countable.filter(m=>m.result==='Abandoned').length;
+    const headerRow = `<tr class="${gi%2===0?'row-odd':'row-even'}">
+      <td><a class="sc-toggle-link" id="cup-yr-link-${gi}" onclick="toggleCupYearRow(${gi})"
+         style="cursor:pointer;font-weight:700;">${esc(g.year)}</a></td>
+      <td>${esc(g.cup.name)}</td>
+      <td class="num">${p}</td>
+      <td class="num">${w}</td>
+      <td class="num">${l}</td>
+      <td class="num">${a}</td>
+    </tr>`;
+    const detailRow = `<tr id="cup-yr-detail-${gi}" class="cup-yr-detail-row" style="display:none;">      <td colspan="6" style="padding:0;">
+        <div style="padding:12px 8px;background:var(--cream);">
+          <table class="data-table" style="font-size:12px;width:100%;">
+            <thead><tr><th>Round</th><th>Opposition</th><th>Result</th></tr></thead>
+            <tbody>${rows.map(m => {
+              const idx    = _recScIdx++;
+              const scLink = _recScLink(m, idx);
+              const scRow  = `<tr id="rec-sc-row-${idx}" class="inline-sc-row" style="display:none;">
+                <td colspan="3"><div class="inline-sc-wrap" id="rec-sc-content-${idx}"></div></td>
+              </tr>`;
+              const round = roundOf(m, g.cup) || (m.format || '–');
+              return `<tr>
+                <td>${esc(round)}</td>
+                <td>${scLink}</td>
+                <td>${resultCell(m, db.batting.filter(r=>r.match_id===m.id))}</td>
+              </tr>${scRow}`;
+            }).join('')}</tbody>
+          </table>
+        </div>
+      </td>
+    </tr>`;
+    return headerRow + detailRow;
+  }).join('');
+}
+
+function toggleCupYearRow(idx) {
+  const row = document.getElementById('cup-yr-detail-'+idx);
+  if (!row) return;
+  const willOpen = row.style.display === 'none';
+  document.querySelectorAll('.cup-yr-detail-row').forEach(r => r.style.display = 'none');
+  document.querySelectorAll('[id^="cup-yr-link-"]').forEach(l => l.classList.remove('open'));
+  if (willOpen) {
+    row.style.display = '';
+    const link = document.getElementById('cup-yr-link-'+idx);
+    if (link) link.classList.add('open');
+  }
 }
 function matchesTypeFilter(format, ft) {
   if (!ft) return true;
@@ -8845,12 +8975,15 @@ function _tableInLeagueTab(specificLeague, tabName) {
 function renderLeagueTables() {
   const emptyMsg   = document.getElementById('league-empty');
   const summaryCard = document.getElementById('league-summary-card');
+  const cupsSummaryCard = document.getElementById('cups-summary-card');
+  const cupsEmpty  = document.getElementById('cups-empty');
   const isRO = typeof _isReadOnly !== 'undefined' && _isReadOnly;
   const allTablesUnfiltered = [..._leagueDB()].sort((a,b)=>b.season.localeCompare(a.season)||a.division.localeCompare(b.division));
 
   // ── League tabs ──────────────────────────────────────────────────────
   const tabsEl = document.getElementById('league-division-tabs');
   const FIXED_TABS = ['Saturday League', 'Hampshire Cricket League', 'Salisbury & District Cricket League', 'Midweek League'];
+  const hasCups = _allCupMatches().length > 0;
   if (tabsEl) {
     const leagueOf = t => (t.league||'').trim() || _autoDetectLeague(t.division);
     const specificLeagues = new Set(allTablesUnfiltered.map(leagueOf));
@@ -8860,6 +8993,7 @@ function renderLeagueTables() {
       }
       return specificLeagues.has(tab);
     });
+    if (hasCups) leagues.push('Cups');
     if (!_leagueDivisionFilter || !leagues.includes(_leagueDivisionFilter)) _leagueDivisionFilter = leagues[0] || '';
     if (leagues.length <= 1) {
       tabsEl.innerHTML = '';
@@ -8874,6 +9008,16 @@ function renderLeagueTables() {
       tabsEl.innerHTML = leagues.map(l=>tabBtn(l, l)).join('');
     }
   }
+
+  if (_leagueDivisionFilter === 'Cups') {
+    if (summaryCard) summaryCard.style.display = 'none';
+    if (emptyMsg) emptyMsg.style.display = 'none';
+    renderCupsSummary();
+    return;
+  }
+  if (cupsSummaryCard) cupsSummaryCard.style.display = 'none';
+  if (cupsEmpty) cupsEmpty.style.display = 'none';
+
   const allTables = _leagueDivisionFilter
     ? allTablesUnfiltered.filter(t=>_tableInLeagueTab((t.league||'').trim() || _autoDetectLeague(t.division), _leagueDivisionFilter))
     : allTablesUnfiltered;

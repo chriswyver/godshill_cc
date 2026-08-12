@@ -2112,9 +2112,9 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
   <div id="rtab-scores" style="display:none;">
     <div style="display:flex;flex-direction:column;gap:20px;">
       <div class="card"><div class="card-title">Highest Team Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-hi-team"></div></div>
-      <div class="card"><div class="card-title">Lowest Team Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-lo-team"></div></div>
+      <div class="card"><div class="card-title">Lowest Team Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— all out only; click opponent to expand scorecard</span></div><div id="rec-lo-team"></div></div>
       <div class="card"><div class="card-title">Highest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-hi-opp"></div></div>
-      <div class="card"><div class="card-title">Lowest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-lo-opp"></div></div>
+      <div class="card"><div class="card-title">Lowest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— all out only; click opponent to expand scorecard</span></div><div id="rec-lo-opp"></div></div>
     </div>
   </div>
 
@@ -4617,13 +4617,38 @@ function renderCupsSummary() {
     const r = roundOf(m, cup).toLowerCase();
     return r === '' || r === 'round 1';
   };
+  const roundNum = (m, cup) => {
+    const match = roundOf(m, cup).match(/(\d+)/);
+    return match ? parseInt(match[1], 10) : null;
+  };
+
+  const allRaw = _allCupMatches();
+
+  // Look up, for each year+cup+round, which match was played there — used to
+  // check what actually got them into the round they conceded in.
+  const byYearCupRound = new Map();
+  allRaw.forEach(({m, cup}) => {
+    const year = (m.date||'').slice(0,4) || '?';
+    const rn = roundNum(m, cup);
+    if (rn != null) byYearCupRound.set(year+'|'+cup.name+'|'+rn, m);
+  });
+
   // Bye and Opposition Conceded always show in the fixture list. Godshill
-  // Conceded only shows once they're past the first round (i.e. they'd
-  // already played their way into the competition before conceding) — a
-  // first-round concession usually just means the club didn't enter that
-  // year, so it's dropped entirely rather than logged as a loss.
-  const all = _allCupMatches().filter(({m, cup}) => {
-    if (m.result === 'Godshill Conceded') return !isFirstRound(m, cup);
+  // Conceded only shows if they genuinely played their way into that round —
+  // a first-round concession usually just means the club didn't enter that
+  // year, and conceding a round they only reached via a bye (never having
+  // played a match) isn't a real result either, so both are dropped rather
+  // than logged as a loss.
+  const all = allRaw.filter(({m, cup}) => {
+    if (m.result === 'Godshill Conceded') {
+      if (isFirstRound(m, cup)) return false;
+      const rn = roundNum(m, cup);
+      if (rn != null) {
+        const year = (m.date||'').slice(0,4) || '?';
+        const prevRound = byYearCupRound.get(year+'|'+cup.name+'|'+(rn-1));
+        if (prevRound && prevRound.result === 'Bye') return false;
+      }
+    }
     return true;
   });
   if (!all.length) {
@@ -10116,7 +10141,7 @@ function _recScoreTable(elId, scores) {
   if (!el) return;
   el.innerHTML = `<table class="data-table" style="font-size:12px;width:100%;">
     <thead><tr>
-      <th class="num" style="width:100px;">Score</th><th>Opponent</th><th>Date</th><th>Competition</th>
+      <th class="num" style="width:110px;">Score</th><th>Opponent</th><th>Date</th><th>Competition</th>
     </tr></thead>
     <tbody>${scores.slice(0,10).map((s,i) => {
       const idx = _recScIdx++;
@@ -10124,8 +10149,9 @@ function _recScoreTable(elId, scores) {
       const scRow  = `<tr id="rec-sc-row-${idx}" class="inline-sc-row" style="display:none;">
         <td colspan="4"><div class="inline-sc-wrap" id="rec-sc-content-${idx}"></div></td>
       </tr>`;
+      const oversStr = s.overs ? ` <span style="color:var(--ink-muted);font-weight:400;">(${s.overs} ov)</span>` : '';
       return `<tr class="${i%2===0?'row-odd':'row-even'}">
-        <td class="num"><strong>${s.score}${s.wkts!==undefined ? (s.wkts==='all out' ? ' All out' : '/'+s.wkts) : ''}</strong></td>
+        <td class="num"><strong>${s.score}${s.wkts!==undefined ? (s.wkts==='all out' ? ' All out' : '/'+s.wkts) : ''}</strong>${oversStr}</td>
         <td>${scLink}</td>
         <td style="color:var(--ink-muted);">${s.m?.date||'–'}</td>
         <td style="font-size:11px;">${esc(s.m?.format||'')}</td>
@@ -10550,7 +10576,10 @@ function _recRenderScores(ctx) {
     const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
     const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
     const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
-    return { total: runs+ext, wkts };
+    // Overs faced = overs bowled by the OPPOSING side in this innings.
+    const bowlRows = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
+    const overs = bowlRows.length ? ballsToOvers(bowlRows.reduce((s,r)=>s+oversToBalIs(r.overs),0)) : null;
+    return { total: runs+ext, wkts, overs };
   };
   ctx._getTeamScore = getTeamScore; // reused by margins tab
 
@@ -10562,25 +10591,28 @@ function _recRenderScores(ctx) {
 
   const hiTeam = matchesWithScores.map(m => {
     const s = getTeamScore(m, OUR_TEAM);
-    return s ? { m, score: s.total, wkts: s.wkts } : null;
+    return s ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
   }).filter(Boolean).sort((a,b)=>b.score-a.score);
   _recScoreTable('rec-hi-team', hiTeam);
 
+  // Lowest scores only count innings where the side was genuinely bowled
+  // out — a score that just ran out of overs (e.g. a shortened midweek
+  // game) isn't really comparable to a full dismissal.
   const loTeam = matchesWithScores.filter(m=>m.result==='Lost').map(m => {
     const s = getTeamScore(m, OUR_TEAM);
-    return s ? { m, score: s.total, wkts: s.wkts } : null;
+    return s && s.wkts==='all out' ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
   }).filter(Boolean).sort((a,b)=>a.score-b.score);
   _recScoreTable('rec-lo-team', loTeam);
 
   const hiOpp = matchesWithScores.map(m => {
     const s = getTeamScore(m, m.opponent);
-    return s ? { m, score: s.total, wkts: s.wkts } : null;
+    return s ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
   }).filter(Boolean).sort((a,b)=>b.score-a.score);
   _recScoreTable('rec-hi-opp', hiOpp);
 
   const loOpp = matchesWithScores.filter(m=>m.result==='Won').map(m => {
     const s = getTeamScore(m, m.opponent);
-    return s ? { m, score: s.total, wkts: s.wkts } : null;
+    return s && s.wkts==='all out' ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
   }).filter(Boolean).sort((a,b)=>a.score-b.score);
   _recScoreTable('rec-lo-opp', loOpp);
 }

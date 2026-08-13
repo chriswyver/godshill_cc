@@ -957,6 +957,7 @@
       <div class="tab-bar" style="margin-bottom:12px;">
         <button class="tab-btn active" id="issues-tab-maths-btn"   onclick="showIssuesTab('maths')">&#9651; Maths <span id="issues-maths-count" class="badge" style="margin-left:4px;"></span></button>
         <button class="tab-btn"        id="issues-tab-wickets-btn" onclick="showIssuesTab('wickets')">&#9675; Wickets <span id="issues-wickets-count" class="badge" style="margin-left:4px;"></span></button>
+        <button class="tab-btn"        id="issues-tab-data-btn"    onclick="showIssuesTab('data')">&#9670; Data <span id="issues-data-count" class="badge" style="margin-left:4px;"></span></button>
         <button class="tab-btn"        id="issues-tab-unsures-btn" onclick="showIssuesTab('unsures')">&#9650; Unsures <span id="issues-unsures-count" class="badge" style="margin-left:4px;"></span></button>
       </div>
       <!-- Maths tab -->
@@ -974,6 +975,15 @@
           <table class="data-table">
             <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th><th>Issue</th><th>Action</th></tr></thead>
             <tbody id="tbody-issues-wickets"></tbody>
+          </table>
+        </div>
+      </div>
+      <!-- Data tab -->
+      <div id="issues-tab-data" style="display:none;">
+        <div class="table-wrap">
+          <table class="data-table">
+            <thead><tr><th>Date</th><th>Opponent</th><th>Format</th><th>Result</th><th>Issue</th><th>Action</th></tr></thead>
+            <tbody id="tbody-issues-data"></tbody>
           </table>
         </div>
       </div>
@@ -3747,7 +3757,7 @@ function renderHomeFiltered() {
   // Stat boxes
   const wins   = filtMatches.filter(m=>m.result==='Won').length;
   const losses = filtMatches.filter(m=>m.result==='Lost').length;
-  const batRuns = db.batting.filter(r=>r.team===OUR_TEAM && filtMids.has(r.match_id))
+  const batRuns = db.batting.filter(r=>r.team===OUR_TEAM && filtMids.has(r.match_id) && r.how_out!=='did not bat')
                             .reduce((s,r)=>s+r.runs,0);
   const extRuns = filtMatches.reduce((s,m)=>{
     const e1 = m.extras_i1||{}; const e2 = m.extras_i2||{};
@@ -4273,7 +4283,7 @@ function calcResultString(match, allBat) {
 
   // innings 1 and 2 batting totals (bat runs + extras)
   function inningsTotal(inn) {
-    const rows = allBat.filter(r=>r.innings===inn);
+    const rows = allBat.filter(r=>r.innings===inn&&r.how_out!=='did not bat');
     const batRuns = rows.reduce((s,r)=>s+r.runs,0);
     const ext = match['extras_i'+inn] || {};
     const extTotal = (ext.b||0)+(ext.lb||0)+(ext.w||0)+(ext.nb||0)+(ext.p||0);
@@ -4651,7 +4661,26 @@ function renderCupsSummary() {
     }
     return true;
   });
-  if (!all.length) {
+
+  // If, after the filtering above, a year+cup's remaining rows are nothing
+  // but byes (i.e. they never actually played a match — they were byed
+  // through and then conceded before playing at all), drop those byes too,
+  // since the club effectively didn't take part that year.
+  const PLAYED_RESULTS = ['Won', 'Lost', 'Abandoned', 'Opposition Conceded'];
+  const yearCupHasPlayedMatch = new Set();
+  all.forEach(({m, cup}) => {
+    if (PLAYED_RESULTS.includes(m.result)) {
+      const year = (m.date||'').slice(0,4) || '?';
+      yearCupHasPlayedMatch.add(year+'|'+cup.name);
+    }
+  });
+  const allFiltered = all.filter(({m, cup}) => {
+    if (m.result !== 'Bye') return true;
+    const year = (m.date||'').slice(0,4) || '?';
+    return yearCupHasPlayedMatch.has(year+'|'+cup.name);
+  });
+
+  if (!allFiltered.length) {
     if (card) card.style.display = 'none';
     if (emptyMsg) emptyMsg.style.display = '';
     return;
@@ -4662,7 +4691,7 @@ function renderCupsSummary() {
   // Group by year + specific cup competition (a year could feature more than
   // one cup once further competitions are added above).
   const groups = {};
-  all.forEach(({m, cup}) => {
+  allFiltered.forEach(({m, cup}) => {
     const year = (m.date||'').slice(0,4) || '?';
     const key  = year + '|' + cup.name;
     if (!groups[key]) groups[key] = { year, cup, rows: [] };
@@ -5378,7 +5407,7 @@ function renderPlayers() {
   let data = db.players.map((p, origIdx) => ({ p, origIdx }))
     .filter(({p}) => !search || p.name.toLowerCase().includes(search))
     .map(({p, origIdx}) => {
-    const bat = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
+    const bat = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&r.how_out!=='did not bat'&&(!filtMids||filtMids.has(r.match_id)));
     const bowl = db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
     const runs  = bat.reduce((s,r)=>s+r.runs,0);
     const wkts  = bowl.reduce((s,r)=>s+r.wickets,0);
@@ -6528,7 +6557,7 @@ function buildInningsBatHtml(mid, innings) {
                          .sort((a,b)=>a.position-b.position);
   const ext = (m?.['extras_i'+innings] || {});
   const extTotal = (ext.b||0)+(ext.lb||0)+(ext.w||0)+(ext.nb||0)+(ext.p||0);
-  const batTotal = bat.reduce((s,r)=>s+r.runs,0) + extTotal;
+  const batTotal = bat.filter(r=>r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0) + extTotal;
   const teamLabel = bat.length ? bat[0].team : '';
   if (!bat.length) return { html:'', total:0 };
 
@@ -6770,6 +6799,8 @@ function checkMatchErrors(mid) {
        .forEach(r=>issues.push({type:'maths', msg:`${lbl}: No fielder for ${r.player} (${r.how_out})`}));
     bat.filter(r=>r.runs<0)
        .forEach(r=>issues.push({type:'maths', msg:`${lbl}: Negative runs for ${r.player}`}));
+    bat.filter(r=>r.how_out==='did not bat'&&r.runs)
+       .forEach(r=>issues.push({type:'data', msg:`${lbl}: ${r.player} listed as "did not bat" but has ${r.runs} run(s) recorded`}));
 
     // More than 1 not-out batter
     const notOutCount = bat.filter(r=>r.how_out==='not out').length;
@@ -6854,18 +6885,21 @@ function renderIssues() {
 
   const mathsMatches   = byType('maths');
   const wicketsMatches = byType('wickets');
+  const dataMatches    = byType('data');
   const unsureMatches  = byType('unsure');
 
   // Badges
   const setBadge = (id, n) => { const el=document.getElementById(id); if(el) el.textContent=n||''; };
   setBadge('issues-maths-count',   mathsMatches.length);
   setBadge('issues-wickets-count', wicketsMatches.length);
+  setBadge('issues-data-count',    dataMatches.length);
   setBadge('issues-unsures-count', unsureMatches.length);
 
   const total = matchesWithData.length;
   const summaryParts = [];
   if (mathsMatches.length)   summaryParts.push(`<span style="color:var(--red);">&#9651; ${mathsMatches.length} maths</span>`);
   if (wicketsMatches.length) summaryParts.push(`<span style="color:var(--red);">&#9675; ${wicketsMatches.length} wickets</span>`);
+  if (dataMatches.length)    summaryParts.push(`<span style="color:var(--red);">&#9670; ${dataMatches.length} data</span>`);
   if (unsureMatches.length)  summaryParts.push(`<span style="color:#c8922a;">&#9650; ${unsureMatches.length} unsures</span>`);
   document.getElementById('issues-summary').innerHTML = summaryParts.length
     ? `<div class="alert alert-warn">&#9888; ${total} scorecards checked — ${summaryParts.join(' &nbsp;')}</div>`
@@ -6899,6 +6933,7 @@ function renderIssues() {
 
   makeRows(mathsMatches,   'tbody-issues-maths',   'mth');
   makeRows(wicketsMatches, 'tbody-issues-wickets', 'wkt');
+  makeRows(dataMatches,    'tbody-issues-data',    'dat');
   makeRows(unsureMatches,  'tbody-unsures',        'uns');
 }
 
@@ -7418,7 +7453,7 @@ function isUnsure(v) { return !v || UNSURE_WORDS.test(v.trim()); }
 
 // ── Toggle panels ─────────────────────────────────────────────────────────────
 function showIssuesTab(which) {
-  ['maths','wickets','unsures'].forEach(t => {
+  ['maths','wickets','data','unsures'].forEach(t => {
     document.getElementById('issues-tab-'+t).style.display = t===which ? '' : 'none';
     document.getElementById('issues-tab-'+t+'-btn').classList.toggle('active', t===which);
   });
@@ -8394,8 +8429,7 @@ function showH2HDetail(opponent, oppIdx) {
     const bat  = db.batting.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team===team);
     const bowl = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
     if (!bat.length) return '–';
-    const runs = bat.reduce((s,r)=>s+r.runs,0);
-    const extras = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
+    const runs = bat.filter(r=>r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0);
     const ext = (extras.b||0)+(extras.lb||0)+(extras.w||0)+(extras.nb||0)+(extras.p||0);
     return `${runs+ext}/${bowl.reduce((s,r)=>s+r.wickets,0)}`;
   };
@@ -9337,7 +9371,7 @@ function _renderLeagueExpanded(idx, tbl) {
   const leaderFieldRows = db.fielding.filter(r=>leaderMids.has(r.match_id)&&r.team===OUR_TEAM);
   const leaderPlayers = db.players.map(p=>p.name);
   const battingLeader = leaderPlayers.map(name=>({
-    name, val: leaderBatRows.filter(r=>r.player===name).reduce((s,r)=>s+r.runs,0)
+    name, val: leaderBatRows.filter(r=>r.player===name&&r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0)
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val)[0];
   const bowlingLeader = leaderPlayers.map(name=>({
     name, val: leaderBowlRows.filter(r=>r.player===name).reduce((s,r)=>s+r.wickets,0)
@@ -10568,7 +10602,7 @@ function _recRenderScores(ctx) {
     const inn    = team===OUR_TEAM ? (godBat?1:2) : (godBat?2:1);
     const bat    = (battingByMatch.get(m.id)||[]).filter(r=>r.innings===inn&&r.team===team);
     if (!bat.length) return null;
-    const runs   = bat.reduce((s,r)=>s+r.runs,0);
+    const runs   = bat.filter(r=>r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0);
     const ex     = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
     const ext    = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
     const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
@@ -10626,7 +10660,7 @@ function _recRenderMargins(ctx) {
     const inn    = team===OUR_TEAM ? (godBat?1:2) : (godBat?2:1);
     const bat    = (battingByMatch.get(m.id)||[]).filter(r=>r.innings===inn&&r.team===team);
     if (!bat.length) return null;
-    const runs   = bat.reduce((s,r)=>s+r.runs,0);
+    const runs   = bat.filter(r=>r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0);
     const ex     = inn===1?(m.extras_i1||{}):(m.extras_i2||{});
     const ext    = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
     const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];

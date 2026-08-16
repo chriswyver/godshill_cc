@@ -5601,6 +5601,7 @@ function _yearsActive(name) {
   const mids = new Set([
     ...db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
     ...db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+    ...db.fielding.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
   ]);
   const years = [...new Set([...mids].map(mid=>{
     const m = db.matches.find(m=>m.id===mid);
@@ -5652,7 +5653,12 @@ function renderPlayers() {
     const bowl = db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
     const runs  = bat.reduce((s,r)=>s+r.runs,0);
     const wkts  = bowl.reduce((s,r)=>s+r.wickets,0);
-    const m     = new Set([...bat.map(r=>r.match_id),...bowl.map(r=>r.match_id)]).size;
+    // Appearances (Matches) must also count matches where the player only
+    // fielded, or was marked "did not bat" — not just matches where they
+    // actually batted (with a real innings) or bowled.
+    const allBatMids = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id))).map(r=>r.match_id);
+    const fieldMids  = db.fielding.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id))).map(r=>r.match_id);
+    const m     = new Set([...allBatMids,...bowl.map(r=>r.match_id),...fieldMids]).size;
     const years = _yearsActive(p.name);
     return { p, origIdx, runs, wkts, m, years };
   }).filter(({m}) => !filtMids || m > 0); // hide players who didn't play in filtered period
@@ -6180,6 +6186,7 @@ function openPlayerProfile(idx, fromPopState) {
   const mids = new Set([
     ...db.batting.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
     ...db.bowling.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
+    ...db.fielding.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
   ]);
   profileMatchDates = [...mids].map(mid=>{
     const m = db.matches.find(m=>m.id===mid);

@@ -1054,6 +1054,14 @@
       <div id="matches-pager" style="display:flex;align-items:center;gap:8px;font-size:12px;margin-top:8px;"></div>
     </div>
 
+  <!-- Local File Storage -->
+  <div class="card edit-only" style="margin-top:16px;">
+    <div class="card-title"><span class="icon">&#128193;</span> Local File Storage</div>
+    <p class="muted" style="font-size:12px;margin-bottom:10px;">Save your data straight to a file on disk instead of the browser's limited storage (a few MB) — avoids "storage full" errors for good. Chrome/Edge only.</p>
+    <div id="filestore-status" style="margin-bottom:10px;font-size:13px;"></div>
+    <div id="filestore-controls" style="display:flex;gap:8px;flex-wrap:wrap;"></div>
+  </div>
+
   <!-- Export / Import -->
   <div class="card edit-only" style="margin-top:16px;">
     <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:4px;">
@@ -1061,6 +1069,7 @@
       <span style="font-size:11px;" id="storage-usage"></span>
     </div>
     <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:4px;align-items:center;">
+      <button class="btn btn-primary btn-sm" onclick="exportAllData()">&#8595; Export All Data</button>
       <div class="edit-only" style="display:flex;">
         <label class="btn btn-secondary btn-sm" style="cursor:pointer;background:var(--green-deep);color:var(--gold);border-color:var(--green-deep);text-transform:none;letter-spacing:normal;display:flex;align-items:center;margin:0;">
           &#8593; Import Data
@@ -1069,8 +1078,10 @@
       </div>
       <button class="btn btn-secondary btn-sm" onclick="showPublishGuide()" style="background:var(--green-deep);color:var(--gold);border-color:var(--green-deep);text-transform:none;letter-spacing:normal;">Publish to GitHub</button>
     </div>
+    <p class="muted" style="font-size:11px;margin-top:2px;">Use <strong>Export All Data</strong> for backups or connecting a Local File Storage file above — it always includes every season, regardless of what's ticked in the Publish guide below.</p>
     <div id="import-msg" style="margin-top:6px;font-size:12px;"></div>
     <!-- Publish guide -->
+
     <div id="publish-guide" style="display:none;margin-top:16px;border-top:1px solid var(--green-pale);padding-top:14px;">
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;padding-top:14px;border-top:1px solid var(--green-pale);">
         <div class="card-title" style="margin-bottom:0;border-bottom:none;padding-bottom:0;"><span class="icon">&#127760;</span> How to Publish</div>
@@ -1859,6 +1870,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
                   onclick="document.getElementById('profile-filter-dism').value='';document.getElementById('profile-dism-wrap').style.display='none';renderProfile();">&#10005; Reset filter</button>
         </div>
         <svg id="chart-dism" width="100%" viewBox="0 0 560 260" style="display:block;"></svg>
+        <p id="chart-dism-note" class="muted" style="font-size:11px;margin-top:4px;display:none;"></p>
       </div>
       <div class="card">
         <div class="card-title"><span class="icon">&#9654;</span> By Position</div>
@@ -1914,6 +1926,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
                   onclick="document.getElementById('profile-filter-wkt').value='';document.getElementById('bowl-wkt-filter').value='';renderBowlWicketsTab();drawWktChart(_profBowlData,'chart-wkt');">&#10005; Reset filter</button>
         </div>
         <svg id="chart-wkt" width="100%" viewBox="0 0 420 240" style="display:block;"></svg>
+        <p id="chart-wkt-note" class="muted" style="font-size:11px;margin-top:4px;display:none;"></p>
       </div>
     </div>
     <!-- Row 1b: Annual bowling chart -->
@@ -2125,6 +2138,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
       <div class="card"><div class="card-title">Lowest Team Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— all out only; click opponent to expand scorecard</span></div><div id="rec-lo-team"></div></div>
       <div class="card"><div class="card-title">Highest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— click opponent to expand scorecard</span></div><div id="rec-hi-opp"></div></div>
       <div class="card"><div class="card-title">Lowest Opposition Score<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— all out only; click opponent to expand scorecard</span></div><div id="rec-lo-opp"></div></div>
+      <div class="card"><div class="card-title">Highest Scoring Match<span style="font-size:11px;color:var(--ink-muted);font-weight:400;font-style:italic;margin-left:6px;">— most runs, both teams combined; click opponent to expand scorecard</span></div><div id="rec-hi-combined"></div></div>
     </div>
   </div>
 
@@ -2356,7 +2370,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
 const OUR_TEAM = 'Godshill';
 const DISMISSALS = ['not out','did not bat','bowled','caught','caught and bowled','lbw','run out','stumped',
                     'hit wicket','retired hurt','retired out','retired not out','absent hurt',
-                    'handled the ball','obstructing the field','timed out'];
+                    'handled the ball','obstructing the field','timed out','out (method unknown)'];
 const NEEDS_BOWLER  = ['bowled','caught','caught and bowled','lbw','stumped','hit wicket'];
 const NEEDS_FIELDER = ['caught','stumped','run out'];
 
@@ -2386,10 +2400,22 @@ function loadDB() {
 }
 function saveDB(data) {
   if (typeof _isReadOnly !== 'undefined' && _isReadOnly) return;
+  const payload = data !== undefined ? data : db;
+  if (_fileStorageMode && _fileHandle) {
+    writeDBToHandle(_fileHandle, payload)
+      .then(() => updateStorageIndicator())
+      .catch(e => {
+        console.error('File save failed, falling back to browser storage:', e);
+        _saveToLocalStorage(payload, true);
+      });
+    return;
+  }
+  _saveToLocalStorage(payload, false);
+}
+function _saveToLocalStorage(payload, isFallback) {
   try {
-    const payload = JSON.stringify(data !== undefined ? data : db);
-    localStorage.setItem('cricketDB', payload);
-    // Update storage indicator if present
+    const json = JSON.stringify(payload);
+    localStorage.setItem('cricketDB', json);
     const el = document.getElementById('storage-usage');
     if (el) {
       let total = 0;
@@ -2397,8 +2423,8 @@ function saveDB(data) {
       const kb = (total/1024).toFixed(0);
       const limitMB = 10; // Chrome/Firefox typical limit
       const pct = (total/(limitMB*1024*1024)*100).toFixed(0);
-      el.textContent = kb + ' KB used of ~' + limitMB + 'MB (' + pct + '%)';
-      el.style.color = pct > 80 ? 'var(--red)' : pct > 60 ? '#c8922a' : 'var(--ink-muted)';
+      el.textContent = (isFallback ? '&#9888; File save failed — fell back to browser storage. ' : '') + kb + ' KB used of ~' + limitMB + 'MB (' + pct + '%)';
+      el.style.color = isFallback ? 'var(--red)' : pct > 80 ? 'var(--red)' : pct > 60 ? '#c8922a' : 'var(--ink-muted)';
     }
   } catch(e) {
     alert('Storage full - data not saved! Please export immediately via Matches page.');
@@ -2406,14 +2432,190 @@ function saveDB(data) {
   }
 }
 function updateStorageIndicator() {
+  const el = document.getElementById('storage-usage');
+  if (!el) return;
+  if (_fileStorageMode && _fileHandle) {
+    el.textContent = '&#128193; Saving to ' + esc(_fileHandle.name);
+    el.style.color = 'var(--green-mid)';
+    return;
+  }
   try {
     var st=0; for(var k in localStorage){if(localStorage.hasOwnProperty(k)) st+=(localStorage[k].length+k.length)*2;}
-    var el=document.getElementById('storage-usage');
     var limitMB=10;
-    if(el){var kb=(st/1024).toFixed(0),pct=(st/(limitMB*1024*1024)*100).toFixed(0);
-      el.textContent=kb+' KB used of ~'+limitMB+'MB ('+pct+'%)';
-      el.style.color=pct>80?'var(--red)':pct>60?'#c8922a':'var(--ink-muted)';}
+    var kb=(st/1024).toFixed(0),pct=(st/(limitMB*1024*1024)*100).toFixed(0);
+    el.textContent=kb+' KB used of ~'+limitMB+'MB ('+pct+'%)';
+    el.style.color=pct>80?'var(--red)':pct>60?'#c8922a':'var(--ink-muted)';
   } catch(e){}
+}
+
+// ════════════════════════════════════════════════════════════
+// LOCAL FILE STORAGE (File System Access API)
+// Lets the app read/write a JSON file directly on disk instead of
+// localStorage, which caps out around 5-10MB per site. Chrome/Edge only —
+// falls back to localStorage automatically everywhere else.
+// ════════════════════════════════════════════════════════════
+let _fileHandle = null;
+let _fileStorageMode = false;
+const FS_SUPPORTED = typeof window.showOpenFilePicker === 'function';
+
+function _idbOpen() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('godshill-filestore', 1);
+    req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains('handles')) req.result.createObjectStore('handles'); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function _idbGet(key) {
+  const idb = await _idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction('handles', 'readonly');
+    const rq = tx.objectStore('handles').get(key);
+    rq.onsuccess = () => resolve(rq.result || null);
+    rq.onerror = () => reject(rq.error);
+  });
+}
+async function _idbSet(key, value) {
+  const idb = await _idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction('handles', 'readwrite');
+    tx.objectStore('handles').put(value, key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function _idbDelete(key) {
+  const idb = await _idbOpen();
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction('handles', 'readwrite');
+    tx.objectStore('handles').delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function writeDBToHandle(handle, data) {
+  const writable = await handle.createWritable();
+  await writable.write(JSON.stringify(data, null, 2));
+  await writable.close();
+}
+
+// Called once on load. Silently reconnects if permission is already
+// granted; otherwise leaves _fileStorageMode off and renderFileStoreStatus()
+// will show a "Reconnect" button (re-granting permission needs a click).
+async function tryRestoreFileHandle() {
+  if (!FS_SUPPORTED) return false;
+  try {
+    const handle = await _idbGet('dataFileHandle');
+    if (!handle) return false;
+    _fileHandle = handle;
+    const perm = await handle.queryPermission({ mode: 'readwrite' });
+    if (perm === 'granted') {
+      const file = await handle.getFile();
+      const parsed = JSON.parse(await file.text());
+      db = {
+        players:      parsed.players      || [],
+        matches:      parsed.matches      || [],
+        batting:      parsed.batting      || [],
+        bowling:      parsed.bowling      || [],
+        fielding:     parsed.fielding     || [],
+        leagueTables: parsed.leagueTables || [],
+      };
+      _fileStorageMode = true;
+      return true;
+    }
+  } catch(e) {
+    console.error('Could not restore file handle:', e);
+  }
+  return false;
+}
+
+// User-triggered: connect to an existing file on disk, or create a new one.
+async function connectDataFile(mode) {
+  if (!FS_SUPPORTED) {
+    alert('Your browser doesn\'t support this — please use Chrome or Edge.');
+    return;
+  }
+  try {
+    let handle;
+    if (mode === 'new') {
+      handle = await window.showSaveFilePicker({
+        suggestedName: 'godshill_cc_data.json',
+        types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      });
+      await writeDBToHandle(handle, db);
+    } else {
+      [handle] = await window.showOpenFilePicker({
+        types: [{ description: 'JSON', accept: { 'application/json': ['.json'] } }],
+      });
+      const file = await handle.getFile();
+      const parsed = JSON.parse(await file.text());
+      if (!parsed.matches || !parsed.players) {
+        alert('That file doesn\'t look like a Godshill CC data export.');
+        return;
+      }
+    }
+    await _idbSet('dataFileHandle', handle);
+    _fileHandle = handle;
+    _fileStorageMode = true;
+    // Reload so every page picks up the file's data cleanly.
+    location.reload();
+  } catch(e) {
+    if (e.name !== 'AbortError') {
+      console.error('Could not connect to file:', e);
+      alert('Could not connect to file: ' + e.message);
+    }
+  }
+}
+
+// User clicks "Reconnect" — requestPermission needs a real user gesture,
+// which is why this can't happen automatically on page load.
+async function reconnectDataFile() {
+  if (!_fileHandle) return;
+  try {
+    const perm = await _fileHandle.requestPermission({ mode: 'readwrite' });
+    if (perm === 'granted') location.reload();
+    else renderFileStoreStatus();
+  } catch(e) {
+    console.error('Reconnect failed:', e);
+    renderFileStoreStatus();
+  }
+}
+
+async function disconnectDataFile() {
+  if (!confirm('This stops saving to the file and switches back to browser storage — your current data (as it is right now) will be saved into the browser instead. Continue?')) return;
+  await _idbDelete('dataFileHandle');
+  _fileHandle = null;
+  _fileStorageMode = false;
+  saveDB(); // persist current data into localStorage right away
+  renderFileStoreStatus();
+  updateStorageIndicator();
+}
+
+function renderFileStoreStatus() {
+  const statusEl = document.getElementById('filestore-status');
+  const ctrlsEl  = document.getElementById('filestore-controls');
+  if (!statusEl || !ctrlsEl) return;
+
+  if (!FS_SUPPORTED) {
+    statusEl.innerHTML = '<span class="muted">Not supported in this browser — try Chrome or Edge to enable file-based storage.</span>';
+    ctrlsEl.innerHTML = '';
+    return;
+  }
+  if (_fileStorageMode && _fileHandle) {
+    statusEl.innerHTML = '<span style="color:var(--green-mid);">&#10003; Connected — saving directly to <strong>' + esc(_fileHandle.name) + '</strong></span>';
+    ctrlsEl.innerHTML = '<button class="btn btn-secondary btn-sm" onclick="disconnectDataFile()">Disconnect</button>';
+    return;
+  }
+  if (_fileHandle) {
+    // We have a remembered handle but permission needs re-granting (browser restart, etc.)
+    statusEl.innerHTML = '<span style="color:#c8922a;">&#9888; Not connected — click Reconnect to resume saving to <strong>' + esc(_fileHandle.name) + '</strong></span>';
+    ctrlsEl.innerHTML = '<button class="btn btn-primary btn-sm" onclick="reconnectDataFile()">Reconnect</button>';
+    return;
+  }
+  statusEl.innerHTML = '<span class="muted">Currently saving to browser storage, which is limited to a few MB.</span>';
+  ctrlsEl.innerHTML = `
+    <button class="btn btn-primary btn-sm" onclick="connectDataFile('new')">&#128193; Create New File</button>
+    <button class="btn btn-secondary btn-sm" onclick="connectDataFile('open')">&#128194; Connect Existing File</button>`;
 }
 function genId() {
   return 'M' + Date.now() + Math.floor(Math.random()*1000);
@@ -2628,7 +2830,7 @@ function buildTeamSheets() {
     ourHtml += `<div class="ts-row">
       <span class="ts-num">${i}.</span>
       <input type="text" id="ts1-${i}" list="player-list"
-             placeholder="Select or type name..." value="${esc(cur)}">
+             placeholder="Select or type name..." value="${esc(cur)}" oninput="checkTeamSheetDuplicates()">
     </div>`;
   }
   document.getElementById('ts-our-rows').innerHTML = ourHtml;
@@ -2640,10 +2842,38 @@ function buildTeamSheets() {
     oppHtml += `<div class="ts-row">
       <span class="ts-num">${i}.</span>
       <input type="text" id="ts2-${i}" placeholder="Opponent player name..."
-             value="${esc(cur)}">
+             value="${esc(cur)}" oninput="checkTeamSheetDuplicates()">
     </div>`;
   }
   document.getElementById('ts-opp-rows').innerHTML = oppHtml;
+  checkTeamSheetDuplicates();
+}
+
+// Flags (non-blocking) if the same player name appears more than once within
+// either team's sheet — almost always an accidental double-entry.
+function checkTeamSheetDuplicates() {
+  const msgEl = document.getElementById('ts-msg');
+  if (!msgEl) return;
+  const sz = wiz.squadSize || parseInt(document.getElementById('m-squad-size')?.value||'11') || 11;
+  const findDupes = (prefix) => {
+    const seen = new Map(); // lowercased name -> original casing
+    const dupes = [];
+    for (let i = 1; i <= sz; i++) {
+      const v = (document.getElementById(prefix+i)?.value || '').trim();
+      if (!v || isUnsure(v)) continue;
+      const key = v.toLowerCase();
+      if (seen.has(key)) { if (!dupes.includes(seen.get(key))) dupes.push(seen.get(key)); }
+      else seen.set(key, v);
+    }
+    return dupes;
+  };
+  const opp = document.getElementById('m-opp')?.value.trim() || 'Opponent';
+  const ourDupes = findDupes('ts1-');
+  const oppDupes = findDupes('ts2-');
+  const parts = [];
+  if (ourDupes.length) parts.push(`<div class="alert alert-warn">&#9888; ${esc(OUR_TEAM)}: "${ourDupes.map(esc).join('", "')}" appears more than once in the team sheet.</div>`);
+  if (oppDupes.length) parts.push(`<div class="alert alert-warn">&#9888; ${esc(opp)}: "${oppDupes.map(esc).join('", "')}" appears more than once in the team sheet.</div>`);
+  msgEl.innerHTML = parts.join('');
 }
 
 // ════════════════════════════════════════════════════════════
@@ -3055,6 +3285,15 @@ function runValidation() {
         const extra = otherDism > 0 ? ` (plus ${otherDism} other)` : '';
         warn(`${lbl}: Bowling wickets=${ww} but batters dismissed via bowler=${bowlWickets}${extra}.`);
       }
+      // Per-bowler breakdown: does each individual bowler's wickets column
+      // match how many dismissals are actually credited to them in the
+      // batting entry?
+      wdf.forEach(br => {
+        const credited = bdf.filter(r => BOWL_WICKET_TYPES.includes(r.how_out) && r.bowler===br.player).length;
+        if (br.wickets !== credited) {
+          warn(`${lbl}: ${br.player} has ${br.wickets}w in bowling but is credited with ${credited} dismissal${credited===1?'':'s'} in the batting entry.`);
+        }
+      });
     }
 
     bdf.filter(r=>NEEDS_BOWLER.includes(r.how_out)&&!r.bowler).forEach(r=>
@@ -3063,6 +3302,8 @@ function runValidation() {
       warn(`${lbl}: No fielder recorded for ${r.player} (${r.how_out}).`));
     bdf.filter(r=>r.runs<0).forEach(r=>
       err(`${lbl}: Negative runs for ${r.player}.`));
+    bdf.filter(r=>r.how_out==='did not bat'&&r.runs).forEach(r=>
+      warn(`${lbl}: ${r.player} is listed as "did not bat" but has ${r.runs} run(s) recorded.`));
 
     // More than 1 not-out batter (max 1 allowed at end of innings)
     const notOutCount = bdf.filter(r => r.how_out === 'not out').length;
@@ -5709,7 +5950,11 @@ updateFormatListForDate();
     } catch(e) {
       // No JSON file found — fall through to localStorage
     }
+  } else {
+    // Running locally — try to reconnect to a previously chosen data file.
+    await tryRestoreFileHandle();
   }
+  renderFileStoreStatus();
   renderHome();
   updateStorageIndicator();
   // Set initial history state
@@ -6353,6 +6598,20 @@ function drawDismChart(data, svgId) {
   if (!svg) return;
   const W=560, H=260;
 
+  // "Out (method unknown)" rows are genuine dismissals but can't be categorised
+  // by method, so they're excluded from the pie itself and called out separately.
+  const noteEl = document.getElementById(svgId + '-note');
+  const unknownCount = data.filter(r => r.how_out === 'out (method unknown)').length;
+  data = data.filter(r => r.how_out !== 'out (method unknown)');
+  if (noteEl) {
+    if (unknownCount > 0) {
+      noteEl.style.display = '';
+      noteEl.textContent = unknownCount + ' dismissal' + (unknownCount===1?'':'s') + ' excluded (method of dismissal unknown)';
+    } else {
+      noteEl.style.display = 'none';
+    }
+  }
+
   if (!data.length) {
     svg.innerHTML = `<text x="${W/2}" y="${H/2}" text-anchor="middle"
       font-family="Georgia" font-size="13" fill="#aaa">No data</text>`;
@@ -6461,6 +6720,23 @@ function drawWktChart(spells, svgId) {
 
   const entries=Object.entries(wktTypes).sort((a,b)=>b[1]-a[1]);
   const total=entries.reduce((s,[,v])=>s+v,0);
+
+  // The bowling table's wickets column is the source of truth for how many
+  // wickets this bowler took; not every one of those is necessarily traceable
+  // to a specific batter/dismissal-type in the batting entry (e.g. matches
+  // where only the bowling figures were recorded). Flag the gap rather than
+  // silently under-representing the bowler's true wicket tally.
+  const noteEl = document.getElementById(svgId + '-note');
+  const officialWickets = spells.reduce((s,r)=>s+(r.wickets||0),0);
+  const notShown = officialWickets - total;
+  if (noteEl) {
+    if (notShown > 0) {
+      noteEl.style.display = '';
+      noteEl.textContent = notShown + ' wicket' + (notShown===1?'':'s') + ' not shown (batter/method of dismissal unknown)';
+    } else {
+      noteEl.style.display = 'none';
+    }
+  }
 
   if(!total){
     svg.innerHTML='<text x="'+W/2+'" y="'+(H/2)+'" text-anchor="middle"'
@@ -7984,8 +8260,8 @@ ${filterHtml}
 // EXPORT / IMPORT
 // ════════════════════════════════════════════════════════════
 
-function exportData(publishedSeasons) {
-  const pubSeasons = publishedSeasons || JSON.parse(localStorage.getItem('publishedSeasons')||'null');
+function exportData(publishedSeasons, unfiltered) {
+  const pubSeasons = unfiltered ? null : (publishedSeasons || JSON.parse(localStorage.getItem('publishedSeasons')||'null'));
   const okMids = pubSeasons && pubSeasons.length
     ? new Set(db.matches.filter(m=>pubSeasons.includes((m.date||'').slice(0,4))).map(m=>m.id))
     : null;
@@ -8549,6 +8825,10 @@ function showPublishGuide() {
       }).join('');
     }
   }
+}
+
+function exportAllData() {
+  exportData(null, true);
 }
 
 function saveAndExportFromGuide() {
@@ -10649,6 +10929,56 @@ function _recRenderScores(ctx) {
     return s && s.wkts==='all out' ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
   }).filter(Boolean).sort((a,b)=>a.score-b.score);
   _recScoreTable('rec-lo-opp', loOpp);
+
+  // Highest scoring match — combined runs from both teams. For two-innings
+  // matches (each side batting twice), all four innings are summed and the
+  // entry is flagged, since that's not comparable to a normal single-innings total.
+  const inningsRuns = (m, inn, team) => {
+    const bat = (battingByMatch.get(m.id)||[]).filter(r=>r.innings===inn&&r.team===team&&r.how_out!=='did not bat');
+    if (!bat.length) return 0;
+    const runs = bat.reduce((s,r)=>s+r.runs,0);
+    const ex   = m['extras_i'+inn] || {};
+    const ext  = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
+    return runs+ext;
+  };
+  const combined = matchesWithScores.map(m => {
+    const godBat   = m.bat_first===OUR_TEAM;
+    const inn1Team = godBat ? OUR_TEAM : m.opponent;
+    const inn2Team = godBat ? m.opponent : OUR_TEAM;
+    let total = inningsRuns(m,1,inn1Team) + inningsRuns(m,2,inn2Team);
+    let twoInnings = false;
+    if (m.two_innings) {
+      const r3 = inningsRuns(m,3,inn1Team);
+      const r4 = inningsRuns(m,4,inn2Team);
+      if (r3 > 0 || r4 > 0) { total += r3 + r4; twoInnings = true; }
+    }
+    return total > 0 ? { m, total, twoInnings } : null;
+  }).filter(Boolean).sort((a,b)=>b.total-a.total);
+  _recCombinedScoreTable('rec-hi-combined', combined);
+}
+
+function _recCombinedScoreTable(elId, rows) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = `<table class="data-table" style="font-size:12px;width:100%;">
+    <thead><tr>
+      <th class="num" style="width:110px;">Runs</th><th>Opponent</th><th>Date</th><th>Competition</th>
+    </tr></thead>
+    <tbody>${rows.slice(0,10).map((s,i) => {
+      const idx = _recScIdx++;
+      const scLink = _recScLink(s.m, idx);
+      const scRow  = `<tr id="rec-sc-row-${idx}" class="inline-sc-row" style="display:none;">
+        <td colspan="4"><div class="inline-sc-wrap" id="rec-sc-content-${idx}"></div></td>
+      </tr>`;
+      const note = s.twoInnings ? ' <span style="color:var(--ink-muted);font-weight:400;">(2 innings)</span>' : '';
+      return `<tr class="${i%2===0?'row-odd':'row-even'}">
+        <td class="num"><strong>${s.total}</strong>${note}</td>
+        <td>${scLink}</td>
+        <td style="color:var(--ink-muted);">${s.m?.date||'–'}</td>
+        <td style="font-size:11px;">${esc(s.m?.format||'')}</td>
+      </tr>${scRow}`;
+    }).join('')}</tbody>
+  </table>`;
 }
 
 // ── RESULT MARGINS TAB ─────────────────────────────────────────────────────

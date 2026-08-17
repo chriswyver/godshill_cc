@@ -5601,7 +5601,6 @@ function _yearsActive(name) {
   const mids = new Set([
     ...db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
     ...db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
-    ...db.fielding.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
   ]);
   const years = [...new Set([...mids].map(mid=>{
     const m = db.matches.find(m=>m.id===mid);
@@ -5653,12 +5652,7 @@ function renderPlayers() {
     const bowl = db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
     const runs  = bat.reduce((s,r)=>s+r.runs,0);
     const wkts  = bowl.reduce((s,r)=>s+r.wickets,0);
-    // Appearances (Matches) must also count matches where the player only
-    // fielded, or was marked "did not bat" — not just matches where they
-    // actually batted (with a real innings) or bowled.
-    const allBatMids = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id))).map(r=>r.match_id);
-    const fieldMids  = db.fielding.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id))).map(r=>r.match_id);
-    const m     = new Set([...allBatMids,...bowl.map(r=>r.match_id),...fieldMids]).size;
+    const m     = new Set([...bat.map(r=>r.match_id),...bowl.map(r=>r.match_id)]).size;
     const years = _yearsActive(p.name);
     return { p, origIdx, runs, wkts, m, years };
   }).filter(({m}) => !filtMids || m > 0); // hide players who didn't play in filtered period
@@ -6186,7 +6180,6 @@ function openPlayerProfile(idx, fromPopState) {
   const mids = new Set([
     ...db.batting.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
     ...db.bowling.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
-    ...db.fielding.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
   ]);
   profileMatchDates = [...mids].map(mid=>{
     const m = db.matches.find(m=>m.id===mid);
@@ -10895,7 +10888,7 @@ function _recRenderScores(ctx) {
     const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
     const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
     const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
-    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
+    const allOut  = batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat');
     const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
     // Overs faced = overs bowled by the OPPOSING side in this innings.
     const bowlRows = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
@@ -11003,7 +10996,7 @@ function _recRenderMargins(ctx) {
     const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
     const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
     const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
-    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
+    const allOut  = batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat');
     const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
     return { total: runs+ext, wkts };
   });

@@ -6459,15 +6459,21 @@ function renderProfile() {
   // Bowling tab stat boxes
   if (hasBowl) {
     const profileEcon = totalBalls>0 ? (totalBRuns/(totalBalls/6)).toFixed(2) : '-';
-    const BOWL_QUALIFY = { minKey: 'oversDec', minVal: 100 };
+    // Midweek League games are shorter (15-20 overs), so a 100-over threshold
+    // is unreasonably high when viewing that competition specifically.
+    const isMidweekView = (document.getElementById('profile-filter-type')?.value || '') === 'midweek';
+    const bowlMinOvers = isMidweekView ? 50 : 100;
+    const BOWL_QUALIFY = { minKey: 'oversDec', minVal: bowlMinOvers };
+    const bowlQualNote = `min ${bowlMinOvers} ov`;
+    const bowlNotQualNote = `min ${bowlMinOvers} overs to qualify`;
     document.getElementById('profile-bowl-boxes').innerHTML = [
       [totalOvsDisplay,'Overs',   _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'oversDec', {dir:'desc', poolKey:'oversDec'}))],
       [totalMdns,'Maidens',       _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'maidens',  {dir:'desc', poolKey:'oversDec'}))],
       [totalBRuns,'Runs',         ''],
       [totalWkts,'Wickets',       _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'wickets',  {dir:'desc', poolKey:'oversDec'}))],
-      [bowlAvg,'Average',         _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'bowlAvg',  Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), 'min 100 ov', 'min 100 overs to qualify')],
-      [strikeRate,'Strike Rate',  _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'strikeRate', Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), 'min 100 ov', 'min 100 overs to qualify')],
-      [profileEcon,'Economy',     _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'econ',     Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), 'min 100 ov', 'min 100 overs to qualify')],
+      [bowlAvg,'Average',         _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'bowlAvg',  Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
+      [strikeRate,'Strike Rate',  _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'strikeRate', Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
+      [profileEcon,'Economy',     _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'econ',     Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
     ].map(([v,l,badge])=>`<div class="stat-box" style="min-width:0;">
       <div class="val" style="font-size:28px;">${v}</div>
       <div class="lbl">${l}</div>${badge||''}</div>`).join('');

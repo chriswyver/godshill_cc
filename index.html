@@ -165,6 +165,7 @@
     margin-bottom: 4px;
   }
   .stat-box .lbl { font-size: 12px; opacity: 0.75; letter-spacing: 0.5px; text-transform: uppercase; }
+  .stat-box .rank { font-size: 11px; color: var(--gold-light); opacity: 1; margin-top: 3px; font-weight: 600; }
 
   /* ── Forms ── */
   .form-grid { display: grid; gap: 14px; }
@@ -538,7 +539,7 @@
       <button onclick="showPage('scorecard',this)" class="nav-edit-only edit-only">New Scorecard</button>
       <button onclick="showPage('matches',this)">Matches</button>
       <button onclick="showPage('stats',this)">Stats</button>
-      <button onclick="showPage('players',this)">Players</button>
+      <button onclick="showPage('players',this)">Player Profiles</button>
       <button onclick="showPage('league',this)">League Tables</button>
       <button onclick="showPage('records',this)">Records</button>
       <button id="nav-profile" style="display:none;" onclick="showPage('profile',this)">&#9654; Profile</button>
@@ -958,6 +959,7 @@
         <button class="tab-btn active" id="issues-tab-maths-btn"   onclick="showIssuesTab('maths')">&#9651; Maths <span id="issues-maths-count" class="badge" style="margin-left:4px;"></span></button>
         <button class="tab-btn"        id="issues-tab-wickets-btn" onclick="showIssuesTab('wickets')">&#9675; Wickets <span id="issues-wickets-count" class="badge" style="margin-left:4px;"></span></button>
         <button class="tab-btn"        id="issues-tab-data-btn"    onclick="showIssuesTab('data')">&#9670; Data <span id="issues-data-count" class="badge" style="margin-left:4px;"></span></button>
+        <button class="tab-btn"        id="issues-tab-opps-btn"    onclick="showIssuesTab('opps')">&#9873; Opponents <span id="issues-opps-count" class="badge" style="margin-left:4px;"></span></button>
         <button class="tab-btn"        id="issues-tab-unsures-btn" onclick="showIssuesTab('unsures')">&#9650; Unsures <span id="issues-unsures-count" class="badge" style="margin-left:4px;"></span></button>
       </div>
       <!-- Maths tab -->
@@ -986,6 +988,11 @@
             <tbody id="tbody-issues-data"></tbody>
           </table>
         </div>
+      </div>
+      <!-- Opponents tab -->
+      <div id="issues-tab-opps" style="display:none;">
+        <p class="muted" style="margin-bottom:12px;font-size:12px;">Opponent names that look similar to each other — might be a typo, or might just be two genuinely different teams.</p>
+        <div id="opponent-issues-list"></div>
       </div>
       <!-- Unsures tab -->
       <div id="issues-tab-unsures" style="display:none;">
@@ -1627,7 +1634,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
 <!-- ═══════════════════════════════════════ PLAYERS ═══════ -->
 <div id="page-players" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px;">
-    <div><h2>Player Register</h2><p class="muted">Godshill squad.</p></div>
+    <div><h2>Player Profiles</h2><p class="muted">Godshill squad.</p></div>
     <button class="btn btn-danger btn-sm edit-only" onclick="deleteCheckedPlayers()">&#128465; Delete Selected</button>
   </div>
   <div class="card" style="padding:10px 16px;margin-bottom:16px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -1989,6 +1996,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
   <!-- FIELDING TAB -->
   <div id="profile-tab-field" style="display:none;margin-top:0;">
     <div class="stat-row mt16" id="profile-field-boxes-row"></div>
+    <p id="profile-field-missing-note" class="muted" style="font-size:11px;margin-top:8px;display:none;"></p>
     <div class="card" style="margin-top:16px;">
       <div class="card-title"><span class="icon">&#128200;</span> Annual Fielding (Catches / Run-outs / Stumpings)</div>
       <svg id="chart-field-year" width="100%" viewBox="0 0 900 200" style="display:block;"></svg>
@@ -2400,6 +2408,8 @@ function loadDB() {
 }
 function saveDB(data) {
   if (typeof _isReadOnly !== 'undefined' && _isReadOnly) return;
+  if (typeof _invalidateRankStatsCache === 'function') _invalidateRankStatsCache();
+  if (typeof _invalidatePlayerAppearanceIndexCache === 'function') _invalidatePlayerAppearanceIndexCache();
   const payload = data !== undefined ? data : db;
   if (_fileStorageMode && _fileHandle) {
     writeDBToHandle(_fileHandle, payload)
@@ -2671,7 +2681,7 @@ function showPage(name, btn, fromPopState) {
   if (bb) {
     if (name === 'profile' && _prevPage && _prevPage !== 'profile') {
       const labels = {home:'Home',scorecard:'New Scorecard',matches:'Matches',
-                      stats:'Stats',players:'Players',league:'League Tables',records:'Records'};
+                      stats:'Stats',players:'Player Profiles',league:'League Tables',records:'Records'};
       bb.textContent = '← Back to ' + (labels[_prevPage] || _prevPage);
       bb.style.display = '';
     } else if (name !== 'profile') {
@@ -5548,8 +5558,8 @@ function renderStats() {
 let selectedPlayerIdx = null;
 
 // Player register sort state
-let _playerSortKey = 'name';
-let _playerSortDir = 1;
+let _playerSortKey = 'matches';
+let _playerSortDir = -1;
 let _playerRegYear = null; // null=all, 'YYYY'=specific year
 let _playerRegType = 'all'; // 'all' | 'saturday'
 
@@ -5597,18 +5607,39 @@ function sortPlayers(key) {
   renderPlayers();
 }
 
+// Cached per-player row indexes — avoids re-scanning the full batting/bowling/
+// fielding tables for every player on pages that loop over the whole squad
+// (Player Profiles list, Years Active, etc.)
+let _playerApparIndexCache = null;
+function _getPlayerAppearanceIndexes() {
+  if (_playerApparIndexCache) return _playerApparIndexCache;
+  const batByPlayer = new Map();
+  db.batting.forEach(r => { if (r.team!==OUR_TEAM) return; if(!batByPlayer.has(r.player)) batByPlayer.set(r.player,[]); batByPlayer.get(r.player).push(r); });
+  const bowlByPlayer = new Map();
+  db.bowling.forEach(r => { if (r.team!==OUR_TEAM) return; if(!bowlByPlayer.has(r.player)) bowlByPlayer.set(r.player,[]); bowlByPlayer.get(r.player).push(r); });
+  const fieldByPlayer = new Map();
+  db.fielding.forEach(r => { if (r.team!==OUR_TEAM) return; if(!fieldByPlayer.has(r.player)) fieldByPlayer.set(r.player,[]); fieldByPlayer.get(r.player).push(r); });
+  const matchDateById = new Map(db.matches.map(m=>[m.id, m.date]));
+  const allMatchYears = new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(Boolean));
+  _playerApparIndexCache = { batByPlayer, bowlByPlayer, fieldByPlayer, matchDateById, allMatchYears };
+  return _playerApparIndexCache;
+}
+function _invalidatePlayerAppearanceIndexCache() { _playerApparIndexCache = null; }
+
 function _yearsActive(name) {
+  const idx = _getPlayerAppearanceIndexes();
   const mids = new Set([
-    ...db.batting.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
-    ...db.bowling.filter(r=>r.player===name&&r.team===OUR_TEAM).map(r=>r.match_id),
+    ...(idx.batByPlayer.get(name)||[]).map(r=>r.match_id),
+    ...(idx.bowlByPlayer.get(name)||[]).map(r=>r.match_id),
+    ...(idx.fieldByPlayer.get(name)||[]).map(r=>r.match_id),
   ]);
   const years = [...new Set([...mids].map(mid=>{
-    const m = db.matches.find(m=>m.id===mid);
-    return m ? (m.date||'').slice(0,4) : null;
+    const d = idx.matchDateById.get(mid);
+    return d ? d.slice(0,4) : null;
   }).filter(Boolean))].sort();
   if (!years.length) return '';
   // Years that had no matches at all (e.g. 2020 covid) — treat as non-gaps
-  const allMatchYears = new Set(db.matches.map(m=>(m.date||'').slice(0,4)).filter(Boolean));
+  const allMatchYears = idx.allMatchYears;
   const emptyYears = new Set(); // years that exist in the range but had no club cricket
   const minY = parseInt(years[0]), maxY = parseInt(years[years.length-1]);
   for (let y=minY; y<=maxY; y++) {
@@ -5645,14 +5676,17 @@ function renderPlayers() {
     : null;
 
   // Build data rows with stats — only count appearances in filtered matches
+  const _idx = _getPlayerAppearanceIndexes();
   let data = db.players.map((p, origIdx) => ({ p, origIdx }))
     .filter(({p}) => !search || p.name.toLowerCase().includes(search))
     .map(({p, origIdx}) => {
-    const bat = db.batting.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&r.how_out!=='did not bat'&&(!filtMids||filtMids.has(r.match_id)));
-    const bowl = db.bowling.filter(r=>r.player===p.name&&r.team===OUR_TEAM&&(!filtMids||filtMids.has(r.match_id)));
+    const allBatRows = (_idx.batByPlayer.get(p.name)  || []).filter(r=>!filtMids||filtMids.has(r.match_id));
+    const bowl       = (_idx.bowlByPlayer.get(p.name) || []).filter(r=>!filtMids||filtMids.has(r.match_id));
+    const field      = (_idx.fieldByPlayer.get(p.name)|| []).filter(r=>!filtMids||filtMids.has(r.match_id));
+    const bat = allBatRows.filter(r=>r.how_out!=='did not bat');
     const runs  = bat.reduce((s,r)=>s+r.runs,0);
     const wkts  = bowl.reduce((s,r)=>s+r.wickets,0);
-    const m     = new Set([...bat.map(r=>r.match_id),...bowl.map(r=>r.match_id)]).size;
+    const m     = new Set([...allBatRows.map(r=>r.match_id),...bowl.map(r=>r.match_id),...field.map(r=>r.match_id)]).size;
     const years = _yearsActive(p.name);
     return { p, origIdx, runs, wkts, m, years };
   }).filter(({m}) => !filtMids || m > 0); // hide players who didn't play in filtered period
@@ -6180,6 +6214,7 @@ function openPlayerProfile(idx, fromPopState) {
   const mids = new Set([
     ...db.batting.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
     ...db.bowling.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
+    ...db.fielding.filter(r=>r.player===profilePlayer.name&&(r.team===OUR_TEAM||!r.team)).map(r=>r.match_id),
   ]);
   profileMatchDates = [...mids].map(mid=>{
     const m = db.matches.find(m=>m.id===mid);
@@ -6225,6 +6260,135 @@ function profileSliderChange() {
 function profileGoPage() {
   _profilePage.bat=1; _profilePage.bowl=1; _profilePage.wickets=1; _profilePage.field=1;
   renderProfile();
+}
+
+// ── Player stat ranking (used on profile stat boxes) ────────────────────
+// Builds the same date/type/opponent/venue/result predicate the profile
+// filters already apply, so rankings always reflect whatever's currently
+// on screen (All Time by default, or a filtered slice if one's active).
+function _profileFilterPredicate() {
+  const pfrom    = document.getElementById('profile-filter-from')?.value   || '';
+  const pto      = document.getElementById('profile-filter-to')?.value     || '';
+  const profType = document.getElementById('profile-filter-type')?.value   || '';
+  const profOpp  = (document.getElementById('profile-filter-opp')?.value   || '').toLowerCase().trim();
+  const profVen  = document.getElementById('profile-filter-venue')?.value  || '';
+  const profRes  = document.getElementById('profile-filter-result')?.value || '';
+  return (m) => {
+    if (pfrom && m.date < pfrom) return false;
+    if (pto   && m.date > pto)   return false;
+    if (!matchesTypeFilter(m.format, profType)) return false;
+    if (profOpp && !(m.opponent||'').toLowerCase().includes(profOpp)) return false;
+    if (profVen && (m.venue||'').toLowerCase() !== profVen.toLowerCase()) return false;
+    if (profRes && m.result !== profRes) return false;
+    return true;
+  };
+}
+const _RANK_NOT_OUT_MODES = ['not out','retired hurt','retired not out','absent hurt'];
+function _playerRankStats(name, filteredMids) {
+  const bat   = db.batting.filter(r=>r.player===name&&(r.team===OUR_TEAM||!r.team)&&filteredMids.has(r.match_id));
+  const bowl  = db.bowling.filter(r=>r.player===name&&(r.team===OUR_TEAM||!r.team)&&filteredMids.has(r.match_id));
+  const field = db.fielding.filter(r=>r.player===name&&r.team===OUR_TEAM&&filteredMids.has(r.match_id));
+  const batInnings = bat.filter(r=>r.how_out!=='did not bat');
+  const innings  = batInnings.length;
+  const runs     = batInnings.reduce((s,r)=>s+r.runs,0);
+  const notOuts  = batInnings.filter(r=>_RANK_NOT_OUT_MODES.includes(r.how_out)).length;
+  const avg      = (innings-notOuts)>0 ? runs/(innings-notOuts) : null;
+  const fifties  = batInnings.filter(r=>r.runs>=50&&r.runs<100).length;
+  const hundreds = batInnings.filter(r=>r.runs>=100).length;
+  const ducks    = batInnings.filter(r=>r.runs===0&&!_RANK_NOT_OUT_MODES.includes(r.how_out)).length;
+
+  const totalBalls = bowl.reduce((s,r)=>s+oversToBalIs(r.overs),0);
+  const oversDec    = totalBalls/6;
+  const maidens     = bowl.reduce((s,r)=>s+r.maidens,0);
+  const wktsForAvg  = bowl.filter(r=>!r.noFigures).reduce((s,r)=>s+r.wickets,0);
+  const wickets     = bowl.reduce((s,r)=>s+r.wickets,0);
+  const bRuns       = bowl.reduce((s,r)=>s+r.runs,0);
+  const bowlAvg     = wktsForAvg>0 ? bRuns/wktsForAvg : null;
+  const econ        = totalBalls>0 ? bRuns/(totalBalls/6) : null;
+  const strikeRate  = wktsForAvg>0 ? totalBalls/wktsForAvg : null;
+
+  const matches = new Set([...bat.map(r=>r.match_id),...bowl.map(r=>r.match_id),...field.map(r=>r.match_id)]).size;
+
+  const fTotals    = _fieldingTotals(name, field, db.batting.filter(r=>filteredMids.has(r.match_id)));
+  const catches    = fTotals.catches;
+  const runOuts    = fTotals.run_outs;
+  const stumpings  = fTotals.stumpings;
+  const totalField = catches + runOuts + stumpings;
+
+  return { innings, runs, avg, fifties, hundreds, notOuts, ducks, oversDec, maidens, wickets, bowlAvg, econ, strikeRate, matches,
+           catches, runOuts, stumpings, totalField };
+}
+function _allPlayerRankStats() {
+  const filteredMids = new Set(db.matches.filter(_profileFilterPredicate()).map(m=>m.id));
+  const out = {};
+  db.players.forEach(p => { out[p.name] = _playerRankStats(p.name, filteredMids); });
+  return out;
+}
+// Cache: rankings only depend on the active profile filters + underlying data,
+// not on which player is being viewed — so browsing between profiles with the
+// same filters (the common case) reuses the same computed rankings instead of
+// re-scanning every player's batting/bowling/fielding rows from scratch each time.
+let _rankStatsCacheSig = null;
+let _rankStatsCacheVal = null;
+function _invalidateRankStatsCache() { _rankStatsCacheSig = null; _rankStatsCacheVal = null; }
+function _allPlayerRankStatsCached() {
+  const sig = [
+    document.getElementById('profile-filter-from')?.value   || '',
+    document.getElementById('profile-filter-to')?.value     || '',
+    document.getElementById('profile-filter-type')?.value   || '',
+    document.getElementById('profile-filter-opp')?.value    || '',
+    document.getElementById('profile-filter-venue')?.value  || '',
+    document.getElementById('profile-filter-result')?.value || '',
+  ].join('|');
+  if (_rankStatsCacheSig === sig && _rankStatsCacheVal) return _rankStatsCacheVal;
+  _rankStatsCacheVal = _allPlayerRankStats();
+  _rankStatsCacheSig = sig;
+  return _rankStatsCacheVal;
+}
+// Dismissals in matches this player appeared in where Godshill was fielding
+// (opponent batting) but the fielder credit is missing/"Unsure" — meaning
+// this player's true fielding tally could be understated by up to this many.
+function _fieldingMissingBreakdown(mids) {
+  const rows = db.batting.filter(r=>
+    mids.has(r.match_id) &&
+    r.team !== OUR_TEAM &&
+    ['caught','stumped','run out'].includes(r.how_out) &&
+    isUnsure(r.fielder)
+  );
+  return {
+    catches:   rows.filter(r=>r.how_out==='caught').length,
+    runOuts:   rows.filter(r=>r.how_out==='run out').length,
+    stumpings: rows.filter(r=>r.how_out==='stumped').length,
+  };
+}
+// Standard competition ranking (1224-style): ties share a rank, next rank skips accordingly.
+function _rankOf(name, allStats, key, opts) {
+  opts = opts || {};
+  const dir = opts.dir || 'desc';
+  // poolKey decides *who counts as having played this category at all* — e.g.
+  // Wickets/Overs/Maidens should all share the same pool (anyone who bowled
+  // any overs), so a player with 0 wickets is still ranked, not excluded.
+  const poolKey = opts.poolKey || key;
+  let pool = Object.entries(allStats).filter(([,s]) => (s[poolKey]||0) > 0);
+  if (opts.minKey) pool = pool.filter(([,s]) => (s[opts.minKey]||0) >= opts.minVal);
+  const mine = pool.find(([n]) => n===name);
+  if (!mine || !pool.length) return null;
+  const myVal = mine[1][key] || 0;
+  const better = pool.filter(([,s]) => dir==='asc' ? (s[key]||0) < myVal : (s[key]||0) > myVal).length;
+  const tiedCount = pool.filter(([,s]) => (s[key]||0) === myVal).length;
+  return { rank: better+1, total: pool.length, tied: tiedCount > 1 };
+}
+function _ordinal(n) {
+  const rem100 = n % 100;
+  if (rem100 >= 11 && rem100 <= 13) return n + 'th';
+  switch (n % 10) { case 1: return n+'st'; case 2: return n+'nd'; case 3: return n+'rd'; default: return n+'th'; }
+}
+function _rankBadge(rankInfo, qualifierNote, notQualifiedNote) {
+  if (!rankInfo) {
+    return notQualifiedNote ? `<div class="rank" style="opacity:0.6;font-weight:400;">(${esc(notQualifiedNote)})</div>` : '';
+  }
+  const note = qualifierNote ? `<div style="opacity:0.65;font-weight:400;">(${esc(qualifierNote)})</div>` : '';
+  return `<div class="rank">${rankInfo.tied?'=':''}${_ordinal(rankInfo.rank)}/${rankInfo.total} players${note}</div>`;
 }
 
 function renderProfile() {
@@ -6319,6 +6483,8 @@ function renderProfile() {
   const hasBat  = batInnings.length > 0;
   const hasBowl = bowlSpells.length > 0;
 
+  const _allRankStats = (hasBat || hasBowl) ? _allPlayerRankStatsCached() : null;
+
   // Batting tab stat boxes
   const ducks = batInnings.filter(r=>r.runs===0&&!['not out','retired hurt','retired not out','absent hurt'].includes(r.how_out)).length;
   const f50s  = batInnings.filter(r=>r.runs>=50&&r.runs<100).length;
@@ -6331,27 +6497,40 @@ function renderProfile() {
     const hsLabel = hsInning
       ? `HS vs ${esc(hsInning.opponent || '?')} (${hsInning.date || '?'})`
       : 'High Score';
+    const BAT_QUALIFY = { minKey: 'innings', minVal: 25 };
     document.getElementById('profile-bat-boxes').innerHTML = [
-      [cumInns,   'Innings'],
-      [cumRuns,   'Runs'],
-      [finalAvg,  'Average'],
-      [f50s,      '50s'],
-      [f100s,     '100s'],
-      [cumNO,     'Not Outs'],
-      [ducks,     'Ducks'],
-      [hsDisplay, hsLabel],
-    ].map(([v,l])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
+      [cumInns,   'Innings',  _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'innings',  {dir:'desc', poolKey:'innings'}))],
+      [cumRuns,   'Runs',     _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'runs',     {dir:'desc', poolKey:'innings'}))],
+      [finalAvg,  'Average',  _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'avg',      Object.assign({dir:'desc', poolKey:'innings'}, BAT_QUALIFY)), 'min 25 inns', 'min 25 inns to qualify')],
+      [f50s,      '50s',      _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'fifties',  {dir:'desc', poolKey:'innings'}))],
+      [f100s,     '100s',     _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'hundreds', {dir:'desc', poolKey:'innings'}))],
+      [cumNO,     'Not Outs', ''],
+      [ducks,     'Ducks',    ''],
+      [hsDisplay, hsLabel,    ''],
+    ].map(([v,l,badge])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div>${badge||''}</div>`).join('');
   }
 
   // Bowling tab stat boxes
   if (hasBowl) {
     const profileEcon = totalBalls>0 ? (totalBRuns/(totalBalls/6)).toFixed(2) : '-';
+    // Midweek League games are shorter (15-20 overs), so a 100-over threshold
+    // is unreasonably high when viewing that competition specifically.
+    const isMidweekView = (document.getElementById('profile-filter-type')?.value || '') === 'midweek';
+    const bowlMinOvers = isMidweekView ? 50 : 100;
+    const BOWL_QUALIFY = { minKey: 'oversDec', minVal: bowlMinOvers };
+    const bowlQualNote = `min ${bowlMinOvers} ov`;
+    const bowlNotQualNote = `min ${bowlMinOvers} overs to qualify`;
     document.getElementById('profile-bowl-boxes').innerHTML = [
-      [totalOvsDisplay,'Overs'],[totalMdns,'Maidens'],[totalBRuns,'Runs'],
-      [totalWkts,'Wickets'],[bowlAvg,'Average'],[strikeRate,'Strike Rate'],[profileEcon,'Economy']
-    ].map(([v,l])=>`<div class="stat-box" style="min-width:0;">
+      [totalOvsDisplay,'Overs',   _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'oversDec', {dir:'desc', poolKey:'oversDec'}))],
+      [totalMdns,'Maidens',       _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'maidens',  {dir:'desc', poolKey:'oversDec'}))],
+      [totalBRuns,'Runs',         ''],
+      [totalWkts,'Wickets',       _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'wickets',  {dir:'desc', poolKey:'oversDec'}))],
+      [bowlAvg,'Average',         _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'bowlAvg',  Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
+      [strikeRate,'Strike Rate',  _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'strikeRate', Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
+      [profileEcon,'Economy',     _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'econ',     Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
+    ].map(([v,l,badge])=>`<div class="stat-box" style="min-width:0;">
       <div class="val" style="font-size:28px;">${v}</div>
-      <div class="lbl">${l}</div></div>`).join('');
+      <div class="lbl">${l}</div>${badge||''}</div>`).join('');
     const noteEl = document.getElementById('profile-bowl-incomplete-note');
     if (noteEl) {
       const n = bowlSpells.filter(r=>r.noFigures).length;
@@ -6483,9 +6662,34 @@ function renderProfile() {
   document.getElementById('ptab-field').style.display = hasField ? '' : 'none';
 
   if (hasField) {
+    const _fieldRankStats = _allRankStats || _allPlayerRankStatsCached();
+    const FIELD_POOL = { poolKey: 'matches' };
     document.getElementById('profile-field-boxes-row').innerHTML = [
-      [totCt,'Catches'],[totRO,'Run Outs'],[totSt,'Stumpings'],[totCt+totRO+totSt,'Total']
-    ].map(([v,l])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
+      [totCt,'Catches',   _rankBadge(_rankOf(profilePlayer.name, _fieldRankStats, 'catches',   Object.assign({dir:'desc'}, FIELD_POOL)))],
+      [totRO,'Run Outs',  _rankBadge(_rankOf(profilePlayer.name, _fieldRankStats, 'runOuts',   Object.assign({dir:'desc'}, FIELD_POOL)))],
+      [totSt,'Stumpings', _rankBadge(_rankOf(profilePlayer.name, _fieldRankStats, 'stumpings', Object.assign({dir:'desc'}, FIELD_POOL)))],
+      [totCt+totRO+totSt,'Total', _rankBadge(_rankOf(profilePlayer.name, _fieldRankStats, 'totalField', Object.assign({dir:'desc'}, FIELD_POOL)))],
+    ].map(([v,l,badge])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div>${badge||''}</div>`).join('');
+
+    const missingBd = _fieldingMissingBreakdown(activeMids);
+    const missingTotal = missingBd.catches + missingBd.runOuts + missingBd.stumpings;
+    const missingNoteEl = document.getElementById('profile-field-missing-note');
+    if (missingNoteEl) {
+      if (missingTotal > 0) {
+        const parts = [];
+        if (missingBd.catches)   parts.push(`${missingBd.catches} catch${missingBd.catches===1?'':'es'}`);
+        if (missingBd.runOuts)   parts.push(`${missingBd.runOuts} run out${missingBd.runOuts===1?'':'s'}`);
+        if (missingBd.stumpings) parts.push(`${missingBd.stumpings} stumping${missingBd.stumpings===1?'':'s'}`);
+        const partsStr = parts.length > 1
+          ? parts.slice(0,-1).join(', ') + ' and ' + parts[parts.length-1]
+          : parts[0];
+        missingNoteEl.textContent = `${partsStr} missing fielding information in games ${profilePlayer.name} played in.`;
+        missingNoteEl.style.display = '';
+      } else {
+        missingNoteEl.textContent = '';
+        missingNoteEl.style.display = 'none';
+      }
+    }
 
     _profFieldData = fieldData;
     _profSort.field = {key:'date', dir:-1};
@@ -7211,6 +7415,7 @@ function renderIssues() {
   makeRows(wicketsMatches, 'tbody-issues-wickets', 'wkt');
   makeRows(dataMatches,    'tbody-issues-data',    'dat');
   makeRows(unsureMatches,  'tbody-unsures',        'uns');
+  renderOpponentIssues();
 }
 
 function toggleErrInlineSc(idx, mid, pfx) {
@@ -7729,7 +7934,7 @@ function isUnsure(v) { return !v || UNSURE_WORDS.test(v.trim()); }
 
 // ── Toggle panels ─────────────────────────────────────────────────────────────
 function showIssuesTab(which) {
-  ['maths','wickets','data','unsures'].forEach(t => {
+  ['maths','wickets','data','opps','unsures'].forEach(t => {
     document.getElementById('issues-tab-'+t).style.display = t===which ? '' : 'none';
     document.getElementById('issues-tab-'+t+'-btn').classList.toggle('active', t===which);
   });
@@ -8535,6 +8740,77 @@ function renderDuplicates() {
         </span>
       </div>`;
     }).join('');
+  }
+
+  el.innerHTML = html;
+}
+
+// ── Opponent name similarity (Matches > Issues > Opponents tab) ────────────
+function _opponentSimilarPairs() {
+  const names = [...new Set(db.matches.map(m=>m.opponent).filter(Boolean))];
+  const pairs = [];
+  for (let i=0; i<names.length; i++) {
+    for (let j=i+1; j<names.length; j++) {
+      const a = names[i], b = names[j];
+      const na = a.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
+      const nb = b.toLowerCase().replace(/[^a-z0-9 ]/g,'').trim();
+      if (na.length <= 3 || nb.length <= 3) continue;
+      const maxLen = Math.max(na.length, nb.length);
+      const dist = _levenshtein(na, nb);
+      const sim = 1 - dist/maxLen;
+      if (sim >= 0.82) pairs.push({a, b, sim});
+    }
+  }
+  pairs.sort((a,b)=>b.sim-a.sim);
+  return pairs;
+}
+
+function renderOpponentIssues() {
+  const el = document.getElementById('opponent-issues-list');
+  if (!el) return;
+  const pairs = _opponentSimilarPairs();
+  const unflagged = _getNameIssueFlags();
+  const activePairs     = pairs.filter(x => !unflagged['oppPair:'+x.a+'|'+x.b]);
+  const unflaggedPairs  = pairs.filter(x =>  unflagged['oppPair:'+x.a+'|'+x.b]);
+
+  const badge = document.getElementById('issues-opps-count');
+  if (badge) { badge.textContent = activePairs.length || ''; badge.style.display = activePairs.length ? '' : 'none'; }
+
+  if (!pairs.length) { el.innerHTML = '<div class="empty-state">No similar opponent names found.</div>'; return; }
+
+  const matchCountFor = name => db.matches.filter(m=>m.opponent===name).length;
+  let html = '';
+
+  if (activePairs.length) {
+    html += activePairs.map(({a,b,sim}) => {
+      const pct = Math.round(sim*100);
+      const col = sim>=0.9 ? 'var(--red)' : '#c8922a';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--green-pale);flex-wrap:wrap;">
+        <span style="color:${col};font-size:11px;font-weight:700;min-width:36px;">${pct}%</span>
+        <span style="font-weight:600;">${esc(a)}</span> <span style="color:var(--ink-muted);font-size:11px;">(${matchCountFor(a)} match${matchCountFor(a)===1?'':'es'})</span>
+        <span style="color:var(--ink-muted);">&#8644;</span>
+        <span style="font-weight:600;">${esc(b)}</span> <span style="color:var(--ink-muted);font-size:11px;">(${matchCountFor(b)} match${matchCountFor(b)===1?'':'es'})</span>
+        <span style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+          <button class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 7px;"
+            onclick="_setNameIssueFlag('oppPair:${esc(a)}|${esc(b)}', false); renderOpponentIssues();" title="Not the same team — hide this pair">Not a duplicate</button>
+        </span>
+      </div>`;
+    }).join('');
+  } else {
+    html += '<div class="empty-state">No similar opponent names found.</div>';
+  }
+
+  if (unflaggedPairs.length) {
+    html += `<p style="font-size:12px;font-weight:600;color:var(--ink-muted);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 6px;">Dismissed</p>`;
+    html += unflaggedPairs.map(({a,b}) => `
+      <div style="display:flex;align-items:center;gap:12px;padding:6px 0;border-bottom:1px solid var(--green-pale);opacity:0.5;flex-wrap:wrap;">
+        <span style="font-size:11px;color:var(--ink-muted);min-width:36px;">&#8212;</span>
+        <span style="font-weight:600;">${esc(a)}</span> <span style="color:var(--ink-muted);">&#8644;</span> <span style="font-weight:600;">${esc(b)}</span>
+        <span style="margin-left:auto;">
+          <button class="btn btn-secondary btn-sm" style="font-size:10px;padding:2px 7px;"
+            onclick="_setNameIssueFlag('oppPair:${esc(a)}|${esc(b)}', true); renderOpponentIssues();">Re-flag</button>
+        </span>
+      </div>`).join('');
   }
 
   el.innerHTML = html;
@@ -9887,7 +10163,11 @@ function renderProfileMatches() {
   // Update tab badge
   const _pmcEl = document.getElementById('ptab-matches-count');
   const _pmhEl = document.getElementById('profile-matches-heading');
-  if (_pmhEl) _pmhEl.textContent = rows.length + ' Match' + (rows.length!==1?'es':'');
+  if (_pmhEl) {
+    const _matchRank = _rankOf(profilePlayer.name, _allPlayerRankStatsCached(), 'matches', {dir:'desc'});
+    const _rankTxt = _matchRank ? ` <span style="font-size:12px;color:var(--ink-muted);font-weight:400;">(${_matchRank.tied?'=':''}${_ordinal(_matchRank.rank)}/${_matchRank.total} players)</span>` : '';
+    _pmhEl.innerHTML = rows.length + ' Match' + (rows.length!==1?'es':'') + _rankTxt;
+  }
 
   const ppRaw = parseInt(document.getElementById('profile-per-page')?.value??'50'); const pp = isNaN(ppRaw) ? 50 : ppRaw;
   const ppF = pp===0 ? rows.length||1 : pp;
@@ -10455,7 +10735,7 @@ function _recScoreTable(elId, scores) {
   if (!el) return;
   el.innerHTML = `<table class="data-table" style="font-size:12px;width:100%;">
     <thead><tr>
-      <th class="num" style="width:110px;">Score</th><th>Opponent</th><th>Date</th><th>Competition</th>
+      <th class="num" style="width:150px;">Score</th><th>Opponent</th><th>Date</th><th>Competition</th>
     </tr></thead>
     <tbody>${scores.slice(0,10).map((s,i) => {
       const idx = _recScIdx++;
@@ -10466,7 +10746,7 @@ function _recScoreTable(elId, scores) {
       const oversStr = s.overs ? ` <span style="color:var(--ink-muted);font-weight:400;">(${s.overs} ov)</span>` : '';
       const inningsStr = s.inningsLabel ? ` <span style="color:var(--ink-muted);font-weight:400;">(${esc(s.inningsLabel)})</span>` : '';
       return `<tr class="${i%2===0?'row-odd':'row-even'}">
-        <td class="num"><strong>${s.score}${s.wkts!==undefined ? (s.wkts==='all out' ? ' All out' : '/'+s.wkts) : ''}</strong>${oversStr}${inningsStr}</td>
+        <td class="num" style="white-space:nowrap;"><strong>${s.score}${s.wkts!==undefined ? (s.wkts==='all out' ? ' All out' : '/'+s.wkts) : ''}</strong>${oversStr}${inningsStr}</td>
         <td>${scLink}</td>
         <td style="color:var(--ink-muted);">${s.m?.date||'–'}</td>
         <td style="font-size:11px;">${esc(s.m?.format||'')}</td>

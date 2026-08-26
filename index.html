@@ -165,7 +165,6 @@
     margin-bottom: 4px;
   }
   .stat-box .lbl { font-size: 12px; opacity: 0.75; letter-spacing: 0.5px; text-transform: uppercase; }
-  .stat-box .rank { font-size: 11px; color: var(--gold-light); opacity: 1; margin-top: 3px; font-weight: 600; }
 
   /* ── Forms ── */
   .form-grid { display: grid; gap: 14px; }
@@ -1990,7 +1989,6 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
   <!-- FIELDING TAB -->
   <div id="profile-tab-field" style="display:none;margin-top:0;">
     <div class="stat-row mt16" id="profile-field-boxes-row"></div>
-    <p id="profile-field-missing-note" class="muted" style="font-size:11px;margin-top:8px;display:none;"></p>
     <div class="card" style="margin-top:16px;">
       <div class="card-title"><span class="icon">&#128200;</span> Annual Fielding (Catches / Run-outs / Stumpings)</div>
       <svg id="chart-field-year" width="100%" viewBox="0 0 900 200" style="display:block;"></svg>
@@ -5504,7 +5502,7 @@ function renderStats() {
     if (!matchesMap[player]) matchesMap[player] = new Set();
     matchesMap[player].add(mid);
   };
-  db.batting.filter(r=>r.team===OUR_TEAM && mids.has(r.match_id) && r.how_out!=='did not bat')
+  db.batting.filter(r=>r.team===OUR_TEAM && mids.has(r.match_id))
     .forEach(r=>addMatch(r.player, r.match_id));
   db.bowling.filter(r=>r.team===OUR_TEAM && mids.has(r.match_id))
     .forEach(r=>addMatch(r.player, r.match_id));
@@ -6229,114 +6227,6 @@ function profileGoPage() {
   renderProfile();
 }
 
-// ── Player stat ranking (used on profile stat boxes) ────────────────────
-// Builds the same date/type/opponent/venue/result predicate the profile
-// filters already apply, so rankings always reflect whatever's currently
-// on screen (All Time by default, or a filtered slice if one's active).
-function _profileFilterPredicate() {
-  const pfrom    = document.getElementById('profile-filter-from')?.value   || '';
-  const pto      = document.getElementById('profile-filter-to')?.value     || '';
-  const profType = document.getElementById('profile-filter-type')?.value   || '';
-  const profOpp  = (document.getElementById('profile-filter-opp')?.value   || '').toLowerCase().trim();
-  const profVen  = document.getElementById('profile-filter-venue')?.value  || '';
-  const profRes  = document.getElementById('profile-filter-result')?.value || '';
-  return (m) => {
-    if (pfrom && m.date < pfrom) return false;
-    if (pto   && m.date > pto)   return false;
-    if (!matchesTypeFilter(m.format, profType)) return false;
-    if (profOpp && !(m.opponent||'').toLowerCase().includes(profOpp)) return false;
-    if (profVen && (m.venue||'').toLowerCase() !== profVen.toLowerCase()) return false;
-    if (profRes && m.result !== profRes) return false;
-    return true;
-  };
-}
-const _RANK_NOT_OUT_MODES = ['not out','retired hurt','retired not out','absent hurt'];
-function _playerRankStats(name, filteredMids) {
-  const bat   = db.batting.filter(r=>r.player===name&&(r.team===OUR_TEAM||!r.team)&&filteredMids.has(r.match_id));
-  const bowl  = db.bowling.filter(r=>r.player===name&&(r.team===OUR_TEAM||!r.team)&&filteredMids.has(r.match_id));
-  const field = db.fielding.filter(r=>r.player===name&&r.team===OUR_TEAM&&filteredMids.has(r.match_id));
-  const batInnings = bat.filter(r=>r.how_out!=='did not bat');
-  const innings  = batInnings.length;
-  const runs     = batInnings.reduce((s,r)=>s+r.runs,0);
-  const notOuts  = batInnings.filter(r=>_RANK_NOT_OUT_MODES.includes(r.how_out)).length;
-  const avg      = (innings-notOuts)>0 ? runs/(innings-notOuts) : null;
-  const fifties  = batInnings.filter(r=>r.runs>=50&&r.runs<100).length;
-  const hundreds = batInnings.filter(r=>r.runs>=100).length;
-  const ducks    = batInnings.filter(r=>r.runs===0&&!_RANK_NOT_OUT_MODES.includes(r.how_out)).length;
-
-  const totalBalls = bowl.reduce((s,r)=>s+oversToBalIs(r.overs),0);
-  const oversDec    = totalBalls/6;
-  const maidens     = bowl.reduce((s,r)=>s+r.maidens,0);
-  const wktsForAvg  = bowl.filter(r=>!r.noFigures).reduce((s,r)=>s+r.wickets,0);
-  const wickets     = bowl.reduce((s,r)=>s+r.wickets,0);
-  const bRuns       = bowl.reduce((s,r)=>s+r.runs,0);
-  const bowlAvg     = wktsForAvg>0 ? bRuns/wktsForAvg : null;
-  const econ        = totalBalls>0 ? bRuns/(totalBalls/6) : null;
-  const strikeRate  = wktsForAvg>0 ? totalBalls/wktsForAvg : null;
-
-  const matches = new Set([...bat.map(r=>r.match_id),...bowl.map(r=>r.match_id),...field.map(r=>r.match_id)]).size;
-
-  const fTotals    = _fieldingTotals(name, field, db.batting.filter(r=>filteredMids.has(r.match_id)));
-  const catches    = fTotals.catches;
-  const runOuts    = fTotals.run_outs;
-  const stumpings  = fTotals.stumpings;
-  const totalField = catches + runOuts + stumpings;
-
-  return { innings, runs, avg, fifties, hundreds, notOuts, ducks, oversDec, maidens, wickets, bowlAvg, econ, strikeRate, matches,
-           catches, runOuts, stumpings, totalField };
-}
-function _allPlayerRankStats() {
-  const filteredMids = new Set(db.matches.filter(_profileFilterPredicate()).map(m=>m.id));
-  const out = {};
-  db.players.forEach(p => { out[p.name] = _playerRankStats(p.name, filteredMids); });
-  return out;
-}
-// Dismissals in matches this player appeared in where Godshill was fielding
-// (opponent batting) but the fielder credit is missing/"Unsure" — meaning
-// this player's true fielding tally could be understated by up to this many.
-function _fieldingMissingBreakdown(mids) {
-  const rows = db.batting.filter(r=>
-    mids.has(r.match_id) &&
-    r.team !== OUR_TEAM &&
-    ['caught','stumped','run out'].includes(r.how_out) &&
-    isUnsure(r.fielder)
-  );
-  return {
-    catches:   rows.filter(r=>r.how_out==='caught').length,
-    runOuts:   rows.filter(r=>r.how_out==='run out').length,
-    stumpings: rows.filter(r=>r.how_out==='stumped').length,
-  };
-}
-// Standard competition ranking (1224-style): ties share a rank, next rank skips accordingly.
-function _rankOf(name, allStats, key, opts) {
-  opts = opts || {};
-  const dir = opts.dir || 'desc';
-  // poolKey decides *who counts as having played this category at all* — e.g.
-  // Wickets/Overs/Maidens should all share the same pool (anyone who bowled
-  // any overs), so a player with 0 wickets is still ranked, not excluded.
-  const poolKey = opts.poolKey || key;
-  let pool = Object.entries(allStats).filter(([,s]) => (s[poolKey]||0) > 0);
-  if (opts.minKey) pool = pool.filter(([,s]) => (s[opts.minKey]||0) >= opts.minVal);
-  const mine = pool.find(([n]) => n===name);
-  if (!mine || !pool.length) return null;
-  const myVal = mine[1][key] || 0;
-  const better = pool.filter(([,s]) => dir==='asc' ? (s[key]||0) < myVal : (s[key]||0) > myVal).length;
-  const tiedCount = pool.filter(([,s]) => (s[key]||0) === myVal).length;
-  return { rank: better+1, total: pool.length, tied: tiedCount > 1 };
-}
-function _ordinal(n) {
-  const rem100 = n % 100;
-  if (rem100 >= 11 && rem100 <= 13) return n + 'th';
-  switch (n % 10) { case 1: return n+'st'; case 2: return n+'nd'; case 3: return n+'rd'; default: return n+'th'; }
-}
-function _rankBadge(rankInfo, qualifierNote, notQualifiedNote) {
-  if (!rankInfo) {
-    return notQualifiedNote ? `<div class="rank" style="opacity:0.6;font-weight:400;">(${esc(notQualifiedNote)})</div>` : '';
-  }
-  const note = qualifierNote ? `<div style="opacity:0.65;font-weight:400;">(${esc(qualifierNote)})</div>` : '';
-  return `<div class="rank">${rankInfo.tied?'=':''}${_ordinal(rankInfo.rank)}/${rankInfo.total} players${note}</div>`;
-}
-
 function renderProfile() {
   if (!profilePlayer) return;
   const n = profileMatchDates.length;
@@ -6429,8 +6319,6 @@ function renderProfile() {
   const hasBat  = batInnings.length > 0;
   const hasBowl = bowlSpells.length > 0;
 
-  const _allRankStats = (hasBat || hasBowl) ? _allPlayerRankStats() : null;
-
   // Batting tab stat boxes
   const ducks = batInnings.filter(r=>r.runs===0&&!['not out','retired hurt','retired not out','absent hurt'].includes(r.how_out)).length;
   const f50s  = batInnings.filter(r=>r.runs>=50&&r.runs<100).length;
@@ -6443,40 +6331,27 @@ function renderProfile() {
     const hsLabel = hsInning
       ? `HS vs ${esc(hsInning.opponent || '?')} (${hsInning.date || '?'})`
       : 'High Score';
-    const BAT_QUALIFY = { minKey: 'innings', minVal: 25 };
     document.getElementById('profile-bat-boxes').innerHTML = [
-      [cumInns,   'Innings',  _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'innings',  {dir:'desc', poolKey:'innings'}))],
-      [cumRuns,   'Runs',     _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'runs',     {dir:'desc', poolKey:'innings'}))],
-      [finalAvg,  'Average',  _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'avg',      Object.assign({dir:'desc', poolKey:'innings'}, BAT_QUALIFY)), 'min 25 inns', 'min 25 inns to qualify')],
-      [f50s,      '50s',      _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'fifties',  {dir:'desc', poolKey:'innings'}))],
-      [f100s,     '100s',     _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'hundreds', {dir:'desc', poolKey:'innings'}))],
-      [cumNO,     'Not Outs', ''],
-      [ducks,     'Ducks',    ''],
-      [hsDisplay, hsLabel,    ''],
-    ].map(([v,l,badge])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div>${badge||''}</div>`).join('');
+      [cumInns,   'Innings'],
+      [cumRuns,   'Runs'],
+      [finalAvg,  'Average'],
+      [f50s,      '50s'],
+      [f100s,     '100s'],
+      [cumNO,     'Not Outs'],
+      [ducks,     'Ducks'],
+      [hsDisplay, hsLabel],
+    ].map(([v,l])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
   }
 
   // Bowling tab stat boxes
   if (hasBowl) {
     const profileEcon = totalBalls>0 ? (totalBRuns/(totalBalls/6)).toFixed(2) : '-';
-    // Midweek League games are shorter (15-20 overs), so a 100-over threshold
-    // is unreasonably high when viewing that competition specifically.
-    const isMidweekView = (document.getElementById('profile-filter-type')?.value || '') === 'midweek';
-    const bowlMinOvers = isMidweekView ? 50 : 100;
-    const BOWL_QUALIFY = { minKey: 'oversDec', minVal: bowlMinOvers };
-    const bowlQualNote = `min ${bowlMinOvers} ov`;
-    const bowlNotQualNote = `min ${bowlMinOvers} overs to qualify`;
     document.getElementById('profile-bowl-boxes').innerHTML = [
-      [totalOvsDisplay,'Overs',   _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'oversDec', {dir:'desc', poolKey:'oversDec'}))],
-      [totalMdns,'Maidens',       _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'maidens',  {dir:'desc', poolKey:'oversDec'}))],
-      [totalBRuns,'Runs',         ''],
-      [totalWkts,'Wickets',       _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'wickets',  {dir:'desc', poolKey:'oversDec'}))],
-      [bowlAvg,'Average',         _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'bowlAvg',  Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
-      [strikeRate,'Strike Rate',  _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'strikeRate', Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
-      [profileEcon,'Economy',     _rankBadge(_rankOf(profilePlayer.name, _allRankStats, 'econ',     Object.assign({dir:'asc', poolKey:'oversDec'}, BOWL_QUALIFY)), bowlQualNote, bowlNotQualNote)],
-    ].map(([v,l,badge])=>`<div class="stat-box" style="min-width:0;">
+      [totalOvsDisplay,'Overs'],[totalMdns,'Maidens'],[totalBRuns,'Runs'],
+      [totalWkts,'Wickets'],[bowlAvg,'Average'],[strikeRate,'Strike Rate'],[profileEcon,'Economy']
+    ].map(([v,l])=>`<div class="stat-box" style="min-width:0;">
       <div class="val" style="font-size:28px;">${v}</div>
-      <div class="lbl">${l}</div>${badge||''}</div>`).join('');
+      <div class="lbl">${l}</div></div>`).join('');
     const noteEl = document.getElementById('profile-bowl-incomplete-note');
     if (noteEl) {
       const n = bowlSpells.filter(r=>r.noFigures).length;
@@ -6608,34 +6483,9 @@ function renderProfile() {
   document.getElementById('ptab-field').style.display = hasField ? '' : 'none';
 
   if (hasField) {
-    const _fieldRankStats = _allRankStats || _allPlayerRankStats();
-    const FIELD_POOL = { poolKey: 'matches' };
     document.getElementById('profile-field-boxes-row').innerHTML = [
-      [totCt,'Catches',   _rankBadge(_rankOf(profilePlayer.name, _fieldRankStats, 'catches',   Object.assign({dir:'desc'}, FIELD_POOL)))],
-      [totRO,'Run Outs',  _rankBadge(_rankOf(profilePlayer.name, _fieldRankStats, 'runOuts',   Object.assign({dir:'desc'}, FIELD_POOL)))],
-      [totSt,'Stumpings', _rankBadge(_rankOf(profilePlayer.name, _fieldRankStats, 'stumpings', Object.assign({dir:'desc'}, FIELD_POOL)))],
-      [totCt+totRO+totSt,'Total', _rankBadge(_rankOf(profilePlayer.name, _fieldRankStats, 'totalField', Object.assign({dir:'desc'}, FIELD_POOL)))],
-    ].map(([v,l,badge])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div>${badge||''}</div>`).join('');
-
-    const missingBd = _fieldingMissingBreakdown(activeMids);
-    const missingTotal = missingBd.catches + missingBd.runOuts + missingBd.stumpings;
-    const missingNoteEl = document.getElementById('profile-field-missing-note');
-    if (missingNoteEl) {
-      if (missingTotal > 0) {
-        const parts = [];
-        if (missingBd.catches)   parts.push(`${missingBd.catches} catch${missingBd.catches===1?'':'es'}`);
-        if (missingBd.runOuts)   parts.push(`${missingBd.runOuts} run out${missingBd.runOuts===1?'':'s'}`);
-        if (missingBd.stumpings) parts.push(`${missingBd.stumpings} stumping${missingBd.stumpings===1?'':'s'}`);
-        const partsStr = parts.length > 1
-          ? parts.slice(0,-1).join(', ') + ' and ' + parts[parts.length-1]
-          : parts[0];
-        missingNoteEl.textContent = `${partsStr} missing fielding information in games ${profilePlayer.name} played in.`;
-        missingNoteEl.style.display = '';
-      } else {
-        missingNoteEl.textContent = '';
-        missingNoteEl.style.display = 'none';
-      }
-    }
+      [totCt,'Catches'],[totRO,'Run Outs'],[totSt,'Stumpings'],[totCt+totRO+totSt,'Total']
+    ].map(([v,l])=>`<div class="stat-box"><div class="val">${v}</div><div class="lbl">${l}</div></div>`).join('');
 
     _profFieldData = fieldData;
     _profSort.field = {key:'date', dir:-1};
@@ -10037,11 +9887,7 @@ function renderProfileMatches() {
   // Update tab badge
   const _pmcEl = document.getElementById('ptab-matches-count');
   const _pmhEl = document.getElementById('profile-matches-heading');
-  if (_pmhEl) {
-    const _matchRank = _rankOf(profilePlayer.name, _allPlayerRankStats(), 'matches', {dir:'desc'});
-    const _rankTxt = _matchRank ? ` <span style="font-size:12px;color:var(--ink-muted);font-weight:400;">(${_matchRank.tied?'=':''}${_ordinal(_matchRank.rank)}/${_matchRank.total} players)</span>` : '';
-    _pmhEl.innerHTML = rows.length + ' Match' + (rows.length!==1?'es':'') + _rankTxt;
-  }
+  if (_pmhEl) _pmhEl.textContent = rows.length + ' Match' + (rows.length!==1?'es':'');
 
   const ppRaw = parseInt(document.getElementById('profile-per-page')?.value??'50'); const pp = isNaN(ppRaw) ? 50 : ppRaw;
   const ppF = pp===0 ? rows.length||1 : pp;
@@ -10618,8 +10464,9 @@ function _recScoreTable(elId, scores) {
         <td colspan="4"><div class="inline-sc-wrap" id="rec-sc-content-${idx}"></div></td>
       </tr>`;
       const oversStr = s.overs ? ` <span style="color:var(--ink-muted);font-weight:400;">(${s.overs} ov)</span>` : '';
+      const inningsStr = s.inningsLabel ? ` <span style="color:var(--ink-muted);font-weight:400;">(${esc(s.inningsLabel)})</span>` : '';
       return `<tr class="${i%2===0?'row-odd':'row-even'}">
-        <td class="num"><strong>${s.score}${s.wkts!==undefined ? (s.wkts==='all out' ? ' All out' : '/'+s.wkts) : ''}</strong>${oversStr}</td>
+        <td class="num"><strong>${s.score}${s.wkts!==undefined ? (s.wkts==='all out' ? ' All out' : '/'+s.wkts) : ''}</strong>${oversStr}${inningsStr}</td>
         <td>${scLink}</td>
         <td style="color:var(--ink-muted);">${s.m?.date||'–'}</td>
         <td style="font-size:11px;">${esc(s.m?.format||'')}</td>
@@ -10839,7 +10686,7 @@ function _recRenderCareer(ctx) {
   _recPlayerTable('rec-career-matches', careerMatches, 'Matches');
 
   const careerRuns = players.map(name => ({
-    name, val: get(byPlayerBat, name).reduce((s,r)=>s+r.runs,0)
+    name, val: get(byPlayerBat, name).filter(r=>r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0)
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-runs', careerRuns, 'Runs');
 
@@ -10892,7 +10739,7 @@ function _recRenderSeason(ctx) {
 
     const sRuns = players.map(name => ({
       name, season,
-      val: get(byPlayerBat, name).filter(r=>mids.has(r.match_id)).reduce((s,r)=>s+r.runs,0)
+      val: get(byPlayerBat, name).filter(r=>mids.has(r.match_id)&&r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0)
     })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val)[0];
     if (sRuns) seasonRuns.push(sRuns);
 
@@ -11042,7 +10889,7 @@ function _recRenderScores(ctx) {
     const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
     const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
     const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
-    const allOut  = batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat');
+    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
     const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
     // Overs faced = overs bowled by the OPPOSING side in this innings.
     const bowlRows = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
@@ -11051,37 +10898,58 @@ function _recRenderScores(ctx) {
   };
   ctx._getTeamScore = getTeamScore; // reused by margins tab
 
+  // For the four score boxes below (but NOT the margins tab), a two-innings
+  // match contributes one entry per innings that side actually batted —
+  // each innings is its own "score", not just the first.
+  const getTeamInningsScores = (m, team) => {
+    const godBat = m.bat_first===OUR_TEAM;
+    const firstInn = team===OUR_TEAM ? (godBat?1:2) : (godBat?2:1);
+    const innsList = m.two_innings ? [firstInn, firstInn+2] : [firstInn];
+    return innsList.map((inn, idx) => {
+      const bat = (battingByMatch.get(m.id)||[]).filter(r=>r.innings===inn&&r.team===team);
+      if (!bat.length) return null;
+      const runs   = bat.filter(r=>r.how_out!=='did not bat').reduce((s,r)=>s+r.runs,0);
+      const ex     = m['extras_i'+inn] || {};
+      const ext    = (ex.b||0)+(ex.lb||0)+(ex.w||0)+(ex.nb||0)+(ex.p||0);
+      const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
+      const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
+      const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
+      const allOut  = batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat');
+      const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
+      const bowlRows = db.bowling.filter(r=>r.match_id===m.id&&r.innings===inn&&r.team!==team);
+      const overs = bowlRows.length ? ballsToOvers(bowlRows.reduce((s,r)=>s+oversToBalIs(r.overs),0)) : null;
+      const inningsLabel = m.two_innings ? (idx===0 ? '1st innings' : '2nd innings') : null;
+      return { total: runs+ext, wkts, overs, inningsLabel };
+    }).filter(Boolean);
+  };
+
   const matchesWithScores = filteredMatches.filter(m =>
     !['Cancelled','Abandoned','No Result','Godshill Conceded','Opposition Conceded'].includes(m.result) &&
     (battingByMatch.get(m.id)||[]).length > 0
   );
   ctx._matchesWithScores = matchesWithScores; // reused by margins tab
 
-  const hiTeam = matchesWithScores.map(m => {
-    const s = getTeamScore(m, OUR_TEAM);
-    return s ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
-  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+  const hiTeam = matchesWithScores.flatMap(m =>
+    getTeamInningsScores(m, OUR_TEAM).map(s => ({ m, score: s.total, wkts: s.wkts, overs: s.overs, inningsLabel: s.inningsLabel }))
+  ).sort((a,b)=>b.score-a.score);
   _recScoreTable('rec-hi-team', hiTeam);
 
   // Lowest scores only count innings where the side was genuinely bowled
   // out — a score that just ran out of overs (e.g. a shortened midweek
   // game) isn't really comparable to a full dismissal.
-  const loTeam = matchesWithScores.filter(m=>m.result==='Lost').map(m => {
-    const s = getTeamScore(m, OUR_TEAM);
-    return s && s.wkts==='all out' ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
-  }).filter(Boolean).sort((a,b)=>a.score-b.score);
+  const loTeam = matchesWithScores.filter(m=>m.result==='Lost').flatMap(m =>
+    getTeamInningsScores(m, OUR_TEAM).filter(s=>s.wkts==='all out').map(s => ({ m, score: s.total, wkts: s.wkts, overs: s.overs, inningsLabel: s.inningsLabel }))
+  ).sort((a,b)=>a.score-b.score);
   _recScoreTable('rec-lo-team', loTeam);
 
-  const hiOpp = matchesWithScores.map(m => {
-    const s = getTeamScore(m, m.opponent);
-    return s ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
-  }).filter(Boolean).sort((a,b)=>b.score-a.score);
+  const hiOpp = matchesWithScores.flatMap(m =>
+    getTeamInningsScores(m, m.opponent).map(s => ({ m, score: s.total, wkts: s.wkts, overs: s.overs, inningsLabel: s.inningsLabel }))
+  ).sort((a,b)=>b.score-a.score);
   _recScoreTable('rec-hi-opp', hiOpp);
 
-  const loOpp = matchesWithScores.filter(m=>m.result==='Won').map(m => {
-    const s = getTeamScore(m, m.opponent);
-    return s && s.wkts==='all out' ? { m, score: s.total, wkts: s.wkts, overs: s.overs } : null;
-  }).filter(Boolean).sort((a,b)=>a.score-b.score);
+  const loOpp = matchesWithScores.filter(m=>m.result==='Won').flatMap(m =>
+    getTeamInningsScores(m, m.opponent).filter(s=>s.wkts==='all out').map(s => ({ m, score: s.total, wkts: s.wkts, overs: s.overs, inningsLabel: s.inningsLabel }))
+  ).sort((a,b)=>a.score-b.score);
   _recScoreTable('rec-lo-opp', loOpp);
 
   // Highest scoring match — combined runs from both teams. For two-innings
@@ -11150,7 +11018,7 @@ function _recRenderMargins(ctx) {
     const GENUINE_NOT_OUT = ['not out','retired hurt','retired not out','absent hurt'];
     const notOuts = bat.filter(r=>GENUINE_NOT_OUT.includes(r.how_out)).length;
     const batted  = bat.filter(r=>r.how_out!=='did not bat').length;
-    const allOut  = batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat');
+    const allOut  = batted >= 11 || (batted > 0 && notOuts <= 1 && bat.some(r=>!GENUINE_NOT_OUT.includes(r.how_out)&&r.how_out!=='did not bat'));
     const wkts    = allOut ? 'all out' : String(bat.filter(r=>!NO_OUT_MODES.includes(r.how_out)&&r.how_out!=='did not bat').length);
     return { total: runs+ext, wkts };
   });

@@ -2121,6 +2121,7 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
       <div class="card"><div class="card-title">Most Matches (Career)</div><div id="rec-career-matches"></div></div>
       <div class="card"><div class="card-title">Most Runs (Career)</div><div id="rec-career-runs"></div></div>
       <div class="card"><div class="card-title">Most Wickets (Career)</div><div id="rec-career-wkts"></div></div>
+      <div class="card"><div class="card-title">Most Not Outs (Career)</div><div id="rec-career-notouts"></div></div>
       <div class="card"><div class="card-title">Most 50s (Career)</div><div id="rec-career-50s"></div></div>
       <div class="card"><div class="card-title">Most 100s (Career)</div><div id="rec-career-100s"></div></div>
       <div class="card"><div class="card-title">Most Ducks (Career)</div><div id="rec-career-ducks"></div></div>
@@ -3476,10 +3477,7 @@ function saveScorecard() {
 
   setTimeout(() => {
     resetWizard();
-    if (wasEdit) {
-      // Return to matches page after editing
-      showPage('matches', document.querySelector('nav button:nth-child(3)'));
-    }
+    showPage('matches', document.querySelector('nav button:nth-child(3)'));
   }, 1000);
 }
 
@@ -10974,6 +10972,11 @@ function _recRenderCareer(ctx) {
     name, val: get(byPlayerBowl, name).reduce((s,r)=>s+r.wickets,0)
   })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
   _recPlayerTable('rec-career-wkts', careerWkts, 'Wickets');
+
+  const careerNotOuts = players.map(name => ({
+    name, val: get(byPlayerBat, name).filter(r=>NO_OUT_MODES.includes(r.how_out)).length
+  })).filter(r=>r.val>0).sort((a,b)=>b.val-a.val);
+  _recPlayerTable('rec-career-notouts', careerNotOuts, 'Not Outs');
 
   const career50s = players.map(name => ({
     name, val: get(byPlayerBat, name).filter(r=>r.runs>=50&&r.runs<100).length

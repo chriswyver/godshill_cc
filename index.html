@@ -421,6 +421,7 @@
   .sortable th:hover { background:#2d6a4f; }
   .sort-asc::after  { content:' ▲'; font-size:9px; opacity:0.8; }
   .sort-desc::after { content:' ▼'; font-size:9px; opacity:0.8; }
+  .sort-asc, .sort-desc, .th-sorted { background: var(--green-pale) !important; color: var(--green-deep) !important; }
   .inline-sc-row td { background:var(--cream-dark) !important; padding:0 !important; }
   .data-table tbody tr.row-even td { background:var(--cream); }
   .data-table tbody tr.row-odd td { background:var(--white); }
@@ -1240,7 +1241,7 @@
       <p class="muted" style="margin-bottom:12px;font-size:12px;">Click a year to expand the matches played. Click the opponent to expand the scorecard.</p>
       <div class="table-wrap">
         <table class="data-table" style="font-size:12px;">
-          <thead><tr><th>Year</th><th>Cup</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">A</th></tr></thead>
+          <thead><tr><th>Year</th><th>Cup</th><th class="num">P</th><th class="num">W</th><th class="num">L</th><th class="num">A</th><th>Result</th></tr></thead>
           <tbody id="tbody-cups-summary"></tbody>
         </table>
       </div>
@@ -1902,12 +1903,12 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
       <div class="table-wrap">
         <table class="data-table sortable" id="profile-bat-table">
           <thead><tr>
-            <th onclick="sortProfileBat('innsNum')" style="cursor:pointer;">#</th>
-            <th onclick="sortProfileBat('date')" style="cursor:pointer;">Date</th>
+            <th onclick="sortProfileBat('innsNum', this)" style="cursor:pointer;">#</th>
+            <th onclick="sortProfileBat('date', this)" style="cursor:pointer;">Date</th>
             <th>Opponent</th>
             <th>How Out</th>
-            <th class="r" onclick="sortProfileBat('runs')" style="cursor:pointer;">Runs &#9660;</th>
-            <th class="r" onclick="sortProfileBat('runAvg')" style="cursor:pointer;">Avg to date</th>
+            <th class="r" onclick="sortProfileBat('runs', this)" style="cursor:pointer;">Runs &#9660;</th>
+            <th class="r" onclick="sortProfileBat('runAvg', this)" style="cursor:pointer;">Avg to date</th>
           </tr></thead>
           <tbody id="tbody-profile-bat"></tbody>
         </table>
@@ -1962,14 +1963,14 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
         <div class="table-wrap">
           <table class="data-table sortable" id="profile-bowl-table">
             <thead><tr>
-              <th onclick="sortProfileBowl('date')" style="cursor:pointer;">#</th>
-              <th onclick="sortProfileBowl('date')" style="cursor:pointer;">Date</th>
+              <th onclick="sortProfileBowl('date', this)" style="cursor:pointer;">#</th>
+              <th onclick="sortProfileBowl('date', this)" style="cursor:pointer;">Date</th>
               <th>Opponent</th>
-              <th class="r" onclick="sortProfileBowl('overs')" style="cursor:pointer;">O</th>
-              <th class="r" onclick="sortProfileBowl('maidens')" style="cursor:pointer;">M</th>
-              <th class="r" onclick="sortProfileBowl('runs')" style="cursor:pointer;">R</th>
-              <th class="r" onclick="sortProfileBowl('wickets')" style="cursor:pointer;">W &#9660;</th>
-              <th class="r" onclick="sortProfileBowl('econ')" style="cursor:pointer;">Econ</th>
+              <th class="r" onclick="sortProfileBowl('overs', this)" style="cursor:pointer;">O</th>
+              <th class="r" onclick="sortProfileBowl('maidens', this)" style="cursor:pointer;">M</th>
+              <th class="r" onclick="sortProfileBowl('runs', this)" style="cursor:pointer;">R</th>
+              <th class="r" onclick="sortProfileBowl('wickets', this)" style="cursor:pointer;">W &#9660;</th>
+              <th class="r" onclick="sortProfileBowl('econ', this)" style="cursor:pointer;">Econ</th>
             </tr></thead>
             <tbody id="tbody-profile-bowl"></tbody>
           </table>
@@ -2008,12 +2009,12 @@ onclick="sortStats5wi('best')">&#9733; Best Figures</button>
       <div class="table-wrap">
         <table class="data-table sortable" id="profile-field-table">
           <thead><tr>
-            <th onclick="sortProfileField('date')" style="cursor:pointer;">Date</th>
+            <th onclick="sortProfileField('date', this)" style="cursor:pointer;">Date</th>
             <th>Opponent</th>
-            <th class="r" onclick="sortProfileField('catches')" style="cursor:pointer;">Catches</th>
-            <th class="r" onclick="sortProfileField('run_outs')" style="cursor:pointer;">Run Outs</th>
-            <th class="r" onclick="sortProfileField('stumpings')" style="cursor:pointer;">Stumpings</th>
-            <th class="r" onclick="sortProfileField('tot')" style="cursor:pointer;">Total &#9660;</th>
+            <th class="r" onclick="sortProfileField('catches', this)" style="cursor:pointer;">Catches</th>
+            <th class="r" onclick="sortProfileField('run_outs', this)" style="cursor:pointer;">Run Outs</th>
+            <th class="r" onclick="sortProfileField('stumpings', this)" style="cursor:pointer;">Stumpings</th>
+            <th class="r" onclick="sortProfileField('tot', this)" style="cursor:pointer;">Total &#9660;</th>
           </tr></thead>
           <tbody id="tbody-profile-field"></tbody>
         </table>
@@ -2631,6 +2632,32 @@ function renderFileStoreStatus() {
 function genId() {
   return 'M' + Date.now() + Math.floor(Math.random()*1000);
 }
+// Highlights the whole sorted column (header + every body cell), not just the
+// header. Stored per-table so it can be reapplied after pagination/filter
+// re-renders, not just right after the sort click itself.
+const _activeSortTh = {};
+function _highlightSortedColumn(th) {
+  if (!th) return;
+  const table = th.closest('table');
+  if (!table) return;
+  const headerRow = th.parentElement;
+  const colIndex = Array.from(headerRow.children).indexOf(th);
+  table.querySelectorAll('thead tr').forEach(row => {
+    Array.from(row.children).forEach((h,i) => {
+      h.style.background = i===colIndex ? 'var(--green-pale)' : '';
+      h.style.color = i===colIndex ? 'var(--green-deep)' : '';
+    });
+  });
+  table.querySelectorAll('tbody tr').forEach(tr => {
+    if (tr.classList.contains('inline-sc-row')) return;
+    Array.from(tr.children).forEach((td,i) => {
+      td.style.background = i===colIndex ? 'var(--green-pale)' : '';
+    });
+  });
+}
+function _reapplySortHighlight(tableName) {
+  if (_activeSortTh[tableName]) _highlightSortedColumn(_activeSortTh[tableName]);
+}
 
 let db = loadDB();
 
@@ -2784,7 +2811,8 @@ function saveCancelledMatch() {
   saveDB(db);
   renderHome();
   document.getElementById('save-msg').innerHTML =
-    `<div class="alert alert-ok">&#10003; Saved: ${esc(opp)} (${document.getElementById('m-date').value}) &mdash; ${esc(document.getElementById('m-result').value||'Cancelled')}</div>`;
+    `<div class="alert alert-ok">&#10003; Saved: ${esc(opp)} (${document.getElementById('m-date').value}) &mdash; ${esc(document.getElementById('m-result').value||'Cancelled')}
+      &nbsp;<a href="#" onclick="showPage('matches', document.querySelector('nav button:nth-child(3)')); return false;" style="text-decoration:underline;font-weight:600;">Go to Matches &rarr;</a></div>`;
   setTimeout(() => { resetWizard(); }, 1200);
 }
 
@@ -3473,7 +3501,8 @@ function saveScorecard() {
     wasEdit ? 'Scorecard updated' : 'New scorecard entered'
   );
   document.getElementById('save-msg').innerHTML =
-    `<div class="alert alert-ok">&#10003; Saved: ${OUR_TEAM} vs ${opp} &mdash; ${document.getElementById('m-date').value}</div>`;
+    `<div class="alert alert-ok">&#10003; Saved: ${OUR_TEAM} vs ${opp} &mdash; ${document.getElementById('m-date').value}
+      &nbsp;<a href="#" onclick="showPage('matches', document.querySelector('nav button:nth-child(3)')); return false;" style="text-decoration:underline;font-weight:600;">Go to Matches &rarr;</a></div>`;
 
   setTimeout(() => {
     resetWizard();
@@ -4963,6 +4992,24 @@ function renderCupsSummary() {
     const w = countable.filter(m=>m.result==='Won').length;
     const l = countable.filter(m=>m.result==='Lost').length;
     const a = countable.filter(m=>m.result==='Abandoned').length;
+
+    // Result summary: whatever happened in the most recently-played round is
+    // how the campaign ended — e.g. "Lost in Round 2" — except winning the
+    // Final, which is called out as "Winners" instead of "Won in Final".
+    const lastMatch = rows[0];
+    const lastRound = roundOf(lastMatch, g.cup) || (lastMatch.format || '');
+    let resultText;
+    if (lastMatch.result === 'Won' && lastRound.toLowerCase() === 'final') {
+      resultText = 'Winners';
+    } else {
+      const RESULT_LABELS = {
+        'Won': 'Won', 'Lost': 'Lost', 'Abandoned': 'Abandoned', 'Bye': 'Bye',
+        'Opposition Conceded': 'Opposition conceded', 'Godshill Conceded': 'Conceded',
+      };
+      const label = RESULT_LABELS[lastMatch.result] || lastMatch.result;
+      resultText = lastRound ? `${label} in ${lastRound}` : label;
+    }
+
     const headerRow = `<tr class="${gi%2===0?'row-odd':'row-even'}">
       <td><a class="sc-toggle-link" id="cup-yr-link-${gi}" onclick="toggleCupYearRow(${gi})"
          style="cursor:pointer;font-weight:700;">${esc(g.year)}</a></td>
@@ -4971,8 +5018,9 @@ function renderCupsSummary() {
       <td class="num">${w}</td>
       <td class="num">${l}</td>
       <td class="num">${a}</td>
+      <td style="font-weight:${resultText==='Winners'?'700':'400'};color:${resultText==='Winners'?'var(--gold-dark, #b8860b)':'inherit'};">${esc(resultText)}</td>
     </tr>`;
-    const detailRow = `<tr id="cup-yr-detail-${gi}" class="cup-yr-detail-row" style="display:none;">      <td colspan="6" style="padding:0;">
+    const detailRow = `<tr id="cup-yr-detail-${gi}" class="cup-yr-detail-row" style="display:none;">      <td colspan="7" style="padding:0;">
         <div style="padding:12px 8px;background:var(--cream);">
           <table class="data-table" style="font-size:12px;width:100%;">
             <thead><tr><th>Round</th><th>Opposition</th><th>Result</th></tr></thead>
@@ -5062,7 +5110,7 @@ function populateStatFilters() {
       ...db.batting.filter(r=>r.team!==OUR_TEAM).map(r=>r.player),
       ...db.batting.map(r=>r.bowler).filter(Boolean),
       ...db.batting.map(r=>r.fielder).filter(Boolean),
-    ])].filter(n=>n&&!db.players.find(p=>p.name===n)).sort();
+    ])].filter(n=>n&&!isUnsure(n)&&!db.players.find(p=>p.name===n)).sort();
     fo.innerHTML = '<option value="">Any</option>' +
       oppPlayers.map(n=>`<option>${esc(n)}</option>`).join('');
   }
@@ -5191,6 +5239,7 @@ function renderBatTable(rows) {
       </tr>`).join('')
     : '<tr><td colspan="8" class="empty-state">No batting data</td></tr>';
   _renderPager('bat', rows.length, 8);
+  _reapplySortHighlight('stats_bat');
 }
 function renderBowlTable(rows) {
   const slice = _pageSlice('bowl', rows);
@@ -5203,6 +5252,7 @@ function renderBowlTable(rows) {
       </tr>`).join('')
     : '<tr><td colspan="9" class="empty-state">No bowling data</td></tr>';
   _renderPager('bowl', rows.length, 9);
+  _reapplySortHighlight('stats_bowl');
 }
 function renderFieldTable(rows) {
   const slice = _pageSlice('field', rows);
@@ -5213,6 +5263,7 @@ function renderFieldTable(rows) {
       </tr>`).join('')
     : '<tr><td colspan="5" class="empty-state">No fielding data</td></tr>';
   _renderPager('field', rows.length, 5);
+  _reapplySortHighlight('stats_field');
 }
 
 function renderMatchesStatsTable(rows) {
@@ -5223,6 +5274,7 @@ function renderMatchesStatsTable(rows) {
       </tr>`).join('')
     : '<tr><td colspan="2" class="empty-state">No matches data</td></tr>';
   _renderPager('matches', rows.length, 5);
+  _reapplySortHighlight('stats_matches');
 }
 
 function sortStats(table, key, colIdx) {
@@ -5250,6 +5302,7 @@ function sortStats(table, key, colIdx) {
       th.classList.remove('sort-asc','sort-desc');
       if (i===colIdx) th.classList.add(dir===1 ? 'sort-asc' : 'sort-desc');
     });
+    _activeSortTh['stats_'+table] = thead.querySelectorAll('th')[colIdx] || null;
   }
   if (table==='bat')   renderBatTable(rows);
   if (table==='bowl')  renderBowlTable(rows);
@@ -5704,6 +5757,7 @@ function renderPlayers() {
   ['name','matches','runs','wkts','years'].forEach(key => {
     const el = document.getElementById('psort-'+key);
     if (el) el.textContent = _playerSortKey===key ? (_playerSortDir===1?' ▲':' ▼') : '';
+    if (_playerSortKey===key) _activeSortTh.players = el?.closest('th');
   });
 
   const rows = data.map(({p, origIdx, runs, wkts, m, years}) =>
@@ -5729,6 +5783,7 @@ function renderPlayers() {
     : '<tr><td colspan="6"><div class="empty-state">No players registered yet</div></td></tr>';
   _mkPager('players-pager', cur, rows.length, psF, p=>{_matchPage.players=p;renderPlayers();});
   renderDuplicates();
+  _reapplySortHighlight('players');
 }
 
 function selectPlayer(idx) {
@@ -7678,7 +7733,7 @@ let _profBatData   = [];
 let _profBowlData  = [];
 let _profFieldData = [];
 
-function sortProfileBat(key) {
+function sortProfileBat(key, thEl) {
   const s = _profSort.bat;
   if (key === 'best') {
     // Best = most runs, then fewest balls used (not tracked), then chronological
@@ -7693,10 +7748,11 @@ function sortProfileBat(key) {
       return s.dir * ((av||0)-(bv||0));
     });
   }
+  _activeSortTh.profileBat = thEl || null;
   renderProfileBatTable(_profBatData);
 }
 
-function sortProfileBowl(key) {
+function sortProfileBowl(key, thEl) {
   const s = _profSort.bowl;
   if (key === 'best') {
     // Best = most wickets, then fewest runs, then fewest overs
@@ -7720,10 +7776,11 @@ function sortProfileBowl(key) {
       return s.dir * ((av||0)-(bv||0));
     });
   }
+  _activeSortTh.profileBowl = thEl || null;
   renderProfileBowlTable(_profBowlData);
 }
 
-function sortProfileField(key) {
+function sortProfileField(key, thEl) {
   const s = _profSort.field;
   if (key === 'best') {
     _profFieldData = [..._profFieldData].sort((a,b)=>
@@ -7740,6 +7797,7 @@ function sortProfileField(key) {
       return s.dir * ((av||0)-(bv||0));
     });
   }
+  _activeSortTh.profileField = thEl || null;
   renderProfileFieldTable(_profFieldData);
 }
 
@@ -7766,6 +7824,7 @@ function renderProfileBatTable(data) {
         </tr>`;}).join('')
     : '<tr><td colspan="6" class="empty-state">No batting data in range</td></tr>';
   _mkPager('profile-bat-pager', cur, data.length, _ppProfF, p=>{_profilePage.bat=p;renderProfileBatTable(_profPosFilter ? _profBatData.filter(r=>String(r.position||r.pos||'?')===_profPosFilter) : _profBatData);});
+  _reapplySortHighlight('profileBat');
 }
 
 function renderProfileBowlTable(data) {
@@ -7795,6 +7854,7 @@ function renderProfileBowlTable(data) {
       }).join('')
     : '<tr><td colspan="8" class="empty-state">No bowling data in range</td></tr>';
   _mkPager('profile-bowl-pager', cur, data.length, _ppProfF, p=>{_profilePage.bowl=p;renderProfileBowlTable(_profBowlData);});
+  _reapplySortHighlight('profileBowl');
 }
 
 function renderProfileFieldTable(data) {
@@ -7820,6 +7880,7 @@ function renderProfileFieldTable(data) {
         </tr>`;}).join('')
     : '<tr><td colspan="6" class="empty-state">No fielding data in range</td></tr>';
   _mkPager('profile-field-pager', cur, data.length, _ppProfF, p=>{_profilePage.field=p;renderProfileFieldTable(_profFieldData);});
+  _reapplySortHighlight('profileField');
 }
 
 // ── Stats page 100s / 5wi sorting ────────────────────────────────────────────
@@ -7839,6 +7900,7 @@ function sortStats100s(key, colIdx) {
   ['player','date','runs'].forEach(k=>{
     const el=document.getElementById('sort100s-'+k);
     if(el) el.textContent = k===key ? (_sort100s.dir===1?'▲':'▼') : '';
+    if (k===key) _activeSortTh.stats100s = el?.closest('th');
   });
   renderStats100sTable(_data100s);
 }
@@ -7850,6 +7912,7 @@ function sortStats5wi(key) {
       (oversToBalIs(a.overs)-oversToBalIs(b.overs))
     );
     _sort5wi.key='best'; _sort5wi.dir=1;
+    _activeSortTh.stats5wi = null;
   } else {
     _sort5wi.dir = (_sort5wi.key===key) ? -_sort5wi.dir : 1;
     _sort5wi.key = key;
@@ -7863,6 +7926,7 @@ function sortStats5wi(key) {
   ['player','date','overs','maidens','runs','wickets'].forEach(k=>{
     const el=document.getElementById('sort5wi-'+k);
     if(el) el.textContent = k===_sort5wi.key ? (_sort5wi.dir===1?'▲':'▼') : '';
+    if (k===_sort5wi.key) _activeSortTh.stats5wi = el?.closest('th');
   });
   renderStats5wiTable(_data5wi);
 }
@@ -7890,6 +7954,7 @@ function renderStats100sTable(data) {
         </tr>`;}).join('')
     : '<tr><td colspan="6" class="empty-state">No centuries recorded</td></tr>';
   _mkPager('stats-100s-pager', cur, data.length, ppF===Infinity?data.length+1:ppF, p=>{_statsPage['100s']=p;renderStats100sTable(_data100s);});
+  _reapplySortHighlight('stats100s');
 }
 
 function renderStats5wiTable(data) {
@@ -7916,6 +7981,7 @@ function renderStats5wiTable(data) {
         </tr>`;}).join('')
     : '<tr><td colspan="8" class="empty-state">No 5-wicket hauls recorded</td></tr>';
   _mkPager('stats-5wi-pager', cur, data.length, ppF===Infinity?data.length+1:ppF, p=>{_statsPage['5wi']=p;renderStats5wiTable(_data5wi);});
+  _reapplySortHighlight('stats5wi');
 }
 
 
@@ -8908,6 +8974,7 @@ function renderH2H() {
   ['opponent','played','won','lost','tied','draw','abandoned','cancelled','winpct','first','last'].forEach(key => {
     const el = document.getElementById('h2h-sort-'+key);
     if (el) el.textContent = _h2hSortKey===key ? (_h2hSortDir===1?' ▲':' ▼') : '';
+    if (_h2hSortKey===key) _activeSortTh.h2h = el?.closest('th');
   });
 
   _h2hOpenSc = {};
@@ -8943,6 +9010,7 @@ function renderH2H() {
         </tr>`;
       }).join('')
     : '<tr><td colspan="10" class="empty-state">No matches found</td></tr>';
+  _reapplySortHighlight('h2h');
 }
 
 let _h2hOpenSc    = {};
